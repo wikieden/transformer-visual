@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="index.html">从零读懂 Transformer</a>
+<a href="lessons/index.html">讲义目录</a>
+<a href="animations/index.html">动画</a>
+<a href="review.html">复习卡片</a>
+<a href="lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1>从零读懂 Transformer</h1>
+<p class="lead">从向量、点积讲起，一步步走到论文《Attention Is All You Need》第 3 节的完整 Transformer。共 24 章，每章配一个动画。</p>
+<p>每章的结构：本章回答的问题 → 讲解（白话类比 → 公式 → 例子）→ 练习与作答记录 → 口诀 → 复习卡片 → 延伸阅读。</p>
+<p><a class="btn" href="lessons/01-vector.html">从第 1 章开始</a><a class="btn" href="lessons/index.html">讲义目录</a><a class="btn" href="animations/index.html">全部动画</a><a class="btn" href="review.html">复习卡片</a><a class="btn" href="A0-basics-vector-dot-softmax.html">公式速查</a></p>
+<h2>怎么看</h2>
+<ul>
+<li><b>讲义</b>：每章正文里嵌着 GIF 动画，打开就能播放。</li>
+<li><b>可交互动画</b>：章节标题下的"打开本章可交互动画"，或点下面的卡片进入讲义后再打开。按钮：▶ 播放自动演示，→ 单步自己控制节奏，↺ 从头开始；有滑块的可以拖动参数。</li>
+<li><b>复习卡片</b>：先看问题自己答，再点开折叠的答案核对。</li>
+</ul>
+<h2>全部章节</h2>
+<div class="grid"><a class="card" href="lessons/01-vector.html"><img loading="lazy" src="animations/01-vector.gif" alt=""><span class="no">第 1 章</span><span class="t">向量 vector</span></a><a class="card" href="lessons/02-dot-product.html"><img loading="lazy" src="animations/02-dot-product.gif" alt=""><span class="no">第 2 章</span><span class="t">点积 dot product</span></a><a class="card" href="lessons/03-softmax-ratio.html"><img loading="lazy" src="animations/03-softmax-ratio.gif" alt=""><span class="no">第 3 章</span><span class="t">softmax（上）：把分数变成比例</span></a><a class="card" href="lessons/04-weighted-average.html"><img loading="lazy" src="animations/04-weighted-average.gif" alt=""><span class="no">第 4 章</span><span class="t">按比例取信息：加权平均</span></a><a class="card" href="lessons/05-power-and-e.html"><img loading="lazy" src="animations/05-power-and-e.gif" alt=""><span class="no">第 5 章</span><span class="t">次方与 e</span></a><a class="card" href="lessons/06-softmax-exp.html"><img loading="lazy" src="animations/06-softmax-exp.gif" alt=""><span class="no">第 6 章</span><span class="t">softmax（下）：为什么要先套 e^x</span></a><a class="card" href="lessons/07-saturation.html"><img loading="lazy" src="animations/07-saturation.gif" alt=""><span class="no">第 7 章</span><span class="t">softmax 饱和</span></a><a class="card" href="lessons/08-sqrt-dk.html"><img loading="lazy" src="animations/08-sqrt-dk.gif" alt=""><span class="no">第 8 章</span><span class="t">为什么除以 √d_k</span></a><a class="card" href="lessons/09-qkv.html"><img loading="lazy" src="animations/09-qkv.gif" alt=""><span class="no">第 9 章</span><span class="t">Q、K、V 分别是什么</span></a><a class="card" href="lessons/10-matrix-transform.html"><img loading="lazy" src="animations/10-matrix-transform.gif" alt=""><span class="no">第 10 章</span><span class="t">转换与矩阵：Q、K、V 是怎么变出来的</span></a><a class="card" href="lessons/11-matrix-qk.html"><img loading="lazy" src="animations/11-matrix-qk.gif" alt=""><span class="no">第 11 章</span><span class="t">大写的 Q、K、V：一次算出所有分数</span></a><a class="card" href="lessons/12-transpose-formula.html"><img loading="lazy" src="animations/12-transpose-formula.gif" alt=""><span class="no">第 12 章</span><span class="t">转置与公式 1 完整走一遍</span></a><a class="card" href="lessons/13-multi-head.html"><img loading="lazy" src="animations/13-multi-head.gif" alt=""><span class="no">第 13 章</span><span class="t">多头注意力 multi-head attention</span></a><a class="card" href="lessons/14-positional-encoding.html"><img loading="lazy" src="animations/14-positional-encoding.gif" alt=""><span class="no">第 14 章</span><span class="t">位置编码 positional encoding</span></a><a class="card" href="lessons/15-sin-cos.html"><img loading="lazy" src="animations/15-sin-cos.gif" alt=""><span class="no">第 15 章</span><span class="t">sin 和 cos：圆上转圈</span></a><a class="card" href="lessons/16-multi-clock.html"><img loading="lazy" src="animations/16-multi-clock.gif" alt=""><span class="no">第 16 章</span><span class="t">位置编码（下）：多档时钟</span></a><a class="card" href="lessons/17-causal-mask.html"><img loading="lazy" src="animations/17-causal-mask.gif" alt=""><span class="no">第 17 章</span><span class="t">因果 mask：不许偷看后面的词</span></a><a class="card" href="lessons/18-residual.html"><img loading="lazy" src="animations/18-residual.gif" alt=""><span class="no">第 18 章</span><span class="t">残差连接：输出 = 输入 + 子层(输入)</span></a><a class="card" href="lessons/19-layernorm.html"><img loading="lazy" src="animations/19-layernorm.gif" alt=""><span class="no">第 19 章</span><span class="t">LayerNorm：把每个词的数字调到统一范围</span></a><a class="card" href="lessons/20-ffn.html"><img loading="lazy" src="animations/20-ffn.gif" alt=""><span class="no">第 20 章</span><span class="t">前馈网络 FFN：每个词回到自己座位上消化</span></a><a class="card" href="lessons/21-transformer-layer.html"><img loading="lazy" src="animations/21-transformer-layer.gif" alt=""><span class="no">第 21 章</span><span class="t">拼装：一个 Transformer 层；encoder / decoder 全图；三种 attention</span></a><a class="card" href="lessons/22-embedding-softmax.html"><img loading="lazy" src="animations/22-embedding-softmax.gif" alt=""><span class="no">第 22 章</span><span class="t">输入 embedding 与输出 softmax：词怎么变成向量，向量怎么变回词</span></a><a class="card" href="lessons/23-complexity.html"><img loading="lazy" src="animations/23-complexity.gif" alt=""><span class="no">第 23 章</span><span class="t">复杂度：为什么 attention 是 n²，长文本为什么难</span></a><a class="card" href="lessons/24-wrap-up.html"><img loading="lazy" src="animations/24-wrap-up.gif" alt=""><span class="no">第 24 章</span><span class="t">收尾：数参数、warmup 学习率、对照原文通读 §3</span></a></div>
+
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

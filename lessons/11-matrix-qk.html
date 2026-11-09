@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 11 章 · 大写的 Q、K、V：一次算出所有分数 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="11-qkv">第 11 章 · 大写的 Q、K、V：一次算出所有分数</h1><p><a class="btn" href="../animations/11-matrix-qk.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：公式里的大写 Q、K、V 是什么？<span class="arithmatex">\(QK^\top\)</span> 算出来的是什么？<br />
+讲解日期：2026-10-26 · 上一章：<a href="../lessons/10-matrix-transform.html">第 10 章 转换与矩阵</a> · 下一章：<a href="../lessons/12-transpose-formula.html">第 12 章 转置与完整公式</a><br />
+对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.2.1，L170–L176（"packed together into a matrix"）<br />
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；GPU = Graphics Processing Unit（图形处理器，显卡）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="vs">小写 vs 大写</h3>
+<ul>
+<li>小写 <span class="arithmatex">\(\mathbf q\)</span>：<strong>一个词</strong>的 query 向量</li>
+<li>大写 <span class="arithmatex">\(Q\)</span>：<strong>所有词</strong>的 q 排在一起，<strong>每一行是一个词的 q</strong></li>
+</ul>
+<p>一句话有 3 个词（小明、小红、她），每个 q 有 2 个数：</p>
+<div class="arithmatex">\[Q=\begin{bmatrix}1 &amp; 0\\ 0 &amp; 1\\ 0 &amp; 2\end{bmatrix}\ \begin{matrix}\leftarrow\text{小明}\\ \leftarrow\text{小红}\\ \leftarrow\text{她}\end{matrix}\]</div>
+<p><span class="arithmatex">\(Q\)</span> 是 3 行 × 2 列：行数 = 词数（记作 <span class="arithmatex">\(n\)</span>），列数 = 每个 q 的长度（<span class="arithmatex">\(d_k\)</span>）。<span class="arithmatex">\(K\)</span>、<span class="arithmatex">\(V\)</span> 同理。</p>
+<p><strong>为什么要排成矩阵</strong>：一个一个词算太慢；排成矩阵后，一次矩阵乘法就算完所有词，GPU 最擅长这个。</p>
+<h3 id="_2">分数表：每个词对每个词打分</h3>
+<p>设三个词的 k：小明 [1, 0]，小红 [0, 2]，她 [1, 1]。每个词的 q 要和<strong>每个词</strong>的 k 做点积，得到一张 3 × 3 的分数表（行 = 谁去找，列 = 被找的是谁）：</p>
+<table>
+<thead>
+<tr>
+<th>q ↓ \ k →</th>
+<th>小明</th>
+<th>小红</th>
+<th>她</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>小明 [1, 0]</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>小红 [0, 1]</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>她 [0, 2]</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>例：小明那一行：[1,0]·[1,0] = 1，[1,0]·[0,2] = 0，[1,0]·[1,1] = 1。</p>
+<p><strong><span class="arithmatex">\(QK^\top\)</span> 算出来的就是这张表。</strong> 第 i 行第 j 列 = 第 i 个词的 q 和第 j 个词的 k 的点积。（<span class="arithmatex">\(^\top\)</span> 是什么，见<a href="../lessons/12-transpose-formula.html">第 12 章</a>。）</p>
+<h2 id="3-3">动画演示：一行一行填满 3 × 3 分数表</h2>
+<p><img alt="分数表 QKᵀ" src="../animations/11-matrix-qk.gif" /></p>
+<p>可交互版：<a href="../animations/11-matrix-qk.html">animations/11-matrix-qk.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"）。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>Q、K 每一行是一个词；</li>
+<li>小明、小红、她三行依次和每个 k 做点积，填进分数表；</li>
+<li>她那一行 [0, 4, 2]：她最该看小红；</li>
+<li>滑块：选一格，高亮是哪个 q 和哪个 k 做的点积。</li>
+</ol>
+<h2 id="_3">练习与作答记录</h2>
+<p><strong>题 0</strong>：大写 Q 和小写 q 是什么关系？</p>
+<p><strong>作答</strong>："每个词都有自己的，大写表示集合。" ✓（精确说法：大写 Q 是矩阵，每一行是一个词的 q）</p>
+<p><strong>题 1</strong>：算出"她"那一行的 3 个分数。</p>
+<p><strong>作答</strong>：讲解时选择跳过，直接进入下一章；留作复习题 <strong>R20</strong>（答案折叠在卡片里）。</p>
+<h2 id="_4">本章复习卡片</h2>
+<p>R19 大写 Q 与小写 q · R20 <span class="arithmatex">\(QK^\top\)</span> 分数表（含跳过的练习）（见 <a href="../review.html">../review.md</a>）</p>
+<h2 id="_5">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_6">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>§3.2.1，L170–L176</td>
+<td>原文"packed together into a matrix"：所有词一起算</td>
+</tr>
+<tr>
+<td>★ CS336 a1 handout</td>
+<td>§3.3 Batching, Einsum and Efficient Computation</td>
+<td>为什么要排成矩阵、怎么用 einsum 写 <span class="arithmatex">\(QK^\top\)</span></td>
+</tr>
+<tr>
+<td>Attention Is All You Need</td>
+<td>Table 1（L263）</td>
+<td>分数表是 n × n，所以计算量随长度平方增长（第 23 章）</td>
+</tr>
+<tr>
+<td>Dao et al. 2022, FlashAttention</td>
+<td>§2.2 Standard Attention Implementation、Algorithm 0</td>
+<td>n × n 的分数表在显存里读写，是真正的速度瓶颈（阶段 E）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_7">数学原理</h3>
+<ul>
+<li><strong>矩阵乘法</strong>：结果第 i 行第 j 列 = 左边第 i 行和右边第 j 列的点积。</li>
+<li><strong>分数表</strong>：<span class="arithmatex">\(QK^\top\)</span> 的第 i 行第 j 列 = 第 i 个词的 q 和第 j 个词的 k 的点积，也就是"第 i 个词看第 j 个词"的分数。</li>
+<li><strong>为什么排成矩阵快</strong>：GPU 擅长一次做一大块矩阵乘法，比一个一个词循环快很多。</li>
+</ul>
+<h3 id="_8">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(Q = XW^Q \in \mathbb{R}^{n \times d_k}\)</span></td>
+<td>n 个词的 q 排成 n 行</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\((AB)_{ij} = \sum_k A_{ik} B_{kj}\)</span></td>
+<td>矩阵乘法</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(S = QK^\top \in \mathbb{R}^{n \times n},\ S_{ij} = \mathbf q_i \cdot \mathbf k_j\)</span></td>
+<td>分数表</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="10-matrix-transform.html">← 第 10 章 · 转换与矩阵：Q、K、V 是怎么变出来的</a><a href="12-transpose-formula.html">第 12 章 · 转置与公式 1 完整走一遍 →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 6 章 · softmax（下）：为什么要先套 e^x · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="6-softmax-ex">第 6 章 · softmax（下）：为什么要先套 <span class="arithmatex">\(e^{x}\)</span></h1><p><a class="btn" href="../animations/06-softmax-exp.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：既然"除以总分"就能得到比例，softmax 为什么还要多套一步 <span class="arithmatex">\(e^{x}\)</span>？<br />
+讲解日期：2026-10-26 · 上一章：<a href="../lessons/05-power-and-e.html">第 5 章 次方与 e</a> · 下一章：<a href="../lessons/07-saturation.html">第 7 章 softmax 饱和</a><br />
+本章缩写：<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；exp = exponential（指数）：exp(x) = eˣ；RNN = Recurrent Neural Network（循环神经网络）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">公式</h2>
+<div class="arithmatex">\[p_j = \frac{e^{s_j}}{\sum_k e^{s_k}}\]</div>
+<p>读作：<strong>p_j 等于 e 的 s_j 次方，除以所有 e 的 s_k 次方之和。</strong> 和朴素版（第 3 章）唯一的区别：每个分数先变成 <span class="arithmatex">\(e^{\text{分数}}\)</span>，再除以总和。</p>
+<h2 id="_2">讲解</h2>
+<h3 id="1">原因 1：分数可能是负数</h3>
+<p>点积可以算出负数（某些位置一正一负，乘出来是负的）。假设分数是：</p>
+<table>
+<thead>
+<tr>
+<th>词</th>
+<th>分数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>小明</td>
+<td>2</td>
+</tr>
+<tr>
+<td>苹果</td>
+<td><strong>−1</strong></td>
+</tr>
+<tr>
+<td>小红</td>
+<td>5</td>
+</tr>
+</tbody>
+</table>
+<p>朴素版：总分 6，苹果 = −1 ÷ 6 ≈ <strong>−0.167</strong>，注意力是负的。但注意力只能"多看"或"少看"，最少就是"不看"（0），不可能"负着看"。另外，分数总和恰好为 0 时还会除以 0。</p>
+<p><span class="arithmatex">\(e^{x}\)</span> 永远是正数（第 5 章），先套上再除以总和，比例一定在 0 到 1 之间：</p>
+<table>
+<thead>
+<tr>
+<th>词</th>
+<th>分数</th>
+<th><span class="arithmatex">\(e^{x}\)</span></th>
+<th>比例（÷156.17）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>小明</td>
+<td>2</td>
+<td>7.389</td>
+<td>0.047</td>
+</tr>
+<tr>
+<td>苹果</td>
+<td>−1</td>
+<td>0.368</td>
+<td>0.002</td>
+</tr>
+<tr>
+<td>小红</td>
+<td>5</td>
+<td>148.413</td>
+<td>0.950</td>
+</tr>
+<tr>
+<td>合计</td>
+<td></td>
+<td>156.170</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2">原因 2：拉开差距</h3>
+<p>分数每多 1，<span class="arithmatex">\(e^{x}\)</span> 就多乘一次 2.718。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>小红</th>
+<th>小明</th>
+<th>小红是小明的几倍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原始分数</td>
+<td>5</td>
+<td>2</td>
+<td>2.5 倍</td>
+</tr>
+<tr>
+<td>套 <span class="arithmatex">\(e^{x}\)</span> 后</td>
+<td>148.4</td>
+<td>7.4</td>
+<td>≈ 20 倍</td>
+</tr>
+</tbody>
+</table>
+<p>只差 3 分，套上后差了 <span class="arithmatex">\(e^3\approx20\)</span> 倍。<strong>高分更高，低分相对更低。</strong> 同一组分数 [2, 1, 5]：</p>
+<table>
+<thead>
+<tr>
+<th>词</th>
+<th>朴素版比例</th>
+<th>softmax 比例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>小明</td>
+<td>25%</td>
+<td>4.7%</td>
+</tr>
+<tr>
+<td>苹果</td>
+<td>12.5%</td>
+<td>1.7%</td>
+</tr>
+<tr>
+<td>小红</td>
+<td>62.5%</td>
+<td><strong>93.6%</strong></td>
+</tr>
+</tbody>
+</table>
+<p>代入第 4 章的取信息（小红的信息向量是 [10, 10]）：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>朴素版</th>
+<th>softmax</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"她"的新向量</td>
+<td>[6.25, 8.75]</td>
+<td><strong>[9.36, 9.83]</strong></td>
+</tr>
+<tr>
+<td>离小红 [10, 10]</td>
+<td>比较远</td>
+<td>几乎一样</td>
+</tr>
+</tbody>
+</table>
+<p>朴素版里"她"有 37.5% 的信息来自小明和苹果，混进了不相关的东西；softmax 里"她"几乎完全变成"小红"。</p>
+<h3 id="_3">小结</h3>
+<p>套 <span class="arithmatex">\(e^{x}\)</span> 的两个原因：</p>
+<ol>
+<li><strong>保证比例都是正数</strong>（不会出现负的注意力）</li>
+<li><strong>拉开差距</strong>（让注意力集中在相关的词上）</li>
+</ol>
+<h2 id="ex">动画演示：负分数会出错；套 eˣ 后都是正数，还拉开差距</h2>
+<p><img alt="softmax 为什么套 eˣ" src="../animations/06-softmax-exp.gif" /></p>
+<p>可交互版：<a href="../animations/06-softmax-exp.html">animations/06-softmax-exp.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"）。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>分数 [2, −1, 5]：朴素版算出苹果 −0.167，注意力是负的（原因 1）；</li>
+<li>先套 <span class="arithmatex">\(e^x\)</span>：7.389、0.368、148.4，全是正数，再除以总和；</li>
+<li>同一组 [2, 1, 5]：朴素版小红 62.5%，softmax 93.6%（原因 2，拉开差距）；</li>
+<li>滑块：拖苹果的分数，上面朴素版一变负就出错，下面 softmax 永远正常。</li>
+</ol>
+<h2 id="_4">练习与作答记录</h2>
+<p><strong>题 1</strong>：分数 [2, −1, 5]，用朴素版算苹果的比例，有什么奇怪的地方？</p>
+<p><strong>作答</strong>："−1 占比是负的，但是实际上不可能。" ✓</p>
+<p><strong>题 2</strong>：朴素版 62.5% 和 softmax 93.6%，判断"她"指谁时哪个更好？为什么？</p>
+<p><strong>作答</strong>："因为有效的部分被放大比例。" ✓</p>
+<p><strong>点评</strong>：说到点子上了。补充另一半：无关的部分（苹果）同时被压小，取信息时几乎不混进来。</p>
+<h2 id="_5">本章复习卡片</h2>
+<p>R08 softmax 公式 + 原因 1 · R11 原因 2（见 <a href="../review.html">review.md</a>）</p>
+<h2 id="_6">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_7">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ CS336 a1 handout</td>
+<td>§3.5.4 式 (10) 及其后一段（L1137–L1147）</td>
+<td>作业里的 softmax：先减去最大值，防止溢出</td>
+</tr>
+<tr>
+<td>★ Milakov &amp; Gimelshein 2018, Online Normalizer Calculation for Softmax</td>
+<td>Algorithm 1–3</td>
+<td>从朴素 softmax → 安全 softmax → 边读边算的 online softmax；FlashAttention 的基础（阶段 E）</td>
+</tr>
+<tr>
+<td>Goodfellow《Deep Learning》</td>
+<td>§4.1 Overflow and Underflow、§6.2.2.3 Softmax Units</td>
+<td>softmax 的数值稳定性</td>
+</tr>
+<tr>
+<td>Katharopoulos et al. 2020, Transformers are RNNs</td>
+<td>§3.2 Linearized Attention</td>
+<td>如果不用 <span class="arithmatex">\(e^{x}\)</span>，换成别的函数会怎样（阶段 F 线性注意力）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_8">数学原理</h3>
+<ul>
+<li><strong>平移不变</strong>：所有分数同时加或减同一个数，softmax 结果不变。所以实现时先减去最大值，避免 <span class="arithmatex">\(e^{x}\)</span> 太大溢出。</li>
+<li><strong>比例只看差值</strong>：两个词的比例之比，只取决于它们分数的差，和分数本身多大无关。</li>
+<li><strong>温度 temperature</strong>：分数先除以 T 再 softmax。T 小 → 差距更大（更"尖"）；T 大 → 更平均。第 8 章的 <span class="arithmatex">\(\sqrt{d_k}\)</span> 本质上就是一个固定的温度。</li>
+<li><strong>log-sum-exp</strong>：softmax 分母取对数，是交叉熵 loss 和 online softmax 的核心。</li>
+</ul>
+<h3 id="_9">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(p_i = \frac{e^{s_i}}{\sum_j e^{s_j}}\)</span></td>
+<td>softmax</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{softmax}(\mathbf s + c) = \text{softmax}(\mathbf s)\)</span></td>
+<td>平移不变</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\frac{p_i}{p_j} = e^{s_i - s_j}\)</span></td>
+<td>比例之比只看分数差</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(p_i = \frac{e^{s_i / T}}{\sum_j e^{s_j / T}}\)</span></td>
+<td>带温度的 softmax</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\log p_i = s_i - \log \sum_j e^{s_j}\)</span></td>
+<td>log-softmax（log-sum-exp）</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="05-power-and-e.html">← 第 5 章 · 次方与 e</a><a href="07-saturation.html">第 7 章 · softmax 饱和 →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

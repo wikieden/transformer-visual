@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 20 章 · 前馈网络 FFN：每个词回到自己座位上消化 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="20-ffn">第 20 章 · 前馈网络 FFN：每个词回到自己座位上消化</h1><p><a class="btn" href="../animations/20-ffn.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：attention 子层之后，每层还有第二个子层 FFN。它做什么？为什么说它是"逐个位置"的？它的公式、尺寸是什么？现在的大模型把它改成了什么样？<br />
+讲解日期：2026-11-06 起 · 上一章：<a href="../lessons/19-layernorm.html">第 19 章 LayerNorm</a> · 下一章：<a href="../lessons/21-transformer-layer.html">第 21 章 拼装：一个 Transformer 层</a><br />
+对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.3，L240–L251；CS336 handout §3.5.2（L1004 起）<br />
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；<span class="arithmatex">\(d_{ff}\)</span>：ff = feed-forward，FFN 中间层有几个数（2048）；FFN = Feed-Forward Network（前馈网络）；LayerNorm / LN = Layer Normalization（层归一化）；RMSNorm = Root Mean Square Normalization（均方根归一化）；ReLU = Rectified Linear Unit（整流线性单元）；sigmoid（σ）= "S 形的"：把任何数压到 0 到 1 之间；SiLU = Sigmoid Linear Unit（又叫 Swish）：x × σ(x)；GLU = Gated Linear Unit（带闸门的线性单元）；SwiGLU = Swish + GLU；⊙ = element-wise product（逐个相乘，又叫 Hadamard 积）；max = maximum（取最大）；GPT = Generative Pre-trained Transformer（生成式预训练 Transformer）；LLaMA = Large Language Model Meta AI（Meta 的开源大模型）；PaLM = Pathways Language Model（Google 的大模型）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="ffn-2026-11-06">第一步：开完会，每个人回自己座位消化：FFN 是"逐个位置"的（2026-11-06）</h3>
+<p><strong>接第 18 章</strong>：论文 L129–L131 说，每一层有两个子层：第一个是 multi-head self-attention，第二个是 "a simple, position-wise fully connected feed-forward network"，就是本章的 FFN。两个子层外面都套着残差（第 18 章）和 LayerNorm（第 19 章）。</p>
+<p><strong>类比：开会，然后回座位消化。</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>做什么</th>
+<th>看不看别人</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>attention（第 4–13 章）</td>
+<td><strong>开会</strong>：每个词去听别的词说了什么，把有用的信息拿过来</td>
+<td><strong>看</strong>：一个词的结果取决于整句话</td>
+</tr>
+<tr>
+<td>FFN（本章）</td>
+<td><strong>回座位消化</strong>：每个词拿着开会记下的东西，自己琢磨、加工</td>
+<td><strong>不看</strong>：只用自己这一个词的 512 个数</td>
+</tr>
+</tbody>
+</table>
+<p>CS336 handout L660–L662 就是这样分工的：每个 block 用 self-attention "aggregates information across the sequence"（在整句里汇集信息），用 feed-forward "non-linearly transforms it"（把信息加工一遍）。</p>
+<p><strong>"position-wise"（逐个位置）是什么意思</strong></p>
+<p>论文 L242–L244：FFN "is applied to each position separately and identically"。这句话有两个关键词：</p>
+<ul>
+<li><strong>separately（分别）</strong>："狗""咬""人"三个词，一个一个送进 FFN，互不影响。"狗"的结果只看"狗"自己的向量。</li>
+<li><strong>identically（一样地）</strong>：三个词用的是<strong>同一个</strong> FFN、同一套参数。好比全班用同一套解题方法，各做各的卷子。</li>
+</ul>
+<p>L248–L249 再补一句：同一层里各个位置的参数相同，但<strong>不同层</strong>的 FFN 参数不同（"they use different parameters from layer to layer"）。第 1 层的 FFN 和第 2 层的 FFN 是两套。</p>
+<p>CS336 handout L678–L679 也说，RMSNorm 和 feed-forward 这类"position-wise"操作，对句子里每个位置做的事完全一样。第 19 章的 LayerNorm 也是这样：每个词只用自己的数算 μ、σ。</p>
+<p><strong>名字</strong>：FFN = Feed-Forward Network（前馈网络），feed-forward 的意思是数据<strong>只往前送</strong>：进来、算一遍、出去，不绕回头。</p>
+<p><strong>一句话</strong>：attention 让词和词之间交换信息；FFN 让每个词拿着换来的信息，用同一套方法各自加工一遍。</p>
+<h3 id="ffn-relu2026-11-06">第二步：FFN 的公式，从里往外读；新工具 ReLU（2026-11-06）</h3>
+<p>论文 Eq. (2)（L246）：</p>
+<div class="arithmatex">\[\text{FFN}(x) = \max(0,\ xW_1 + b_1)\,W_2 + b_2\]</div>
+<p>L244 说它是 "two linear transformations with a ReLU activation in between"：<strong>两次转换，中间夹一个 ReLU</strong>。和第 19 章算 pre-LN 一样，从括号最里面往外读：</p>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>式子</th>
+<th>做什么</th>
+<th>学过吗</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>①</td>
+<td><span class="arithmatex">\(xW_1 + b_1\)</span></td>
+<td>第一次转换：词向量乘矩阵 <span class="arithmatex">\(W_1\)</span>，再加一串数 <span class="arithmatex">\(b_1\)</span></td>
+<td>乘矩阵就是第 10 章的 <span class="arithmatex">\(\mathbf q = \mathbf x W^Q\)</span></td>
+</tr>
+<tr>
+<td>②</td>
+<td><span class="arithmatex">\(\max(0,\ \cdot\ )\)</span></td>
+<td><strong>ReLU</strong>：负数变成 0，正数不动</td>
+<td>新的，下面讲</td>
+</tr>
+<tr>
+<td>③</td>
+<td><span class="arithmatex">\((\dots)W_2 + b_2\)</span></td>
+<td>第二次转换：再乘矩阵 <span class="arithmatex">\(W_2\)</span>，再加 <span class="arithmatex">\(b_2\)</span></td>
+<td>同 ①</td>
+</tr>
+</tbody>
+</table>
+<p><strong><span class="arithmatex">\(b_1\)</span>、<span class="arithmatex">\(b_2\)</span> 是什么</strong>：b 是 bias（偏置），每个位置加一个数，作用像第 19 章的 β：整体挪一挪。它和 <span class="arithmatex">\(W_1\)</span>、<span class="arithmatex">\(W_2\)</span> 一样是训练时学出来的。</p>
+<p><strong>新工具：ReLU（Rectified Linear Unit）</strong></p>
+<div class="arithmatex">\[\text{ReLU}(z) = \max(0, z)\]</div>
+<p><span class="arithmatex">\(\max(0, z)\)</span> 的意思是：0 和 z 两个里取大的那个。</p>
+<ul>
+<li>z 是正数：z 比 0 大，取 z，<strong>原样通过</strong>。max(0, 3) = 3</li>
+<li>z 是负数：0 比 z 大，取 0，<strong>变成 0</strong>。max(0, −2) = 0</li>
+<li>z 是 0：两个一样，结果是 0</li>
+</ul>
+<p><strong>类比：门卫只放正数进门。</strong> 正数照常进，负数一律拦下、记成 0。</p>
+<p>对一串数做 ReLU，就是<strong>每个数各自过一次门</strong>（和第 19 章乘 γ 一样，一个格子一个格子算）：</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>第 ① 步算出的数</th>
+<th>ReLU 后</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>3</td>
+<td>3</td>
+</tr>
+<tr>
+<td>2</td>
+<td>−1</td>
+<td>0</td>
+</tr>
+<tr>
+<td>3</td>
+<td>0.5</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>4</td>
+<td>−2</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p><strong>一句话</strong>：FFN = 转换一次 → 过 ReLU（负数变 0）→ 再转换一次。</p>
+<h3 id="relu-2026-11-06">插问：ReLU 这个词怎么来的（2026-11-06）</h3>
+<p><strong>ReLU = Rectified Linear Unit</strong>，三个词各管一块：</p>
+<table>
+<thead>
+<tr>
+<th>词</th>
+<th>中文</th>
+<th>在 ReLU 里指什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Rectified</strong></td>
+<td>整流（"改正、弄直"）</td>
+<td>来自电学：整流器把交流电里<strong>反方向（负）的那一半截掉</strong>，只让正向电流通过。ReLU 也是把负数截成 0</td>
+</tr>
+<tr>
+<td><strong>Linear</strong></td>
+<td>线性（画出来是直线）</td>
+<td>正数那一半原样输出：<span class="arithmatex">\(y = z\)</span>，是一条直线</td>
+</tr>
+<tr>
+<td><strong>Unit</strong></td>
+<td>单元</td>
+<td>神经网络里一个计算单元（一个"神经元"）。2048 个数，每个数就是一个单元，各自过一次 ReLU</td>
+</tr>
+</tbody>
+</table>
+<p>连起来：<strong>把负的一半截掉、正的一半保持直线的计算单元</strong>。画出来是一条折线：左边贴着 0 平躺，过了 0 往右上斜着走。</p>
+<pre><code> y
+ │        ╱
+ │      ╱
+ │    ╱
+─┼──●──────── z
+ 0 （左边全是 0）
+</code></pre>
+<p><strong>顺带把本章其他缩写补全</strong>：</p>
+<ul>
+<li><strong>FFN = Feed-Forward Network</strong>，前馈网络：Feed（送）+ Forward（往前）+ Network（网络），数据只往前送、不回头（第一步）。</li>
+<li><span class="arithmatex">\(d_{ff}\)</span> 里的 <strong>ff</strong> 就是 <strong>feed-forward</strong>：<span class="arithmatex">\(d_{ff}\)</span> = FFN 中间那层有几个数（第三步）；<span class="arithmatex">\(d_{model}\)</span> 是模型里每个词向量有几个数。</li>
+<li><strong>GPT = Generative Pre-trained Transformer</strong>，生成式（Generative）、预训练（Pre-trained）的 Transformer（题 3 会用到 GPT-2）。</li>
+</ul>
+<h3 id="512-2048-5122026-11-06">第三步：尺寸：512 → 2048 → 512，先摊开再收回（2026-11-06）</h3>
+<p>论文 L250–L251："The dimensionality of input and output is <span class="arithmatex">\(d_{model}\)</span> = 512, and the inner-layer has dimensionality <span class="arithmatex">\(d_{ff}\)</span> = 2048"。输入、输出都是 512 个数，中间那层是 <strong>2048</strong> 个数。</p>
+<p><strong>回忆第 10 章</strong>：<span class="arithmatex">\(\mathbf q = \mathbf x W^Q\)</span>，<span class="arithmatex">\(W^Q\)</span> 是 512 行 × 64 列，512 个数进去、64 个数出来。规律是：<strong>矩阵的行数 = 进去几个数，列数 = 出来几个数</strong>。</p>
+<p>套到 FFN 上：</p>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>进去</th>
+<th>矩阵</th>
+<th>出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① <span class="arithmatex">\(xW_1 + b_1\)</span></td>
+<td>512 个数</td>
+<td><span class="arithmatex">\(W_1\)</span>：<strong>512 行 × 2048 列</strong></td>
+<td>2048 个数</td>
+</tr>
+<tr>
+<td>② ReLU</td>
+<td>2048 个数</td>
+<td>没有矩阵，逐个过门</td>
+<td>2048 个数（负的变 0）</td>
+</tr>
+<tr>
+<td>③ <span class="arithmatex">\((\dots)W_2 + b_2\)</span></td>
+<td>2048 个数</td>
+<td><span class="arithmatex">\(W_2\)</span>：<strong>2048 行 × 512 列</strong></td>
+<td>512 个数</td>
+</tr>
+</tbody>
+</table>
+<p><strong>类比：摊开草稿纸，算完再誊回答题卡。</strong> 答题卡只有 512 格（<span class="arithmatex">\(d_{model}\)</span>）；回座位消化时，先摊开一张 2048 格的大草稿纸（<span class="arithmatex">\(d_{ff}\)</span>），在上面展开、过滤（ReLU），最后把结论誊回 512 格。</p>
+<p><strong>为什么最后必须回到 512</strong>：第 18 章（R48）讲过，残差要做 <span class="arithmatex">\(x + \text{FFN}(x)\)</span>，两个向量对位相加，必须一样长。</p>
+<p><strong>为什么中间是 2048</strong>：2048 = 512 × 4。CS336 handout L1022–L1024：中间层的宽度 "is typically 4x the input dimensionality"，一般是输入的 4 倍。草稿纸越大，能展开的"特征"越多，这是论文定下的经验值。</p>
+<p><strong>附带一个数字</strong>：<span class="arithmatex">\(W_1\)</span> 有 512 × 2048 ≈ 105 万个数，<span class="arithmatex">\(W_2\)</span> 也一样，一个 FFN 约 210 万个参数。第 10 章的 <span class="arithmatex">\(W^Q\)</span> 只有 512 × 64 ≈ 3.3 万个。所以一层里的大部分参数都在 FFN 里。</p>
+<p><strong>一句话</strong>：FFN 先把 512 个数摊开成 2048 个（4 倍），过 ReLU，再收回 512 个，好和残差相加。</p>
+<h3 id="relu2026-11-06">第四步：为什么中间非要夹一个 ReLU？（2026-11-06）</h3>
+<p><strong>先看不夹 ReLU 会怎样。</strong> 为了好算，把向量换成一个数、矩阵换成一个数：第一次转换"× 2"，第二次转换"× 3"。</p>
+<ul>
+<li>先 × 2，再 × 3：x = 1 → 2 → <strong>6</strong>；x = 5 → 10 → <strong>30</strong></li>
+<li>直接 × 6：x = 1 → <strong>6</strong>；x = 5 → <strong>30</strong></li>
+</ul>
+<p>一模一样。<strong>连着做两次转换，等于做一次转换</strong>（× 2 再 × 3 = × 6）。矩阵也是这样：<span class="arithmatex">\(xW_1W_2 = x(W_1W_2)\)</span>，两个矩阵可以先乘成一个（加上 b 也一样，只是多加一个数）。那摊开到 2048 再收回来，就白折腾了：效果和一个 512 × 512 的矩阵没区别。</p>
+<p><strong>类比：两次换汇。</strong> 人民币先换美元、再换欧元，等于直接按一个汇率换成欧元。只要每一步都是"乘一个固定的数"，连着换几次都只相当于一次。</p>
+<p><strong>夹一个 ReLU 就不一样了</strong>：<span class="arithmatex">\(3 \times \max(0,\ 2x)\)</span></p>
+<ul>
+<li>x = 1：2 × 1 = 2 → ReLU 还是 2 → × 3 = <strong>6</strong></li>
+<li>x = −1：2 × (−1) = −2 → ReLU 变成 <strong>0</strong> → × 3 = <strong>0</strong></li>
+</ul>
+<p>正数时像"× 6"，负数时直接是 0。<strong>找不到一个固定的数，乘上去能同时得到这两个结果。</strong> ReLU 在中间做了一个"如果……就……"的判断：正的放过去、负的拦下。这种判断，光靠乘矩阵做不出来。</p>
+<p><strong>名字</strong>：只会"乘一个数、加一个数"的叫<strong>线性</strong>（linear，画出来是直线）；ReLU 这种拐了个弯的叫<strong>非线性</strong>（non-linear）。CS336 handout L660–L662 说 FFN "non-linearly transforms it"，指的就是这个。</p>
+<p><strong>放回 2048 维</strong>：中间 2048 个数，每个都过一次 ReLU，就是 2048 个门卫各自判断"放不放"。第三步说"草稿纸越大能展开的特征越多"，靠的就是这些判断：每个位置管一种特征，是正的才往下传。</p>
+<p><strong>一句话</strong>：两次转换连着做 = 一次转换；中间夹 ReLU（非线性），才能做"正的放、负的拦"的判断，FFN 的两层才不白叠。</p>
+<h3 id="silu2026-11-06">第五步：现在的大模型换了门卫：SiLU（2026-11-06）</h3>
+<p>CS336 handout §3.5.2 L1022–L1030：原论文是"两次转换夹一个 ReLU"，但现在的大模型（Llama 3、Qwen 2.5）做了<strong>两处改动</strong>：</p>
+<ol>
+<li><strong>换激活函数</strong>（activation function，就是夹在中间的那个"门卫"）：ReLU 换成 <strong>SiLU</strong>；</li>
+<li><strong>加一道闸门</strong>（gating mechanism）：叫 <strong>GLU</strong>，下一步讲。</li>
+</ol>
+<p>两个合起来叫 <strong>SwiGLU</strong>。还顺手<strong>去掉了 b</strong>（L1029–L1030：自 PaLM、LLaMA 以来大多不用 bias）。本步只讲第 1 处。</p>
+<p><strong>名字先补全</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>缩写</th>
+<th>全称</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>sigmoid（σ）</td>
+<td>sigmoid = "S 形的"</td>
+<td>曲线画出来像拉长的 S</td>
+</tr>
+<tr>
+<td>SiLU</td>
+<td><strong>Si</strong>gmoid <strong>L</strong>inear <strong>U</strong>nit</td>
+<td>用 sigmoid 做出来的线性单元</td>
+</tr>
+<tr>
+<td>Swish</td>
+<td>不是缩写，英文"嗖的一声"</td>
+<td>SiLU 的另一个名字（L1028："SiLU (often called Swish)"）</td>
+</tr>
+<tr>
+<td>GLU</td>
+<td><strong>G</strong>ated <strong>L</strong>inear <strong>U</strong>nit</td>
+<td>带闸门的线性单元（下一步）</td>
+</tr>
+<tr>
+<td>SwiGLU</td>
+<td><strong>Swi</strong>sh + <strong>GLU</strong></td>
+<td>两样拼起来</td>
+</tr>
+</tbody>
+</table>
+<p><strong>先学一个零件：sigmoid <span class="arithmatex">\(\sigma(x)\)</span>，把任何数压到 0 到 1 之间</strong></p>
+<div class="arithmatex">\[\sigma(x) = \frac{1}{1 + e^{-x}}\]</div>
+<p>用第 5–6 章学的 <span class="arithmatex">\(e^x\)</span> 来看：</p>
+<table>
+<thead>
+<tr>
+<th>x</th>
+<th><span class="arithmatex">\(e^{-x}\)</span></th>
+<th><span class="arithmatex">\(\sigma(x)\)</span></th>
+<th>感觉</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4</td>
+<td>很小（≈ 0.018）</td>
+<td>1 ÷ 1.018 ≈ <strong>0.98</strong></td>
+<td>大的正数 → 接近 1</td>
+</tr>
+<tr>
+<td>0</td>
+<td><span class="arithmatex">\(e^0 = 1\)</span></td>
+<td>1 ÷ 2 = <strong>0.5</strong></td>
+<td>正中间</td>
+</tr>
+<tr>
+<td>−4</td>
+<td>很大（≈ 54.6）</td>
+<td>1 ÷ 55.6 ≈ <strong>0.02</strong></td>
+<td>大的负数 → 接近 0</td>
+</tr>
+</tbody>
+</table>
+<p><strong>类比：调光旋钮。</strong> ReLU 是开关，要么全开（原样）、要么全关（0）；sigmoid 是旋钮，从 0 到 1 连续地拧。</p>
+<p><strong>SiLU = x 乘上自己的旋钮</strong>（Eq. (5)，L1031–L1035）：</p>
+<div class="arithmatex">\[\text{SiLU}(x) = x \cdot \sigma(x)\]</div>
+<table>
+<thead>
+<tr>
+<th>x</th>
+<th><span class="arithmatex">\(\sigma(x)\)</span></th>
+<th>SiLU(x)</th>
+<th>ReLU(x)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4</td>
+<td>0.98</td>
+<td>4 × 0.98 ≈ <strong>3.93</strong></td>
+<td>4</td>
+</tr>
+<tr>
+<td>1</td>
+<td>0.73</td>
+<td><strong>0.73</strong></td>
+<td>1</td>
+</tr>
+<tr>
+<td>0</td>
+<td>0.5</td>
+<td>0 × 0.5 = <strong>0</strong></td>
+<td>0</td>
+</tr>
+<tr>
+<td>−1</td>
+<td>0.27</td>
+<td><strong>−0.27</strong></td>
+<td>0</td>
+</tr>
+<tr>
+<td>−4</td>
+<td>0.02</td>
+<td><strong>−0.07</strong></td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>大的正数：旋钮几乎拧满，SiLU ≈ x，<strong>和 ReLU 差不多</strong>；</li>
+<li>大的负数：旋钮几乎关上，SiLU ≈ 0，<strong>也和 ReLU 差不多</strong>；</li>
+<li>0 附近：ReLU 在 0 那里<strong>突然拐弯</strong>，SiLU 是<strong>圆滑地拐过去</strong>，负数那边还漏一点点（−0.27）。</li>
+</ul>
+<p>L1036–L1037："similar to the ReLU activation function, but is smooth at zero"，和 ReLU 很像，但在 0 处是光滑的。</p>
+<pre><code> y                  ReLU：在 0 处折一下
+ │        ╱         SiLU：圆滑地弯过去，左边略微往下沉一点
+ │      ╱
+ │    ╱
+─┼──●──────── x
+ 0
+</code></pre>
+<p><strong>为什么换</strong>：这是试出来的，不是推出来的。Shazeer 2020 实验发现这类组合在语言模型上效果更好（L1053–L1055），他本人在论文里还写了一句很有名的话，大意是"我们解释不了为什么有效，只能归功于老天保佑"（L1058–L1059）。</p>
+<p><strong>一句话</strong>：SiLU = x × σ(x)，正数大时 ≈ x，负数大时 ≈ 0，和 ReLU 像，但在 0 附近是圆滑的弯，不是硬拐。</p>
+<h3 id="glu-2026-11-06">第六步：第二处改动：加一道闸门 GLU；⊙ 是逐个相乘（2026-11-06）</h3>
+<p><strong>ReLU 的局限</strong>：ReLU 里"放不放"和"放什么"是<strong>同一个数</strong>决定的：这个数是正的就放它自己，负的就拦。GLU（Gated Linear Unit，带闸门的线性单元）把这两件事<strong>拆成两条路</strong>。</p>
+<p><strong>原始 GLU</strong>（Dauphin et al. 2017，handout Eq. (6)，L1038–L1041）：</p>
+<div class="arithmatex">\[\text{GLU}(x) = \sigma(W_1 x) \odot W_2 x\]</div>
+<table>
+<thead>
+<tr>
+<th>路</th>
+<th>式子</th>
+<th>管什么</th>
+<th>范围</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>闸门路</td>
+<td><span class="arithmatex">\(\sigma(W_1 x)\)</span></td>
+<td><strong>放多少</strong>：每个位置一个音量旋钮</td>
+<td>0～1（sigmoid，第五步）</td>
+</tr>
+<tr>
+<td>内容路</td>
+<td><span class="arithmatex">\(W_2 x\)</span></td>
+<td><strong>放什么</strong>：真正要传的内容</td>
+<td>任意数</td>
+</tr>
+</tbody>
+</table>
+<p>两条路都从同一个 x 出发，各乘一个矩阵；最后 <span class="arithmatex">\(\odot\)</span> 把它们合起来。</p>
+<p><strong>新符号 ⊙：逐个相乘</strong>（element-wise product，又叫 Hadamard 积）。两串一样长的数，<strong>对位相乘，不加起来</strong>。</p>
+<ul>
+<li>点积（第 2 章）：[1, 2] · [3, 4] = 1×3 + 2×4 = <strong>11</strong>，一个数</li>
+<li>逐个相乘：[1, 2] ⊙ [3, 4] = [1×3, 2×4] = <strong>[3, 8]</strong>，还是一串数</li>
+</ul>
+<p><strong>例子</strong>：闸门 σ(…) = [0.98, 0.5, 0.02]，内容 = [10, 10, 10]</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>闸门（放多少）</th>
+<th>内容（放什么）</th>
+<th>⊙ 结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>0.98（几乎全开）</td>
+<td>10</td>
+<td><strong>9.8</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td>0.5（开一半）</td>
+<td>10</td>
+<td><strong>5</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>0.02（几乎关上）</td>
+<td>10</td>
+<td><strong>0.2</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>类比：调音台。</strong> 每个声道有自己的内容（内容路），旁边有一个推子决定放多大声（闸门路）。推子推多少，也是看着输入自己算出来的。</p>
+<p><strong>SwiGLU：把闸门里的 σ 换成 SiLU</strong>（handout Eq. (7)，L1046–L1049）：</p>
+<div class="arithmatex">\[\text{FFN}(x) = W_2\big(\text{SiLU}(W_1 x) \odot W_3 x\big)\]</div>
+<p>从里往外读：</p>
+<ol>
+<li><span class="arithmatex">\(W_1 x\)</span> → SiLU：闸门路</li>
+<li><span class="arithmatex">\(W_3 x\)</span>：内容路</li>
+<li>⊙：逐个相乘</li>
+<li><span class="arithmatex">\(W_2(\dots)\)</span>：收回 <span class="arithmatex">\(d_{model}\)</span>，好和残差相加</li>
+</ol>
+<p>和原论文比：<strong>矩阵从 2 个变成 3 个</strong>（<span class="arithmatex">\(W_1, W_2, W_3\)</span>），没有 b；ReLU 换成了"SiLU 闸门 × 内容"。Shazeer 2020 实验发现 SwiGLU 比 ReLU、比不带闸门的 SiLU 都好（L1053–L1055）。</p>
+<p>（handout 把 x 写在矩阵<strong>右边</strong>：<span class="arithmatex">\(W_1 x\)</span>；论文写在左边：<span class="arithmatex">\(xW_1\)</span>。只是书写习惯不同，意思一样，矩阵的行列跟着反过来。）</p>
+<p><strong>一句话</strong>：GLU 把"放多少"（闸门）和"放什么"（内容）拆成两条路，用 ⊙ 逐个相乘合起来；SwiGLU 的闸门用 SiLU，一共三个矩阵。</p>
+<h3 id="swiglu-frac83-d_model-4-2026-11-06">第七步：SwiGLU 的中间层为什么是 <span class="arithmatex">\(\frac{8}{3} d_{model}\)</span>，不是 4 倍（2026-11-06）</h3>
+<p><strong>问题</strong>：原论文 FFN 有 2 个矩阵，SwiGLU 有 3 个。如果中间层还是 4 倍宽，参数就多了一半，和原版比就不公平了（多出来的好处可能只是因为"更大"）。</p>
+<p><strong>办法</strong>：把中间层<strong>缩窄</strong>，让参数总数不变。GLU variants 论文（Shazeer 2020，<code>glu-variants-2002.05202.txt</code> L74–L77）："To keep the number of parameters and the amount of computation constant, we reduce the number of hidden units <span class="arithmatex">\(d_{ff}\)</span> … by a factor of <span class="arithmatex">\(\frac{2}{3}\)</span>"，为了让参数和计算量不变，把 <span class="arithmatex">\(d_{ff}\)</span> 乘 <span class="arithmatex">\(\frac{2}{3}\)</span>。</p>
+<p><strong>算一遍</strong>（每个矩阵的参数 = 行 × 列）：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>矩阵个数</th>
+<th>每个矩阵</th>
+<th>参数总数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原版</td>
+<td>2 个</td>
+<td><span class="arithmatex">\(d_{model} \times 4d_{model}\)</span></td>
+<td><span class="arithmatex">\(2 \times 4\, d_{model}^2 = 8\, d_{model}^2\)</span></td>
+</tr>
+<tr>
+<td>SwiGLU</td>
+<td>3 个</td>
+<td><span class="arithmatex">\(d_{model} \times d_{ff}\)</span></td>
+<td><span class="arithmatex">\(3\, d_{model}\, d_{ff}\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>要相等：<span class="arithmatex">\(3\, d_{model}\, d_{ff} = 8\, d_{model}^2\)</span>，两边除以 <span class="arithmatex">\(3\, d_{model}\)</span>，得</p>
+<div class="arithmatex">\[d_{ff} = \frac{8}{3}\, d_{model}\]</div>
+<p>也就是 4 倍再乘 <span class="arithmatex">\(\frac{2}{3}\)</span>：<span class="arithmatex">\(4 \times \frac{2}{3} = \frac{8}{3} \approx 2.67\)</span> 倍。</p>
+<p><strong>类比：三个人分原来两个人的预算。</strong> 总预算不变，人从 2 个变成 3 个，每个人分到的就少一些。</p>
+<p><strong>实际取整</strong>：CS336 handout L1049（"canonically, <span class="arithmatex">\(d_{ff} = \frac{8}{3} d_{model}\)</span>"）和 L1069–L1071：<span class="arithmatex">\(d_{ff}\)</span> 取<strong>大约</strong> <span class="arithmatex">\(\frac{8}{3} d_{model}\)</span>，并且要是 <strong>64 的倍数</strong>，让硬件（GPU）算得快。比如 <span class="arithmatex">\(d_{model}\)</span> = 512：512 × 8 ÷ 3 ≈ 1365.3，取 64 的倍数，用 1344（= 64 × 21）或 1408（= 64 × 22）。</p>
+<p><strong>一句话</strong>：SwiGLU 多了一个矩阵，就把中间层从 4 倍缩到 <span class="arithmatex">\(\frac{8}{3}\)</span> 倍，保证参数总数和原版一样，比较才公平。</p>
+<h3 id="swiglu">动画演示：摊开、过门卫、收回；SwiGLU 的闸门</h3>
+<p><img alt="前馈网络 FFN" src="../animations/20-ffn.gif" /></p>
+<p>可交互版：<a href="../animations/20-ffn.html">animations/20-ffn.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"；滑块把输入整体乘 k）。</p>
+<p>一个词缩成 2 个数（论文 512），中间层 8 个数（4 倍，论文 2048）。矩阵里的数是编的，只看形状。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>输入 x = [1, −0.5]；</li>
+<li>× <span class="arithmatex">\(W_1\)</span>：摊开成 8 个数，有正有负（第三步）；</li>
+<li>ReLU：负的 4 个被拦成 0，正的原样通过（第二步）；</li>
+<li>× <span class="arithmatex">\(W_2\)</span>：收回 2 个数，好和残差相加（第三步）；</li>
+<li>SwiGLU：紫色闸门 SiLU(<span class="arithmatex">\(W_1x\)</span>) ⊙ 橙色内容 <span class="arithmatex">\(W_3x\)</span> = 绿色结果，中间层缩到约 <span class="arithmatex">\(\frac{8}{3}\)</span> 倍（这里 5 格），再 × <span class="arithmatex">\(W_2\)</span> 收回（第五到七步）；</li>
+<li>滑块：输入整体乘 k，下面画"输出第 1 个数"随 k 的变化：不夹激活是一条直线（两次转换 = 一次，第四步）；夹 ReLU 在 k = 0 处折一下；夹 SiLU 圆滑地弯过去。</li>
+</ol>
+<h2 id="_2">练习与作答记录</h2>
+<p><strong>题 1</strong>："狗咬人"三个词进到某一层的 FFN。
+（a）FFN 算"狗"的输出时，会用到"人"的数字吗？
+（b）在这一层里，三个词用的是同一套 FFN 参数，还是每个词各一套？</p>
+<p><strong>作答</strong>（2026-11-06）："a=不回，b=同一套"</p>
+<p>✓（a）不会：FFN 是 separately，算"狗"只用"狗"自己的 512 个数；要和别的词交换信息，是 attention 的事。（b）同一套：identically，同一层里三个词共用一个 FFN；换一层才是另一套。</p>
+<p><strong>题 2</strong>：ReLU 就是 <span class="arithmatex">\(\max(0, z)\)</span>。
+（a）max(0, −3) 是多少？max(0, 5) 呢？
+（b）对 [−4, 2, 0, −0.1, 7] 做 ReLU，结果是什么？</p>
+<p><strong>作答</strong>（2026-11-06）："0，5"</p>
+<p>✓（a）max(0, −3) = <strong>0</strong>（负数被拦下），max(0, 5) = <strong>5</strong>（正数原样通过）。（b）还没答。</p>
+<p><strong>题 2（b）</strong>：对 [−4, 2, 0, −0.1, 7] 做 ReLU，结果是什么？</p>
+<p><strong>作答</strong>（2026-11-06）："0，2，0，0，7"</p>
+<p>✓ −4 → 0，2 → 2，0 → 0，−0.1 → 0（再小的负数也被拦下），7 → 7。结果 <strong>[0, 2, 0, 0, 7]</strong>。</p>
+<p><strong>题 3</strong>：
+（a）<span class="arithmatex">\(W_2\)</span> 是几行几列？为什么？
+（b）GPT-2 small 的 <span class="arithmatex">\(d_{model}\)</span> = 768。如果也按 4 倍，<span class="arithmatex">\(d_{ff}\)</span> 是多少？<span class="arithmatex">\(W_1\)</span> 是几行几列？</p>
+<p><strong>作答</strong>（2026-11-06）："2048，512，因为出要512，b=3072，768，3072"</p>
+<p>✓（a）<span class="arithmatex">\(W_2\)</span> 是 <strong>2048 行 × 512 列</strong>：进去 2048 个数（行数），出来要回到 512 个数（列数），好和残差相加。（b）<span class="arithmatex">\(d_{ff}\)</span> = 768 × 4 = <strong>3072</strong>，<span class="arithmatex">\(W_1\)</span> 是 <strong>768 行 × 3072 列</strong>。</p>
+<p><strong>题 4</strong>：
+（a）一个数先 × 4、再 × 5。x = 2 时结果是多少？如果只做一步"× 某个数"，要乘几才能得到同样的结果？
+（b）夹上 ReLU：<span class="arithmatex">\(5 \times \max(0,\ 4x)\)</span>。x = 2 和 x = −2 时各是多少？还能找到一个固定的数 k，让 k × x 同时得到这两个结果吗？</p>
+<p><strong>作答</strong>（2026-11-06）："a=40,20,b=40,0,不能"</p>
+<p>✓（a）2 × 4 = 8，8 × 5 = <strong>40</strong>；一步 <strong>× 20</strong> 就行（4 × 5 = 20）：两次转换合成了一次。（b）x = 2：4 × 2 = 8 → ReLU 还是 8 → × 5 = <strong>40</strong>；x = −2：−8 → ReLU 变 0 → <strong>0</strong>。<strong>找不到</strong> k：k × 2 = 40 要 k = 20，可 20 × (−2) = −40，不是 0。中间的 ReLU 让它不再是"乘一个固定的数"。</p>
+<p><strong>题 5</strong>：已知 σ(2) ≈ 0.88，σ(−2) ≈ 0.12。
+（a）SiLU(2) 和 SiLU(−2) 各是多少？
+（b）ReLU(2) 和 ReLU(−2) 各是多少？和（a）比，哪边差得多？</p>
+<p><strong>作答</strong>（2026-11-06）："1.76，0.24，b，2，0，a" → 改成 "1.76，0.24，b，2，0，b"</p>
+<ul>
+<li>SiLU(2) = 2 × 0.88 = <strong>1.76</strong> ✓</li>
+<li>SiLU(−2) ✗：答成 0.24，<strong>少了负号</strong>。−2 × 0.12 = <strong>−0.24</strong>：负数乘正数还是负数（第 19 章再练 4 讲过）。SiLU 在负数那边是"漏一点点负的"，不是变成正的。</li>
+<li>ReLU(2) = <strong>2</strong>，ReLU(−2) = <strong>0</strong> ✓</li>
+<li>"哪边差得多"：<strong>这问是我出得不好，两边其实差得一样多</strong>。正数那边 2 − 1.76 = 0.24，负数那边 0 − (−0.24) = 0.24。真正想看的是：正数那边两者都接近 x；负数那边 ReLU 正好是 0，SiLU 是一个很小的负数（−0.24），这就是"圆滑地弯过去、左边略微往下沉"。</li>
+</ul>
+<p><strong>再练 5</strong>：已知 σ(3) ≈ 0.95，σ(−3) ≈ 0.05。SiLU(3) 和 SiLU(−3) 各是多少？（注意符号）</p>
+<p><strong>作答</strong>（2026-11-06）："1.9，-0.1"</p>
+<p>符号对了 ✓（这次 SiLU(−3) 带上了负号），数值 ✗：两个都像是乘了 2 而不是 3（2 × 0.95 = 1.9，2 × 0.05 = 0.1）。SiLU(x) = <strong>x</strong> × σ(x)，前面乘的是 x 自己：</p>
+<ul>
+<li>SiLU(3) = <strong>3</strong> × 0.95 = <strong>2.85</strong></li>
+<li>SiLU(−3) = <strong>−3</strong> × 0.05 = <strong>−0.15</strong></li>
+</ul>
+<p><strong>再练 5 重做</strong>：已知 σ(4) ≈ 0.98，σ(−4) ≈ 0.02。SiLU(4) 和 SiLU(−4) 各是多少？（先写出"x × σ(x)"里的 x 是几，再乘）</p>
+<p><strong>作答</strong>（2026-11-06）："3。92，-0.08"</p>
+<p>✓ SiLU(4) = 4 × 0.98 = <strong>3.92</strong>；SiLU(−4) = −4 × 0.02 = <strong>−0.08</strong>。数值和符号都对了。</p>
+<p><strong>题 6</strong>：
+（a）闸门 = [1, 0.5, 0]，内容 = [4, 6, 8]，⊙ 结果是什么？
+（b）[1, 2, 3] ⊙ [2, 2, 2] 和 [1, 2, 3] · [2, 2, 2]（点积）各是多少？
+（c）SwiGLU 版的 FFN 有几个矩阵？原论文的 FFN 有几个？</p>
+<p><strong>作答</strong>（2026-11-06）："你帮我答问题，给出推理步骤"</p>
+<p>✗ 没做，下面是推理过程。</p>
+<p><strong>（a）⊙ 就是对位相乘，一个格子一个格子算</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>闸门</th>
+<th>内容</th>
+<th>相乘</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>1（全开）</td>
+<td>4</td>
+<td>1 × 4 = <strong>4</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td>0.5（开一半）</td>
+<td>6</td>
+<td>0.5 × 6 = <strong>3</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>0（关上）</td>
+<td>8</td>
+<td>0 × 8 = <strong>0</strong></td>
+</tr>
+</tbody>
+</table>
+<p>结果 <strong>[4, 3, 0]</strong>：闸门全开的原样通过，开一半的剩一半，关上的什么都过不去。</p>
+<p><strong>（b）先对位相乘，再看加不加</strong>：</p>
+<ul>
+<li>对位相乘：1 × 2 = 2，2 × 2 = 4，3 × 2 = 6</li>
+<li>⊙（逐个相乘）：<strong>到这里就停</strong>，结果是一串数 <strong>[2, 4, 6]</strong></li>
+<li>·（点积）：<strong>再把它们加起来</strong> 2 + 4 + 6 = <strong>12</strong>，结果是一个数</li>
+</ul>
+<p>两者的区别只有最后一步：点积加起来，⊙ 不加。</p>
+<p><strong>（c）数公式里的 W</strong>：</p>
+<ul>
+<li>SwiGLU：<span class="arithmatex">\(W_2\big(\text{SiLU}(W_1 x) \odot W_3 x\big)\)</span>，有 <span class="arithmatex">\(W_1\)</span>、<span class="arithmatex">\(W_2\)</span>、<span class="arithmatex">\(W_3\)</span>，<strong>3 个</strong>（闸门路一个、内容路一个、收回一个）</li>
+<li>原论文：<span class="arithmatex">\(\max(0, xW_1 + b_1)W_2 + b_2\)</span>，有 <span class="arithmatex">\(W_1\)</span>、<span class="arithmatex">\(W_2\)</span>，<strong>2 个</strong>（b 是一串数，不是矩阵）</li>
+</ul>
+<p>多出来的那个就是"闸门路"和"内容路"分开以后多的一条路。这正好引出第七步：多了一个矩阵，参数怎么办？</p>
+<p><strong>题 7</strong>：
+（a）GPT-2 small 的 <span class="arithmatex">\(d_{model}\)</span> = 768。如果换成 SwiGLU，按 <span class="arithmatex">\(\frac{8}{3}\)</span> 倍，<span class="arithmatex">\(d_{ff}\)</span> 是多少？（768 × 8 ÷ 3）
+（b）用一句话说：为什么 SwiGLU 的 <span class="arithmatex">\(d_{ff}\)</span> 要比原版的 4 倍小？</p>
+<p><strong>作答</strong>（2026-11-06）："2048，b=因为数值分布合理，可以不需要那么多"</p>
+<p>（a）✓ 768 × 8 = 6144，6144 ÷ 3 = <strong>2048</strong>。</p>
+<p>（b）✗ 原因不是数值分布，而是<strong>参数预算</strong>：SwiGLU 有 3 个矩阵，原版只有 2 个。中间层如果还是 4 倍宽，参数就多了一半；缩到 <span class="arithmatex">\(\frac{8}{3}\)</span> 倍，3 个矩阵加起来正好和原版 2 个一样多，比较才公平（GLU variants 论文 L74–L77："To keep the number of parameters and the amount of computation constant"）。和"数值大小、分布"无关，那是第 19 章 LayerNorm 管的事。</p>
+<p><strong>再练 7</strong>：把 768 × 1024 叫作"一块"。
+（a）原版：每个矩阵是 768 × 3072，是几块？2 个矩阵一共几块？
+（b）SwiGLU：每个矩阵是 768 × 2048，是几块？3 个矩阵一共几块？</p>
+<p><strong>作答</strong>（2026-11-06）："3块，768*2048"</p>
+<p>（a）每个矩阵 3 块 ✓（3072 = 1024 × 3），但没算总数：2 个矩阵 × 3 块 = <strong>6 块</strong>。（b）没换算成块：2048 = 1024 × 2，所以每个矩阵是 <strong>2 块</strong>，3 个矩阵 × 2 块 = <strong>6 块</strong>。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>每个矩阵</th>
+<th>几块</th>
+<th>矩阵个数</th>
+<th>一共</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原版</td>
+<td>768 × 3072</td>
+<td>3</td>
+<td>2</td>
+<td><strong>6 块</strong></td>
+</tr>
+<tr>
+<td>SwiGLU</td>
+<td>768 × 2048</td>
+<td>2</td>
+<td>3</td>
+<td><strong>6 块</strong></td>
+</tr>
+</tbody>
+</table>
+<p>一样多，这就是 <span class="arithmatex">\(\frac{8}{3}\)</span> 的用意：矩阵多一个，每个变窄，总参数不变。</p>
+<h2 id="_3">口诀</h2>
+<blockquote>
+<p>开会靠 attention，消化靠 FFN；每个词各算各的，全班同一套方法；<br />
+先摊开四倍，过门卫负数变 0，再收回原长好相加；<br />
+两次转换连着做等于一次，中间夹个弯才有用；<br />
+新版换 SiLU 加闸门，三个矩阵各变窄，八分之三保预算。</p>
+</blockquote>
+<h2 id="_4">本章复习卡片</h2>
+<ul>
+<li>R57 · FFN 是 position-wise：每个词分别算、共用同一套参数；不同层参数不同（题 1）</li>
+<li>R58 · ReLU = max(0, z)：负数变 0，正数不动；FFN 公式从里往外读（题 2）</li>
+<li>R59 · ReLU 全称 Rectified Linear Unit：整流 / 线性 / 单元各指什么（插问）</li>
+<li>R60 · FFN 尺寸：<span class="arithmatex">\(W_1\)</span> 512 × 2048、<span class="arithmatex">\(W_2\)</span> 2048 × 512；<span class="arithmatex">\(d_{ff}\)</span> = 4 × <span class="arithmatex">\(d_{model}\)</span>（题 3）</li>
+<li>R61 · 为什么要 ReLU：两次转换连着做 = 一次（× 4 再 × 5 = × 20）；夹上 ReLU 就不是一个固定的数了（题 4）</li>
+<li>R62 · SiLU = x × σ(x)：SiLU(2) ≈ 1.76、SiLU(−2) ≈ −0.24（负号别丢）；和 ReLU 比，负数那边漏一点负的（题 5，符号错）</li>
+<li>R63 · ⊙ 逐个相乘 vs 点积；GLU 闸门 × 内容；SwiGLU 三个矩阵（题 6，没做）</li>
+<li>R64 · SwiGLU 的 <span class="arithmatex">\(d_{ff} = \frac{8}{3} d_{model}\)</span>：多一个矩阵，缩窄中间层让参数总数不变（题 7，原因答错）</li>
+</ul>
+<h2 id="_5">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_6">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>§3.1 L129–L131；§3.3 L240–L251</td>
+<td>本章原文：每层第二个子层是 position-wise FFN；"separately and identically"（L243）；Eq. (2) <span class="arithmatex">\(\max(0, xW_1+b_1)W_2+b_2\)</span>（L246）；同层共用、不同层不同（L248–L249）；512 / 2048（L250–L251）</td>
+</tr>
+<tr>
+<td>★ CS336 assignment 1 handout</td>
+<td>L660–L662、L678–L679；§3.5.2 L1004–L1075</td>
+<td>动手要写的版本：attention 汇集、FFN 非线性加工；SiLU Eq. (5)、GLU Eq. (6)、SwiGLU Eq. (7)；<span class="arithmatex">\(d_{ff} \approx \frac{8}{3} d_{model}\)</span> 且是 64 的倍数；作业 Problem (positionwise_feedforward)</td>
+</tr>
+<tr>
+<td>★ Shazeer 2020，GLU Variants Improve Transformer</td>
+<td><code>glu-variants-2002.05202.txt</code> L60–L77；L159</td>
+<td>SwiGLU 的出处：几种 GLU 变体的公式（Eq. (6)）；为什么 <span class="arithmatex">\(d_{ff}\)</span> 乘 <span class="arithmatex">\(\frac{2}{3}\)</span>（L74–L77）；"divine benevolence"那句话</td>
+</tr>
+<tr>
+<td>Geva et al. 2021，Transformer Feed-Forward Layers Are Key-Value Memories</td>
+<td>全文（本地没有文本版）</td>
+<td>进阶视角：<span class="arithmatex">\(W_1\)</span> 的每一列像一个"key"、<span class="arithmatex">\(W_2\)</span> 的每一行像一个"value"，FFN 像一张记忆表；阶段 A7 可解释性时读</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_7">数学原理</h3>
+<ul>
+<li><strong>线性的叠加还是线性</strong>：<span class="arithmatex">\((xW_1 + b_1)W_2 + b_2 = x(W_1W_2) + (b_1W_2 + b_2)\)</span>，等于一个矩阵 <span class="arithmatex">\(W_1W_2\)</span> 加一个偏置。所以没有激活函数，两层 = 一层（第四步、题 4）。</li>
+<li><strong>ReLU 是分段线性</strong>：<span class="arithmatex">\(\max(0, z)\)</span> 在 z &gt; 0 和 z &lt; 0 两边各是一条直线，只在 0 处拐弯；2048 个这样的拐点叠起来，能拼出很复杂的折线形状。</li>
+<li><strong>sigmoid 的性质</strong>：<span class="arithmatex">\(\sigma(0) = 0.5\)</span>；<span class="arithmatex">\(\sigma(-x) = 1 - \sigma(x)\)</span>（σ(2) ≈ 0.88，σ(−2) ≈ 0.12，加起来是 1）；x 很大时 → 1，很小时 → 0。</li>
+<li><strong>SiLU 和 ReLU 的差是对称的</strong>：SiLU(x) − ReLU(x) 在 x 和 −x 处一样（题 5：x = ±2 时都差 −0.24）。</li>
+<li><strong>参数相等的推导</strong>：<span class="arithmatex">\(2 \cdot d_{model} \cdot 4d_{model} = 3 \cdot d_{model} \cdot d_{ff} \Rightarrow d_{ff} = \frac{8}{3}d_{model}\)</span>（第七步、题 7）。</li>
+<li><strong>参数主要在 FFN</strong>：一层里 attention 的 <span class="arithmatex">\(W^Q, W^K, W^V, W^O\)</span> 共 <span class="arithmatex">\(4d_{model}^2\)</span>，FFN 共 <span class="arithmatex">\(8d_{model}^2\)</span>，FFN 约占三分之二。</li>
+</ul>
+<h3 id="_8">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(\text{FFN}(x) = \max(0, xW_1+b_1)W_2+b_2\)</span></td>
+<td>原论文 FFN，Eq. (2)</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(W_1: d_{model} \times d_{ff}\)</span>，<span class="arithmatex">\(W_2: d_{ff} \times d_{model}\)</span>，<span class="arithmatex">\(d_{ff} = 4d_{model}\)</span></td>
+<td>尺寸：512 → 2048 → 512</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{ReLU}(z) = \max(0, z)\)</span></td>
+<td>负数变 0，正数不动</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\sigma(x) = \frac{1}{1+e^{-x}}\)</span></td>
+<td>sigmoid：压到 0～1</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{SiLU}(x) = x \cdot \sigma(x)\)</span></td>
+<td>圆滑版 ReLU（Swish）</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{GLU}(x) = \sigma(W_1x) \odot W_2x\)</span></td>
+<td>闸门 ⊙ 内容</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{FFN}_{\text{SwiGLU}}(x) = W_2(\text{SiLU}(W_1x) \odot W_3x)\)</span></td>
+<td>现在的大模型用的 FFN，三个矩阵、没有 b</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(d_{ff} = \frac{8}{3}d_{model}\)</span>（取 64 的倍数）</td>
+<td>SwiGLU 的中间层宽度，保参数不变</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="19-layernorm.html">← 第 19 章 · LayerNorm：把每个词的数字调到统一范围</a><a href="21-transformer-layer.html">第 21 章 · 拼装：一个 Transformer 层；encoder / decoder 全图；三种 attention →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>动画演示 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="_1">动画演示</h1>
+<p>每章关键原理配一个可交互动画。讲义 md 里嵌的是 GIF（GitHub、Markdown 预览和 Mac 备忘录都能直接播放）；想自己单步、拖滑块，就用浏览器打开同名 <code>.html</code>。</p>
+<table>
+<thead>
+<tr>
+<th>章</th>
+<th>原理</th>
+<th>GIF</th>
+<th>可交互</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>向量：一个水果 = 一串数字；位置含义固定；一个词 512 个数</td>
+<td><a href="01-vector.gif">01-vector.gif</a></td>
+<td><a href="01-vector.html">html</a></td>
+</tr>
+<tr>
+<td>2</td>
+<td>点积：对位相乘、全部加起来；苹果 · 西瓜 154 vs 苹果 · 柠檬 22</td>
+<td><a href="02-dot-product.gif">02-dot-product.gif</a></td>
+<td><a href="02-dot-product.html">html</a></td>
+</tr>
+<tr>
+<td>3</td>
+<td>分数 ÷ 总分 = 比例，比例条总长永远是 1</td>
+<td><a href="03-softmax-ratio.gif">03-softmax-ratio.gif</a></td>
+<td><a href="03-softmax-ratio.html">html</a></td>
+</tr>
+<tr>
+<td>4</td>
+<td>加权平均：信息向量按比例缩短、首尾相接，结果在三角形里</td>
+<td><a href="04-weighted-average.gif">04-weighted-average.gif</a></td>
+<td><a href="04-weighted-average.html">html</a></td>
+</tr>
+<tr>
+<td>5</td>
+<td>次方、负数次方、利滚利逼近 e、eˣ 曲线永远在 0 上面</td>
+<td><a href="05-power-and-e.gif">05-power-and-e.gif</a></td>
+<td><a href="05-power-and-e.html">html</a></td>
+</tr>
+<tr>
+<td>6</td>
+<td>softmax 套 eˣ：负分数不再出错；拉开差距（62.5% → 93.6%）</td>
+<td><a href="06-softmax-exp.gif">06-softmax-exp.gif</a></td>
+<td><a href="06-softmax-exp.html">html</a></td>
+</tr>
+<tr>
+<td>7</td>
+<td>饱和：调高 1 分比例变多少；曲线越往右越平</td>
+<td><a href="07-saturation.gif">07-saturation.gif</a></td>
+<td><a href="07-saturation.html">html</a></td>
+</tr>
+<tr>
+<td>8</td>
+<td>抛硬币总分离 0 约 √d；分数除以 1、8、64 的 softmax 对比</td>
+<td><a href="08-sqrt-dk.gif">08-sqrt-dk.gif</a></td>
+<td><a href="08-sqrt-dk.html">html</a></td>
+</tr>
+<tr>
+<td>9</td>
+<td>Q、K、V：图书馆找书，Q 比对 K、带走 V；滑块转 Q 的方向</td>
+<td><a href="09-qkv.gif">09-qkv.gif</a></td>
+<td><a href="09-qkv.html">html</a></td>
+</tr>
+<tr>
+<td>10</td>
+<td>向量乘矩阵 = 和每一列做点积；同一个 x 乘 W^Q、W^K、W^V</td>
+<td><a href="10-matrix-transform.gif">10-matrix-transform.gif</a></td>
+<td><a href="10-matrix-transform.html">html</a></td>
+</tr>
+<tr>
+<td>11</td>
+<td>大写 Q、K；一行一行填满 3 × 3 分数表 QKᵀ</td>
+<td><a href="11-matrix-qk.gif">11-matrix-qk.gif</a></td>
+<td><a href="11-matrix-qk.html">html</a></td>
+</tr>
+<tr>
+<td>12</td>
+<td>转置翻表格；形状规则；公式 1 四步走一遍</td>
+<td><a href="12-transpose-formula.gif">12-transpose-formula.gif</a></td>
+<td><a href="12-transpose-formula.html">html</a></td>
+</tr>
+<tr>
+<td>13</td>
+<td>多头：一个头信息混在一起，两个头各管一样再拼接；8 × 64 = 512，参数不多花</td>
+<td><a href="13-multi-head.gif">13-multi-head.gif</a></td>
+<td><a href="13-multi-head.html">html</a></td>
+</tr>
+<tr>
+<td>14</td>
+<td>attention 分不出词序；号码牌 x′ = x + p；牌太大会盖住词</td>
+<td><a href="14-positional-encoding.gif">14-positional-encoding.gif</a></td>
+<td><a href="14-positional-encoding.html">html</a></td>
+</tr>
+<tr>
+<td>15</td>
+<td>摩天轮上的 sin、cos；周期；(cos, sin) 号码牌会撞牌</td>
+<td><a href="15-sin-cos.gif">15-sin-cos.gif</a></td>
+<td><a href="15-sin-cos.html">html</a></td>
+</tr>
+<tr>
+<td>16</td>
+<td>多档时钟：快轮管近、慢轮管远；挪几个座位 = 每个轮子转固定角度</td>
+<td><a href="16-multi-clock.gif">16-multi-clock.gif</a></td>
+<td><a href="16-multi-clock.html">html</a></td>
+</tr>
+<tr>
+<td>17</td>
+<td>因果 mask：分数表加 M（能看 0、要遮 −∞）；只有 −∞ 才让权重正好是 0</td>
+<td><a href="17-causal-mask.gif">17-causal-mask.gif</a></td>
+<td><a href="17-causal-mask.html">html</a></td>
+</tr>
+<tr>
+<td>18</td>
+<td>残差连接：加残差（原词 + 批注）vs 不加（层层顶替）；批注为 0 时透传</td>
+<td><a href="18-residual.gif">18-residual.gif</a></td>
+<td><a href="18-residual.html">html</a></td>
+</tr>
+<tr>
+<td>19</td>
+<td>LayerNorm：两个词各自减 μ、除以 σ 后一模一样；乘 γ 加 β；RMSNorm 对比；滑块看平移不变</td>
+<td><a href="19-layernorm.gif">19-layernorm.gif</a></td>
+<td><a href="19-layernorm.html">html</a></td>
+</tr>
+<tr>
+<td>20</td>
+<td>FFN：2 → 8 → 2 摊开、ReLU 拦负数、收回；SwiGLU 闸门 ⊙ 内容；滑块看直线 / 折线 / 圆弧</td>
+<td><a href="20-ffn.gif">20-ffn.gif</a></td>
+<td><a href="20-ffn.html">html</a></td>
+</tr>
+<tr>
+<td>21</td>
+<td>拼装：encoder 层两道工序、decoder 层三道；三张分数表（行 = 谁提问，列 = 问了谁）；一轮写一个词，encoder 只跑一次；滑块改 n、k</td>
+<td><a href="21-transformer-layer.gif">21-transformer-layer.gif</a></td>
+<td><a href="21-transformer-layer.html">html</a></td>
+</tr>
+<tr>
+<td>22</td>
+<td>embedding 与 softmax：查表取行、乘 √d；h 和每一行点积打分、softmax 选 bites；一张表用三次；滑块改 h 的方向和长度</td>
+<td><a href="22-embedding-softmax.gif">22-embedding-softmax.gif</a></td>
+<td><a href="22-embedding-softmax.html">html</a></td>
+</tr>
+<tr>
+<td>23</td>
+<td>复杂度：n × n 格每格 d 次乘、n 翻倍 × 4；RNN 传话排队 vs attention 同时握手；n vs d；分数表显存；滑块 n 从 10 到 100000</td>
+<td><a href="23-complexity.gif">23-complexity.gif</a></td>
+<td><a href="23-complexity.html">html</a></td>
+</tr>
+<tr>
+<td>24</td>
+<td>收尾：attention 4d²、FFN 2·d·d_ff、整个玩具模型 928；warmup 曲线（两条线取小）；§3 地图；滑块改 warmup_steps、d_model</td>
+<td><a href="24-wrap-up.gif">24-wrap-up.gif</a></td>
+<td><a href="24-wrap-up.html">html</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="_2">跑起来看（按钮、滑块能动）</h2>
+<p>在仓库根目录的 Claude 会话里说"打开第 N 章动画"即可（<code>.claude/launch.json</code> 里的 <code>transformer-animations</code> 配置）。自己在终端跑：</p>
+<pre><code class="language-bash">python3 -m http.server 8341 --directory transformer-deep-dive/notes/animations
+</code></pre>
+<p>然后浏览器打开 <code>http://localhost:8341/16-multi-clock.html</code>（换成想看的章节文件名）。</p>
+<h2 id="_3">新增或修改一个动画</h2>
+<ol>
+<li>页面引用 <code>anim.css</code> 和 <code>anim.js</code>（从 <code>vla-deep-dive/notes/animations/</code> 复制来的同一套），提供 <code>reset(seed)</code> 和 <code>next()</code>（返回 <code>false</code> 表示播完），用 <code>setupPlayer({captureSeed, reset, next}, 毫秒)</code> 挂上播放按钮。</li>
+<li>重新录 GIF（在本目录下执行）：</li>
+</ol>
+<p><code>bash
+   node ../../../tools/anim-capture/capture.mjs 14-positional-encoding.html 14-positional-encoding.gif 1600</code></p>
+<p>录完删掉多出来的 <code>*-last.png</code>。
+3. 在对应讲义的"讲解"末尾写 <code>### 动画演示</code>，然后跑 <code>tools/notes-sync/sync.sh transformer-deep-dive "Transformer"</code>。</p>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

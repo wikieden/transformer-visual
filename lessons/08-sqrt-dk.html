@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 8 章 · 为什么除以 √d_k · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="8-sqrtd_k">第 8 章 · 为什么除以 <span class="arithmatex">\(\sqrt{d_k}\)</span></h1><p><a class="btn" href="../animations/08-sqrt-dk.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：论文公式里那个 <span class="arithmatex">\(\sqrt{d_k}\)</span> 是干什么的？为什么偏偏是它？<br />
+讲解日期：2026-10-26 · 上一章：<a href="../lessons/07-saturation.html">第 7 章 softmax 饱和</a> · 下一章：<a href="../lessons/09-qkv.html">第 9 章 Q、K、V</a><br />
+对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> L184–L188、脚注 4 L198–L201<br />
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；<span class="arithmatex">\(d_h\)</span>：h = head，每个头的维度；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="_2">符号：√（平方根）</h3>
+<p><span class="arithmatex">\(\sqrt{64}\)</span> 读作"<strong>根号 64</strong>"：哪个数自己乘自己等于 64？答案 8，因为 8 × 8 = 64。</p>
+<ul>
+<li><span class="arithmatex">\(\sqrt{4}=2\)</span>，<span class="arithmatex">\(\sqrt{16}=4\)</span></li>
+<li>根号是次方反过来：<span class="arithmatex">\(8^2=64\)</span>，所以 <span class="arithmatex">\(\sqrt{64}=8\)</span></li>
+</ul>
+<h3 id="_3">为什么向量越长，点积越大</h3>
+<p>点积是"对位相乘再<strong>全部加起来</strong>"，向量越长，加的项越多。</p>
+<p><strong>抛硬币</strong>：每一项相乘的结果随机是 +1 或 −1，像抛硬币（正面 +1，反面 −1），全部加起来就是数总分。</p>
+<table>
+<thead>
+<tr>
+<th>抛几次</th>
+<th>总分通常离 0 多远</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4 次</td>
+<td>±2</td>
+</tr>
+<tr>
+<td>64 次</td>
+<td>±8</td>
+</tr>
+<tr>
+<td>512 次</td>
+<td>±22</td>
+</tr>
+</tbody>
+</table>
+<p>正负会抵消一部分，但抛得越多离 0 越远。<strong>规律：抛 d 次，总分通常离 0 约 <span class="arithmatex">\(\sqrt{d}\)</span>。</strong></p>
+<p>论文里做点积的向量每个有 <strong>64 个数</strong>（记作 <span class="arithmatex">\(d_k\)</span>，为什么是 64 讲多头时再说），所以分数通常在 ±8 左右。比如 [8, −8, 3]，softmax 后第一个占 <strong>99.3%</strong>，接近饱和（第 7 章）。</p>
+<h3 id="sqrtd_k">解决：除以 <span class="arithmatex">\(\sqrt{d_k}\)</span></h3>
+<p>分数通常 ±8，想拉回 ±1 左右，就<strong>除以 8 = <span class="arithmatex">\(\sqrt{64}\)</span></strong>。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>分数</th>
+<th>softmax 比例</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>不除</td>
+<td>[8, −8, 3]</td>
+<td>[0.993, 0.000, 0.007]</td>
+<td>接近饱和，学不动</td>
+</tr>
+<tr>
+<td>除以 8</td>
+<td>[1, −1, 0.375]</td>
+<td>[0.599, 0.081, 0.320]</td>
+<td>正常，调分数有反应</td>
+</tr>
+</tbody>
+</table>
+<p>这就是论文名字里的 <strong>scaled（缩放）</strong>：Scaled Dot-Product Attention = <strong>缩放点积注意力</strong>。</p>
+<h3 id="d_k">为什么不是除以 <span class="arithmatex">\(d_k\)</span></h3>
+<p>除以 64：[0.125, −0.125, 0.047]，差距太小。套 <span class="arithmatex">\(e^{x}\)</span> 后都 ≈ 1，再除以总和 → <strong>[0.37, 0.29, 0.34]</strong>，每个约 1/3。注意力变成平均分配，"有用的被放大"（第 6 章原因 2）的作用没了。</p>
+<table>
+<thead>
+<tr>
+<th>除以</th>
+<th>分数大小</th>
+<th>softmax 结果</th>
+<th>问题</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>不除</td>
+<td>±8</td>
+<td>只看一个词</td>
+<td>饱和，学不动</td>
+</tr>
+<tr>
+<td><strong>8（<span class="arithmatex">\(\sqrt{d_k}\)</span>）</strong></td>
+<td>±1</td>
+<td>有重点，也有余地</td>
+<td>正好</td>
+</tr>
+<tr>
+<td>64（<span class="arithmatex">\(d_k\)</span>）</td>
+<td>±0.1</td>
+<td>谁都一样</td>
+<td>平均，抓不住重点</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">公式</h2>
+<div class="arithmatex">\[\text{Attention}(Q,K,V)=\text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V\]</div>
+<table>
+<thead>
+<tr>
+<th>公式里的部分</th>
+<th>意思</th>
+<th>对应章节</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(QK^\top\)</span></td>
+<td>点积打分</td>
+<td>第 2 章（Q、K 见第 9 章）</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\div\sqrt{d_k}\)</span></td>
+<td>缩小分数，防止饱和</td>
+<td>本章</td>
+</tr>
+<tr>
+<td>softmax</td>
+<td>分数变比例</td>
+<td>第 3、6 章</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\times V\)</span></td>
+<td>按比例取信息</td>
+<td>第 4 章（V 见第 9 章）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="0-d-1864">动画演示：抛硬币总分离 0 约 √d；除以 1、8、64 对比</h2>
+<p><img alt="为什么除以 √d_k" src="../animations/08-sqrt-dk.gif" /></p>
+<p>可交互版：<a href="../animations/08-sqrt-dk.html">animations/08-sqrt-dk.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"）。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>抛 4、64、512 次硬币，总分落在蓝底 ±√d 附近（每次重放硬币都不一样）；</li>
+<li>d 变成 16 倍，离 0 的距离只变成 4 倍；</li>
+<li>分数 [8, −8, 3]：不除 → 第一个占 99.3%（接近饱和）；除以 8 → [0.599, 0.081, 0.320]；除以 64 → 都约 1/3；</li>
+<li>滑块：拖除数，看 softmax 从"只看一个"到"有重点"再到"谁都一样"。</li>
+</ol>
+<h2 id="_5">练习与作答记录</h2>
+<p><strong>题 1</strong>：分数通常 ±8，想回到 ±1 左右应除以几？和 <span class="arithmatex">\(d_k=64\)</span> 什么关系？</p>
+<p><strong>作答</strong>："除以 8，正好是方根。" ✓ <strong>自己推出了论文的做法。</strong>（用词：标准叫法是"平方根"）</p>
+<p><strong>题 2</strong>：除以 64 而不是 8，会怎样？</p>
+<p><strong>作答</strong>："除以 64 后几个差距不大，softmax 后接近 1，1，1。"</p>
+<p><strong>点评</strong>：思路 ✓。数字要修正：套 <span class="arithmatex">\(e^{x}\)</span> 后确实都 ≈ 1，但 softmax 还要除以总和，比例 ≈ 1/3 each，<strong>加起来永远等于 1</strong>。这也是 A2 自测题第 3 题。</p>
+<h2 id="_6">本章复习卡片</h2>
+<p>R14 为什么除以 <span class="arithmatex">\(\sqrt{d_k}\)</span> · R15 除太多会怎样（见 <a href="../review.html">review.md</a>）</p>
+<h2 id="_7">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_8">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>L184–L188 与脚注 4（L198–L201）</td>
+<td>原文的理由：d_k 维点积的方差是 d_k</td>
+</tr>
+<tr>
+<td>★ Yang et al. 2022, Tensor Programs V（μP）</td>
+<td>正文 "1/d attention instead of 1/√d" 一段（L393）、附录 Attention Logit Scaling（L1436）</td>
+<td>有人主张除以 d 而不是 √d（对照卡片 R15）：为了让模型变宽时超参数还能沿用</td>
+</tr>
+<tr>
+<td>Wortsman et al. 2023</td>
+<td>§3.1.1（L268 的公式）</td>
+<td>除以 √d_h 之后，分数还是会在训练中变大，需要额外手段</td>
+</tr>
+<tr>
+<td>CS336 a1 handout</td>
+<td>§3.5.4 Scaled Dot-Product Attention</td>
+<td>作业里你要实现的那个公式</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_9">数学原理</h3>
+<ul>
+<li><strong>方差</strong>：衡量一组数离平均值有多远。标准差 = 方差开根号。</li>
+<li><strong>独立随机变量相加，方差也相加</strong>：64 个独立的小乘积加起来，方差变成 64 倍。</li>
+<li><strong>数乘对方差的影响</strong>：一个数乘以 c，方差乘以 c²。所以除以 √d_k，方差正好除以 d_k，回到 1。</li>
+<li><strong>推导</strong>：如果 q 和 k 的每个分量都独立、平均值 0、方差 1，那么点积的方差 = d_k，标准差 = √d_k。</li>
+</ul>
+<h3 id="_10">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(\text{Var}(X) = \mathbb{E}[(X - \mu)^2]\)</span></td>
+<td>方差</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{Var}(X + Y) = \text{Var}(X) + \text{Var}(Y)\)</span></td>
+<td>X、Y 独立时</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{Var}(cX) = c^2 \text{Var}(X)\)</span></td>
+<td>数乘</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{Var}(\mathbf q \cdot \mathbf k) = d_k\)</span></td>
+<td>每个分量独立、均值 0、方差 1 时</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{Var}(\frac{\mathbf q \cdot \mathbf k}{\sqrt{d_k}}) = 1\)</span></td>
+<td>除以 √d_k 后方差回到 1</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="07-saturation.html">← 第 7 章 · softmax 饱和</a><a href="09-qkv.html">第 9 章 · Q、K、V 分别是什么 →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

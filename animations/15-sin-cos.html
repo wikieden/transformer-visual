@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>摩天轮 sin cos</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:16px}svg text.cap{font-size:15px;font-weight:500}</style></head>
+<body><main>
+<h1>第 15 章 · sin 和 cos：坐摩天轮</h1>
+<p class="sub">配套讲义：<a href="../lessons/15-sin-cos.html">第 15 章 · sin 和 cos：圆上转圈</a>。半径为 1 的摩天轮，从正右边上车，逆时针转。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 360"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="turn">自己拖：转了多少圈</label><input type="range" id="turn" min="0" max="2" step="0.01" value="0"><span id="turnv">0</span></div>
+<p class="note">看点：① 橙色竖线是 sin（高度），绿色横线是 cos（左右），转多少圈都不出 −1 到 1；② 右边的曲线在第二圈把第一圈原样再画一遍，这就是周期；③ 最后一段把 (cos, sin) 当号码牌，每个座位多转 1/4 圈，5 号座和 1 号座撞牌。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');const CX=150,CY=185,R=105,GX=320,GW=330,GH=95;
+const A=33,B=8*3,N=A+B;const TAU=2*Math.PI;  // 后段每个座位停 3 帧，方便看清
+let k=0,custom=null;
+const f2=v=>{const r=Math.round(v*100)/100;return (Object.is(r,-0)?0:r).toFixed(2)};
+const f0=v=>{const r=Math.round(v);return String(Object.is(r,-0)?0:r).replace('-','−')};
+function wheel(){
+  el('circle',{cx:CX,cy:CY,r:R,fill:'none',stroke:'var(--line)','stroke-width':2},sv);
+  el('line',{x1:CX-R-14,y1:CY,x2:CX+R+14,y2:CY,stroke:'var(--line)','stroke-dasharray':'4 4'},sv);
+  el('line',{x1:CX,y1:CY-R-14,x2:CX,y2:CY+R+14,stroke:'var(--line)','stroke-dasharray':'4 4'},sv);
+  el('circle',{cx:CX,cy:CY,r:3,fill:'var(--muted)'},sv);
+  txt('中心轴',{x:CX+6,y:CY+16,class:'m'},sv);
+}
+function cap(s){txt(s,{x:340,y:24,'text-anchor':'middle',class:'cap'},sv)}
+function drawA(turn){
+  cap(turn<=1?'sin = 高度（橙），cos = 左右（绿），永远在 −1 到 1 之间':'第二圈：高度从头再来一遍 → 周期 = 1 圈 = 2π');
+  wheel();
+  const a=TAU*turn,c=Math.cos(a),s=Math.sin(a),px=CX+R*c,py=CY-R*s;
+  // 沿边走过的路（弧度）
+  const big=(turn%1)>0.5?1:0,t1=turn%1;
+  if(turn>0&&turn<1)el('path',{d:`M ${CX+R} ${CY} A ${R} ${R} 0 ${big} 0 ${px} ${py}`,fill:'none',stroke:'var(--purple)','stroke-width':4,opacity:.5},sv);
+  el('line',{x1:CX,y1:CY,x2:px,y2:py,stroke:'var(--muted)'},sv);
+  el('line',{x1:CX,y1:CY,x2:px,y2:CY,stroke:'var(--teal)','stroke-width':4},sv);
+  el('line',{x1:px,y1:CY,x2:px,y2:py,stroke:'var(--amber)','stroke-width':4},sv);
+  el('circle',{cx:px,cy:py,r:8,fill:'var(--accent)'},sv);
+  // 读数
+  txt(`转了 ${turn.toFixed(2)} 圈 = 沿边走了 ${(a).toFixed(2)}（弧度）`,{x:20,y:56,class:'big'},sv);
+  const t=txt(`cos = ${f2(c)}`,{x:20,y:340,class:'big'},sv);t.style.fill='var(--teal)';
+  const u=txt(`sin = ${f2(s)}`,{x:150,y:340,class:'big'},sv);u.style.fill='var(--amber)';
+  const w=txt('紫色弧 = 沿边走过的路（弧度）',{x:GX,y:340,class:'m'},sv);w.style.fill='var(--purple)';
+  // 右边：sin 曲线
+  const GY=CY;
+  el('line',{x1:GX,y1:GY,x2:GX+GW,y2:GY,stroke:'var(--line)'},sv);
+  [1,-1].forEach(v=>{el('line',{x1:GX,y1:GY-v*GH,x2:GX+GW,y2:GY-v*GH,stroke:'var(--line)','stroke-dasharray':'3 4'},sv);txt(v>0?'+1':'−1',{x:GX-6,y:GY-v*GH+4,'text-anchor':'end',class:'m'},sv)});
+  [[0,'0'],[0.5,'½ 圈'],[1,'1 圈'],[1.5,'1½'],[2,'2 圈']].forEach(([x,l])=>{const gx=GX+GW*x/2;el('line',{x1:gx,y1:GY-GH-6,x2:gx,y2:GY+GH+6,stroke:'var(--line)','stroke-width':x===1?1.5:.5},sv);txt(l,{x:gx,y:GY+GH+22,'text-anchor':'middle',class:'m'},sv)});
+  txt('sin 随圈数的变化',{x:GX,y:GY-GH-14,class:'m'},sv);
+  const pts=[];for(let i=0;i<=Math.round(turn*100);i++){const tt=i/100;pts.push(`${GX+GW*tt/2},${GY-GH*Math.sin(TAU*tt)}`)}
+  if(pts.length>1)el('polyline',{points:pts.join(' '),fill:'none',stroke:'var(--amber)','stroke-width':2.5},sv);
+  el('circle',{cx:GX+GW*turn/2,cy:GY-GH*s,r:5,fill:'var(--amber)'},sv);
+}
+function drawB(n){
+  cap(n<5?'当号码牌：座位号每加 1，摩天轮多转 1/4 圈':'5 号座和 1 号座撞牌：一个摩天轮每 4 个座位就重复');
+  wheel();
+  const spots={};
+  for(let i=1;i<=n;i++){const q=i%4;(spots[q]=spots[q]||[]).push(i)}
+  Object.entries(spots).forEach(([q,list])=>{
+    const a=TAU*q/4,px=CX+R*Math.cos(a),py=CY-R*Math.sin(a);
+    const hit=list.length>1;
+    el('circle',{cx:px,cy:py,r:9,fill:hit?'var(--bad)':'var(--accent)'},sv);
+    const side=Math.abs(Math.cos(a))>0.5,lx=side?px:CX+(R+30)*Math.cos(a),ly=side?py-20:CY-(R+30)*Math.sin(a)+5;  // 左右两点的标签放在点上方，免得被裁掉
+    const t=txt(list.map(i=>i+' 号').join('、'),{x:lx,y:ly,'text-anchor':'middle',class:'big'},sv);if(hit)t.style.fill='var(--bad)';
+  });
+  txt('座位',{x:340,y:66,class:'m'},sv);txt('转了几圈',{x:420,y:66,class:'m'},sv);txt('号码牌 (cos, sin)',{x:530,y:66,class:'m'},sv);
+  for(let i=1;i<=n;i++){
+    const y=66+i*32,a=TAU*i/4,hit=i>4||(n>4&&i<=n-4);
+    const c=hit?'var(--bad)':'var(--text)';
+    [[`${i} 号`,340],[`${i}/4`,420],[`(${f0(Math.cos(a))}, ${f0(Math.sin(a))})`,530]].forEach(([s,x])=>{const t=txt(s,{x,y,class:'big'},sv);t.style.fill=c});
+  }
+  if(n>=5)txt('→ 第 16 章：多个转速不同的摩天轮',{x:340,y:350,class:'m'},sv);
+}
+function draw(){clear(sv);if(custom!==null)drawA(custom);else if(k<A)drawA(k/16);else drawB(Math.floor((k-A)/3)+1)}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=N-1)return false;k++;draw();return true}
+$('turn').oninput=e=>{ANIM.stop();custom=+e.target.value;$('turnv').textContent=custom.toFixed(2);draw()};
+setupPlayer({captureSeed:1,reset,next},450);
+</script></body></html>

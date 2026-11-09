@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>多头注意力</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:12px}</style></head>
+<body><main>
+<h1>第 13 章 · 多头注意力 multi-head attention：请好几个评委</h1>
+<p class="sub">配套讲义：<a href="../lessons/13-multi-head.html">第 13 章 · 多头注意力 multi-head attention</a>。读到"她"，既想知道"她"指谁（看小红），又想知道在讲什么关系（看"因为"）。v：小红 [10, 0]、因为 [0, 10]。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="h">自己拖：几个头 h</label><input type="range" id="h" min="0" max="4" step="1" value="3"><span id="hv">8</span></div>
+<p class="note">看点：① 一个头只有一组比例，两样都想看只能对半分，信息混成 [5, 5]；② 两个头各管一样：头 1 全看小红 [10, 0]，头 2 全看"因为" [0, 10]；③ 拼接（Concat）不是相加：[10, 0, 0, 10]，两样都完整保留；④ 论文 h = 8：512 ÷ 8 = 64，每个头 64 个数，拼回 512，再乘 W^O 混合；⑤ 8 个 512 × 64 的 W_i^Q 横着拼，正好是一个 512 × 512：参数不多花。滑块：改头数，每个头的长度 d_k = 512 ÷ h，总参数不变。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const HS=[1,2,4,8,16];
+const ST=[{cap:'一个头：只有一组比例，小红 0.5、因为 0.5',s:0},{cap:'两个头：各有自己的 W^Q、W^K、W^V，各管一样',s:1},
+  {cap:'拼接（Concat）：首尾接起来，不是相加',s:2},{cap:'论文：h = 8 个头，每个头 512 ÷ 8 = 64 个数',s:3,h:8},
+  {cap:'拼回 512，再乘 W^O：像主评委汇总各评委的意见',s:4,h:8},{cap:'参数量：8 个 512 × 64 横着拼 = 一个 512 × 512',s:5,h:8}];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+const C1='var(--purple)',C2='var(--teal)';
+function vec(x,y,v,cols,lab){v.forEach((a,i)=>{el('rect',{x:x+i*52,y,width:46,height:38,rx:5,fill:cols[i],opacity:.22,stroke:cols[i]},sv);
+  txt(String(a),{x:x+i*52+23,y:y+25,'text-anchor':'middle',class:'big'},sv)});if(lab)txt(lab,{x:x-12,y:y+25,'text-anchor':'end',class:'big'},sv)}
+function head(x,y,name,p1,p2,out,c){
+  el('rect',{x,y,width:250,height:150,rx:10,fill:'none',stroke:c,'stroke-width':2},sv);txt(name,{x:x+125,y:y+24,'text-anchor':'middle',class:'big'},sv).style.fill=c;
+  [['小红',p1,C1],['因为',p2,C2]].forEach(([n,p,cc],i)=>{const yy=y+44+i*30;txt(n,{x:x+50,y:yy+14,'text-anchor':'end',class:'m'},sv);
+    el('rect',{x:x+60,y:yy,width:140*p,height:18,rx:3,fill:cc},sv);txt(String(p),{x:x+66+140*p,y:yy+14,class:'v'},sv)});
+  vec(x+80,y+104,out,[c,c],'取到')}
+function strip(h,y,withWo){const W=560,x0=60,w=W/h;
+  for(let i=0;i<h;i++){el('rect',{x:x0+i*w,y,width:w-2,height:40,rx:3,fill:i%2?C1:C2,opacity:.75},sv);
+    if(w>40)txt(`头 ${i+1}`,{x:x0+i*w+w/2,y:y+25,'text-anchor':'middle',class:'v'},sv).style.fill='#fff'}
+  txt(`${h} 个头 × 每个 ${512/h} 个数 = 512`,{x:340,y:y+64,'text-anchor':'middle',class:'big'},sv);
+  if(withWo){el('line',{x1:340,y1:y+76,x2:340,y2:y+104,stroke:'var(--accent)','stroke-width':2},sv);
+    el('rect',{x:245,y:y+106,width:190,height:36,rx:5,fill:'var(--accent-bg)',stroke:'var(--accent)'},sv);
+    txt('× W^O（512 × 512）',{x:340,y:y+129,'text-anchor':'middle',class:'big'},sv);
+    el('rect',{x:x0,y:y+160,width:W,height:30,rx:3,fill:'var(--warm)',opacity:.8},sv);
+    txt('输出：512 个数，和原词向量一样长，方便后面继续算',{x:340,y:y+180,'text-anchor':'middle',class:'v'},sv).style.fill='#fff'}}
+function params(h,y0=100){const S=y0>100?210:240,x0=120;
+  el('rect',{x:x0,y:y0,width:S,height:S,fill:'none',stroke:'var(--muted)','stroke-width':2},sv);
+  for(let i=0;i<h;i++)el('rect',{x:x0+i*S/h,y:y0,width:S/h-1,height:S,fill:i%2?C1:C2,opacity:.55},sv);
+  txt('512 行',{x:x0-10,y:y0+S/2,'text-anchor':'end',class:'m'},sv);txt('512 列',{x:x0+S/2,y:y0+S+20,'text-anchor':'middle',class:'m'},sv);
+  txt(`${h} 个 W_i^Q，每个 512 × ${512/h}`,{x:400,y:y0+70,class:'big'},sv);
+  txt(`横着拼起来 = 512 × 512`,{x:400,y:y0+100,class:'big'},sv);
+  txt('参数量、计算量和一个大头几乎一样',{x:400,y:y0+140,class:'m'},sv);
+  txt(`只是把 softmax 分成 ${h} 组各自做`,{x:400,y:y0+162,class:'m'},sv);
+  txt(`白得 ${h} 个视角`,{x:400,y:y0+194,class:'big'},sv).style.fill='var(--good)'}
+function draw(){
+  clear(sv);
+  if(custom!==null){const h=HS[custom];txt(`h = ${h} 个头：每个头 d_k = 512 ÷ ${h} = ${512/h}`,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+    strip(h,55,false);params(h,150);return}
+  const f=ST[FR[k]];txt(f.cap,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+  if(f.s===0){head(215,70,'一个头',0.5,0.5,[5,5],'var(--muted)');
+    txt('0.5 × [10, 0] + 0.5 × [0, 10] = [5, 5]：两样信息混在一起，分不清了',{x:340,y:270,'text-anchor':'middle',class:'big'},sv);
+    txt('像一个评委同时盯剧情、画面、配乐，每样都只能看个大概',{x:340,y:300,'text-anchor':'middle',class:'m'},sv)}
+  else if(f.s<=2){head(60,70,'头 1：她指谁',1,0,[10,0],C1);head(370,70,'头 2：在讲什么关系',0,1,[0,10],C2);
+    if(f.s===2){vec(236,280,[10,0,0,10],[C1,C1,C2,C2],'Concat');txt('4 个数：两样信息都完整保留',{x:340,y:350,'text-anchor':'middle',class:'m'},sv)}}
+  else if(f.s<=4)strip(8,f.s===3?140:80,f.s===4);
+  else params(8);
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('h').oninput=e=>{ANIM.stop();custom=+e.target.value;$('hv').textContent=HS[custom];draw()};
+setupPlayer({captureSeed:1,reset,next},1600);
+</script></body></html>

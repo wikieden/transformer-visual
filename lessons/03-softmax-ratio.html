@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 3 章 · softmax（上）：把分数变成比例 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="3-softmax">第 3 章 · softmax（上）：把分数变成比例</h1><p><a class="btn" href="../animations/03-softmax-ratio.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：分数打好了，"注意力"要怎么分出去？<br />
+讲解日期：2026-10-25 · 上一章：<a href="../lessons/02-dot-product.html">第 2 章 点积</a> · 下一章：<a href="../lessons/04-weighted-average.html">第 4 章 按比例取信息</a><br />
+本章缩写：LayerNorm / LN = Layer Normalization（层归一化）；RMSNorm = Root Mean Square Normalization（均方根归一化）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；⊙ = element-wise product（逐个相乘，又叫 Hadamard 积）；exp = exponential（指数）：exp(x) = eˣ；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="_2">目的：分数 → 注意力比例</h3>
+<blockquote>
+<p>小明把苹果给了小红，因为<strong>她</strong>饿了。</p>
+</blockquote>
+<p>假设"她"和其他几个词的点积分数是（数字是编的）：</p>
+<table>
+<thead>
+<tr>
+<th>词</th>
+<th>和"她"的点积分数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>小明</td>
+<td>2</td>
+</tr>
+<tr>
+<td>苹果</td>
+<td>1</td>
+</tr>
+<tr>
+<td>小红</td>
+<td>5</td>
+</tr>
+</tbody>
+</table>
+<p>模型真正需要的是<strong>比例</strong>：注意力百分之几给小明、百分之几给苹果、百分之几给小红。这些比例<strong>加起来要等于 1</strong>（100%），因为注意力总共就这么多。</p>
+<p>最朴素的办法：<strong>每个分数除以总分</strong>。总分 = 2 + 1 + 5 = 8，小明 = 2 ÷ 8 = 0.25。分数越高，比例越大，而且全部加起来正好是 1。</p>
+<p>softmax 做的就是这件事，只是在"除以总分"之前多了一个步骤（见<a href="../lessons/06-softmax-exp.html">第 6 章</a>）。</p>
+<h3 id="softmax">softmax 是"归一化"吗？</h3>
+<p><strong>是。</strong> softmax 把一组分数变成加起来等于 1 的比例，"归一"就是把总和归成 1。</p>
+<p>但"归一化"这个中文词在深度学习里<strong>指两种不同的东西</strong>，读论文时会碰到：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>softmax</th>
+<th>LayerNorm（层归一化）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>英文原词</td>
+<td>softmax</td>
+<td>normalization</td>
+</tr>
+<tr>
+<td>作用对象</td>
+<td>一组分数（"她"对每个词的打分）</td>
+<td>一个向量里的 512 个数</td>
+</tr>
+<tr>
+<td>做完以后</td>
+<td>每个数都是正数，加起来等于 1</td>
+<td>平均值变成 0，大小调到统一范围</td>
+</tr>
+<tr>
+<td>目的</td>
+<td>得到"注意力分给谁多少"的比例</td>
+<td>防止数字越算越大或越小，训练稳定</td>
+</tr>
+</tbody>
+</table>
+<p>所以"softmax 把分数归一化成比例"是对的；但论文里的 Layer Normalization 不是 softmax，以后单独讲。</p>
+<h2 id="_3">公式（朴素版）</h2>
+<div class="arithmatex">\[p_j = \frac{s_j}{\sum_{k} s_k}\]</div>
+<ul>
+<li><span class="arithmatex">\(s_j\)</span>：第 j 个词的分数（s = score）</li>
+<li><span class="arithmatex">\(\sum_k s_k\)</span>：所有分数的总和</li>
+<li><span class="arithmatex">\(p_j\)</span>：第 j 个词分到的比例（p = proportion），所有 <span class="arithmatex">\(p_j\)</span> 加起来等于 1</li>
+</ul>
+<h2 id="1">动画演示：分数 ÷ 总分 = 比例，加起来是 1</h2>
+<p><img alt="分数变比例" src="../animations/03-softmax-ratio.gif" /></p>
+<p>可交互版：<a href="../animations/03-softmax-ratio.html">animations/03-softmax-ratio.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"）。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>分数 [小明 2, 苹果 1, 小红 5] 摞成一根，总分 8；</li>
+<li>每个分数 ÷ 8，得到比例条：25%、12.5%、62.5%；</li>
+<li>比例条总长永远是 1；</li>
+<li>滑块：改小红的分数，她占得越多，别人被挤得越小，但总长不变。</li>
+</ol>
+<h2 id="_4">练习与作答记录</h2>
+<p><strong>题</strong>：总分 8，小明占 0.25。苹果和小红各占多少？三个加起来是不是 1？</p>
+<p><strong>作答</strong>：苹果 <strong>0.125</strong>，小红 <strong>0.625</strong>。✓</p>
+<p><strong>核对</strong>：1 ÷ 8 = 0.125，5 ÷ 8 = 0.625；0.25 + 0.125 + 0.625 = 1。小红分数最高（5），比例也最大（62.5%）：读到"她"时，大部分注意力给小红。</p>
+<h2 id="_5">口诀</h2>
+<blockquote>
+<p>分数变比例，加起来等于一。<br />
+softmax 分注意，LayerNorm 稳数值。</p>
+</blockquote>
+<h2 id="_6">本章复习卡片</h2>
+<p>R06 softmax 朴素版 · R07 softmax 和 LayerNorm 的区别（见 <a href="../review.html">review.md</a>）</p>
+<h2 id="_7">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_8">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Goodfellow《Deep Learning》</td>
+<td>§6.2.2.3 Softmax Units</td>
+<td>教科书怎么讲 softmax：把分数变成概率分布</td>
+</tr>
+<tr>
+<td>★ Ba et al. 2016, Layer Normalization</td>
+<td>§3 Layer normalization</td>
+<td>LayerNorm 的原始定义（第 19 章会正式讲）</td>
+</tr>
+<tr>
+<td>Attention Is All You Need</td>
+<td>§3.1，L127 起</td>
+<td>论文里 LayerNorm 出现的位置：LayerNorm(x + Sublayer(x))</td>
+</tr>
+<tr>
+<td>CS336 a1 handout</td>
+<td>§3.5.1 RMSNorm、§3.5.4 式 (10) softmax</td>
+<td>现代模型用的 RMSNorm，以及作业要你写的 softmax</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_9">数学原理</h3>
+<ul>
+<li><strong>概率分布</strong>：一组数，每个都 ≥ 0，加起来等于 1。softmax 的输出就是一个概率分布。</li>
+<li><strong>"归一化"有两种意思</strong>：softmax 是让一组数<strong>加起来等于 1</strong>；LayerNorm 是让一组数<strong>平均值为 0、方差为 1</strong>。名字像，目的不同。</li>
+<li><strong>平均值和方差</strong>：第 19 章的前置知识，这里先记住名字。</li>
+</ul>
+<h3 id="_10">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(p_i = \frac{s_i}{\sum_j s_j}\)</span></td>
+<td>朴素版：分数除以总分（分数必须都是正数才行）</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(p_i \geq 0,\ \sum_i p_i = 1\)</span></td>
+<td>概率分布的两个条件</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\mu = \frac{1}{d}\sum_i x_i,\ \sigma^2 = \frac{1}{d}\sum_i (x_i - \mu)^2\)</span></td>
+<td>平均值、方差</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{LayerNorm}(\mathbf x) = \gamma \odot \frac{\mathbf x - \mu}{\sqrt{\sigma^2 + \epsilon}} + \beta\)</span></td>
+<td>LayerNorm，γ、β 是可学习的参数</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="02-dot-product.html">← 第 2 章 · 点积 dot product</a><a href="04-weighted-average.html">第 4 章 · 按比例取信息：加权平均 →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

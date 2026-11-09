@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 23 章 · 复杂度：为什么 attention 是 n²，长文本为什么难 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="23-attention-n2">第 23 章 · 复杂度：为什么 attention 是 n²，长文本为什么难</h1><p><a class="btn" href="../animations/23-complexity.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：一层 self-attention 到底要算多少？它和以前的 RNN 比，好在哪、差在哪？句子从几十个词变成几万个词，为什么就难了？<br />
+讲解日期：2026-11-08 起 · 上一章：<a href="../lessons/22-embedding-softmax.html">第 22 章 输入 embedding 与输出 softmax</a> · 下一章：<a href="../lessons/24-wrap-up.html">第 24 章 收尾</a><br />
+对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> Table 1 L263–L272；§4 Why Self-Attention L300–L338<br />
+本章缩写：n = 句子里有几个 token（sequence length：序列 / 长度）；d = <span class="arithmatex">\(d_{model}\)</span>，每个词向量有几个数（d = dimension：维度）；O(·) = Big-O notation（大 O 记号：只看"n、d 变大时，工作量按什么规律涨"，不管前面乘的常数）；RNN = Recurrent Neural Network（循环 / 神经 / 网络：一个词一个词按顺序往下传的老式模型）；CNN = Convolutional Neural Network（卷积 / 神经 / 网络：每次只看相邻几个词的"滑动小窗"）；k = kernel size（卷积核宽度：小窗一次看几个词）；r = 受限 attention 的邻居范围（restricted：受限的）；GPU = Graphics Processing Unit（图形 / 处理 / 单元：能同时做成千上万次乘法的芯片）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="attention-n2-d2026-11-08">第一步：一层 attention 要算多少：n² · d（2026-11-08）</h3>
+<p><strong>类比：全班两两握手。</strong> 班上 n 个人，每个人都要和每个人（包括自己）握一次手，一共 n × n 次。每次握手还不是碰一下就完：两个人要把各自卡片上的 d 个数一一相乘再加起来（点积，第 2 章），也就是 d 次乘法。</p>
+<p>所以光是<strong>打分</strong>这一步（第 12 章的 <span class="arithmatex">\(QK^\top\)</span>）：</p>
+<div class="arithmatex">\[\underbrace{n \times n}_{\text{分数表有几格}} \times \underbrace{d}_{\text{每格一次点积}} = n^2 d \text{ 次乘法}\]</div>
+<p><strong>乘 V</strong> 那一步也一样：输出有 n 行、每行 d 个数，每个数都是 n 项的加权和，又是 <span class="arithmatex">\(n \cdot d \cdot n = n^2 d\)</span>。两步合起来大约 <span class="arithmatex">\(2n^2d\)</span>。</p>
+<p><strong>大 O 记号</strong>：只关心"n 变大时，工作量按什么规律涨"，前面的 2 这种常数不管。所以论文 Table 1 写 self-attention 每层是 <span class="arithmatex">\(O(n^2 \cdot d)\)</span>（L269）。</p>
+<p><strong>例子</strong>：d = 8。</p>
+<table>
+<thead>
+<tr>
+<th>句子长度 n</th>
+<th>分数表格子数 n²</th>
+<th>打分的乘法次数 n² × d</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4</td>
+<td>16</td>
+<td>128</td>
+</tr>
+<tr>
+<td>8</td>
+<td>64</td>
+<td>512</td>
+</tr>
+<tr>
+<td>16</td>
+<td>256</td>
+<td>2048</td>
+</tr>
+</tbody>
+</table>
+<p>n 翻一倍，工作量变成 <strong>4 倍</strong>；n 变成 10 倍，工作量变成 100 倍。这就是"平方"的意思。</p>
+<p><strong>层里别的部分呢？</strong> <span class="arithmatex">\(W^Q\)</span>、<span class="arithmatex">\(W^K\)</span>、<span class="arithmatex">\(W^V\)</span> 投影和 FFN（第 9、20 章）都是"每个词各自乘一个 d × d 左右的矩阵"，n 个词就是 n 份，所以是 <span class="arithmatex">\(O(n \cdot d^2)\)</span>：和 n 成正比，不是平方。<strong>平方只出在"每个词都要看每个词"这一步。</strong></p>
+<p><strong>一句话</strong>：attention 让每个词和每个词都打一次分，n × n 格，每格 d 次乘法，所以是 n²·d；句子长一倍，这部分工作量变 4 倍。</p>
+<h3 id="rnn-2026-11-08">第二步：和 RNN 比：算得多一点，但不用排队，路也最短（2026-11-08）</h3>
+<p>Transformer 之前，翻译模型主要用 <strong>RNN</strong>。</p>
+<p><strong>类比：传话游戏。</strong> n 个人排成一队，第 1 个人把消息加工一下传给第 2 个，第 2 个再加上自己的、传给第 3 个……每传一次，要把手里的 d 个数乘一个 d × d 的矩阵（<span class="arithmatex">\(d^2\)</span> 次乘法），一共传 n 次。</p>
+<p>论文 §4（L306–L314）用三把尺子比较：</p>
+<table>
+<thead>
+<tr>
+<th>尺子</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① 每层计算量</td>
+<td>一共要做多少次乘法</td>
+</tr>
+<tr>
+<td>② 必须排队的步数（Sequential Operations）</td>
+<td>有多少步必须等上一步做完才能开始；排队越少，GPU 越能同时开工</td>
+</tr>
+<tr>
+<td>③ 最长路径（Maximum Path Length）</td>
+<td>第 1 个词的信息传到第 n 个词，中间要经过几步；路越长，信号越容易在路上变弱、丢掉，远距离的关系越难学（L308–L312）</td>
+</tr>
+</tbody>
+</table>
+<p>论文 Table 1（L267–L272）：</p>
+<table>
+<thead>
+<tr>
+<th>层的种类</th>
+<th>① 每层计算量</th>
+<th>② 必须排队的步数</th>
+<th>③ 最长路径</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Self-Attention</td>
+<td><span class="arithmatex">\(O(n^2 \cdot d)\)</span></td>
+<td><span class="arithmatex">\(O(1)\)</span></td>
+<td><span class="arithmatex">\(O(1)\)</span></td>
+</tr>
+<tr>
+<td>Recurrent（RNN）</td>
+<td><span class="arithmatex">\(O(n \cdot d^2)\)</span></td>
+<td><span class="arithmatex">\(O(n)\)</span></td>
+<td><span class="arithmatex">\(O(n)\)</span></td>
+</tr>
+<tr>
+<td>Convolutional（CNN）</td>
+<td><span class="arithmatex">\(O(k \cdot n \cdot d^2)\)</span></td>
+<td><span class="arithmatex">\(O(1)\)</span></td>
+<td><span class="arithmatex">\(O(\log_k n)\)</span></td>
+</tr>
+<tr>
+<td>Self-Attention（受限，只看邻居 r 个）</td>
+<td><span class="arithmatex">\(O(r \cdot n \cdot d)\)</span></td>
+<td><span class="arithmatex">\(O(1)\)</span></td>
+<td><span class="arithmatex">\(O(n/r)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p><strong>② 排队</strong>：RNN 是传话，第 5 个人必须等第 4 个人传完才能动手，n 个词就是 n 步排队。attention 是全班同时握手，所有格子可以一起算，排队步数和 n 无关，记作 <span class="arithmatex">\(O(1)\)</span>（L315–L316）。GPU 擅长"同时做很多"，所以 attention 训练快得多。</p>
+<p><strong>③ 路径</strong>：RNN 里第 1 个词要传 n − 1 次才到第 n 个词；attention 里任何两个词<strong>直接握手</strong>，一步就到。</p>
+<p><strong>① 计算量</strong>：attention 是 <span class="arithmatex">\(n^2 d\)</span>，RNN 是 <span class="arithmatex">\(n d^2\)</span>。两边都除以 <span class="arithmatex">\(n \cdot d\)</span>，比的就是 <strong>n 和 d 谁大</strong>：</p>
+<ul>
+<li>n &lt; d 时 attention 更省（L316–L321："faster than recurrent layers when the sequence length n is smaller than the representation dimensionality d"）；</li>
+<li>翻译的句子一般几十个 token，d = 512，所以当年 attention 三把尺子全赢。</li>
+</ul>
+<p>例子：n = 50，d = 512：<span class="arithmatex">\(n^2 d = 50 \times 50 \times 512 = 1{,}280{,}000\)</span>；<span class="arithmatex">\(n d^2 = 50 \times 512 \times 512 = 13{,}107{,}200\)</span>。attention 只有 RNN 的约十分之一。</p>
+<p><strong>CNN</strong>（卷积）每次只看相邻 k 个词，要叠很多层才能让远处的两个词连上（L327–L330），路径比 attention 长，这里了解一下就行。</p>
+<p><strong>一句话</strong>：attention 用"每个词都看每个词"换来了"不用排队、任意两个词一步直达"；句子比 d 短的时候，它连计算量都比 RNN 小。</p>
+<h3 id="n2-2026-11-08">第三步：长文本为什么难：n² 涨得太快，分数表放不下（2026-11-08）</h3>
+<p>第二步说"n &lt; d 时 attention 更省"。可现在的大模型动不动就读几万、几十万个 token，n 远大于 d，平方就开始咬人了。</p>
+<p><strong>① 计算量</strong>：n 一大，attention 那部分（n²·d）就超过别的部分（n·d²），成了大头。</p>
+<p><strong>② 显存：分数表本身就放不下。</strong> 每一层、每一个头都有一张 n × n 的分数表（第 12 章）。按每个数占 2 个字节（半精度）粗算一张表：</p>
+<table>
+<thead>
+<tr>
+<th>n</th>
+<th>一张分数表的格子数</th>
+<th>大约多大</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1,000</td>
+<td>100 万</td>
+<td>2 MB</td>
+</tr>
+<tr>
+<td>10,000</td>
+<td>1 亿</td>
+<td>200 MB</td>
+</tr>
+<tr>
+<td>100,000</td>
+<td>100 亿</td>
+<td>20 GB</td>
+</tr>
+</tbody>
+</table>
+<p>n = 100,000 时，<strong>一层一个头</strong>就要 20 GB，而一块 GPU 的显存通常只有几十 GB。</p>
+<p><strong>解决思路</strong>（都在后面的阶段 E、F 学，这里只认个名字）：</p>
+<table>
+<thead>
+<tr>
+<th>思路</th>
+<th>做法</th>
+<th>代价</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>只看邻居（论文自己提的，L323–L326）</td>
+<td>每个词只看前后 r 个词，计算量变成 <span class="arithmatex">\(O(r \cdot n \cdot d)\)</span>；后来的 sliding window（滑动窗口，Longformer、Mistral）就是这个思路</td>
+<td>远处的词要隔几层才连得上，最长路径变成 <span class="arithmatex">\(O(n/r)\)</span></td>
+</tr>
+<tr>
+<td>不把整张表存下来（FlashAttention）</td>
+<td>把表切成小块，一块一块算完就丢，只留最后结果</td>
+<td>计算量还是 n²，但显存只和 n 成正比</td>
+</tr>
+<tr>
+<td>换掉 softmax（线性注意力、Mamba）</td>
+<td>改写公式，让工作量和 n 成正比</td>
+<td>和原版 attention 不完全等价，效果要看任务</td>
+</tr>
+</tbody>
+</table>
+<p><strong>一句话</strong>：n 一大，n² 的计算和 n × n 的分数表都扛不住；后来的办法要么少看（只看邻居），要么少存（FlashAttention），要么换公式（线性注意力）。</p>
+<h3 id="n2">动画演示：n² 的格子、传话与握手、分数表的显存</h3>
+<p><img alt="Attention 复杂度" src="../animations/23-complexity.gif" /></p>
+<p>可交互版：<a href="../animations/23-complexity.html">animations/23-complexity.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"；滑块把 n 从 10 拖到 100000（d = 512））。</p>
+<p>d = 8 画格子；比较 RNN 时用 6 个词；显存按每个数 2 字节粗算。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>n = 4、8、16：分数表 n × n 格，每格 d 次乘法；n 翻倍，工作量 × 4（第一步）；</li>
+<li>RNN 传话要排队 n − 1 步，attention 所有格子同时算（第二步）；</li>
+<li>最长路径：RNN 走 n − 1 步，attention 一步直达（第二步）；</li>
+<li>n = 50、d = 512：n²d 只有 nd² 的约 1/10（第二步）；</li>
+<li>n = 1000、10000、100000 时一张分数表的显存：2 MB → 200 MB → 20 GB（第三步）；</li>
+<li>滑块：看格子数、attention ÷ RNN（= n ÷ d）、一张分数表的显存；n 超过 512 后比值变红。</li>
+</ol>
+<h2 id="_2">练习与作答记录</h2>
+<p><strong>题 1</strong>（第一步 n²·d）：d = 8，句子 n = 10。
+（a）分数表有几格？打分一共要做多少次乘法？
+（b）句子变成 n = 20，打分的工作量变成原来的几倍？</p>
+<p><strong>题 2</strong>（第二步 和 RNN 比）：一句话 100 个词。
+（a）RNN 必须排队几步？attention 呢？
+（b）第 1 个词的信息传到第 100 个词，RNN 要走几步？attention 呢？</p>
+<p><strong>题 3</strong>（第二步 谁更省）：d = 512，一篇文章 n = 2000 个 token。<span class="arithmatex">\(n^2 d\)</span> 和 <span class="arithmatex">\(n d^2\)</span> 哪个大？大约是几倍？</p>
+<p><strong>题 4</strong>（第三步 长文本）：上下文从 n = 4000 扩到 n = 32000。一张分数表的格子数变成原来的几倍？</p>
+<h2 id="_3">口诀</h2>
+<blockquote>
+<p>全班两两握手，n 乘 n 格，每格 d 次乘，n 方乘 d。<br />
+句子长一倍，握手变四倍。<br />
+RNN 传话要排队，路长信号丢；attention 同时握手，一步直达。<br />
+n 比 d 小它更省，n 比 d 大平方咬人。<br />
+长文本三条路：只看邻居、分块不存、换掉 softmax。</p>
+</blockquote>
+<h2 id="_4">本章复习卡片</h2>
+<p>（练习做完后，按答错、卡住的地方补上。）</p>
+<h2 id="_5">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。</p>
+</blockquote>
+<h3 id="_6">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>Table 1 L263–L272；§4 L300–L338</td>
+<td>本章原文：三把尺子（L306–L314）、n &lt; d 时更快（L316–L322）、受限 attention（L323–L326）、卷积（L327–L334）、可解释性（L335–L338）</td>
+</tr>
+<tr>
+<td>★ Dao et al. 2022，FlashAttention</td>
+<td><code>flashattention-2205.14135.txt</code> 摘要 L16–L35</td>
+<td>"计算量不变，但不存整张分数表"：显存从 n² 降到 n，是现在训练长文本的标配（阶段 E）</td>
+</tr>
+<tr>
+<td>Beltagy et al. 2020，Longformer</td>
+<td><code>longformer-2004.05150.txt</code> 摘要 L11 起；Figure 2 的四种注意力图案 L124</td>
+<td>滑动窗口 + 少数全局词：论文 L323–L326 "只看邻居"思路的完整版</td>
+</tr>
+<tr>
+<td>Jiang et al. 2023，Mistral 7B</td>
+<td><code>mistral-7b-2310.06825.txt</code> L41；Figure 1 L63</td>
+<td>现代模型里的 sliding window attention：每层只看前 W 个词，叠很多层后能"间接"看得很远</td>
+</tr>
+<tr>
+<td>Katharopoulos et al. 2020，Transformers are RNNs</td>
+<td><code>linear-attention-transformers-are-rnns-2006.16236.txt</code> 摘要 L8 起</td>
+<td>线性注意力：去掉 softmax 后能改写成 O(n) 的形式，而且生成时又变回了"RNN"（阶段 F）</td>
+</tr>
+<tr>
+<td>Hochreiter et al. 2001，Gradient Flow in Recurrent Nets</td>
+<td>本地没有文本版；AIAYN 参考文献 [12]，L580</td>
+<td>论文"路径越长越难学"（L312）的出处：RNN 里信号一步步传，会越传越弱</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_7">数学原理</h3>
+<ul>
+<li><strong>大 O 记号</strong>：<span class="arithmatex">\(f(n) = O(g(n))\)</span> 表示 n 很大时，f 最多是 g 的常数倍。<span class="arithmatex">\(2n^2d\)</span> 和 <span class="arithmatex">\(n^2d\)</span> 都记作 <span class="arithmatex">\(O(n^2 d)\)</span>。</li>
+<li><strong>平方增长</strong>：<span class="arithmatex">\((cn)^2 = c^2 n^2\)</span>，n 变成 c 倍，工作量变成 <span class="arithmatex">\(c^2\)</span> 倍（翻倍 → 4 倍，10 倍 → 100 倍）。</li>
+<li><strong>交叉点</strong>：<span class="arithmatex">\(n^2 d &lt; n d^2 \iff n &lt; d\)</span>（两边同除以 <span class="arithmatex">\(n d\)</span>）。</li>
+<li><strong>一层的完整计算量</strong>（每个词算一次）：投影 <span class="arithmatex">\(W^Q, W^K, W^V, W^O\)</span> 约 <span class="arithmatex">\(4nd^2\)</span>，FFN 约 <span class="arithmatex">\(2n \cdot d \cdot d_{ff} = 8nd^2\)</span>（<span class="arithmatex">\(d_{ff} = 4d\)</span>），attention 打分加乘 V 约 <span class="arithmatex">\(2n^2 d\)</span>。令 <span class="arithmatex">\(2n^2d = 12nd^2\)</span> 得 <span class="arithmatex">\(n = 6d\)</span>：n 超过约 6 倍的 d，attention 部分就成了大头（只数乘法，粗略估计）。</li>
+<li><strong>分数表大小</strong>：每层每头 <span class="arithmatex">\(n^2\)</span> 个数；全部要存的话乘层数 N 和头数 h。</li>
+</ul>
+<h3 id="_8">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>打分 <span class="arithmatex">\(n \times n \times d = n^2 d\)</span></td>
+<td>分数表 n² 格，每格 d 次乘法</td>
+</tr>
+<tr>
+<td>self-attention：<span class="arithmatex">\(O(n^2 d)\)</span>、排队 <span class="arithmatex">\(O(1)\)</span>、路径 <span class="arithmatex">\(O(1)\)</span></td>
+<td>Table 1 第一行</td>
+</tr>
+<tr>
+<td>RNN：<span class="arithmatex">\(O(n d^2)\)</span>、排队 <span class="arithmatex">\(O(n)\)</span>、路径 <span class="arithmatex">\(O(n)\)</span></td>
+<td>Table 1 第二行</td>
+</tr>
+<tr>
+<td>受限 attention：<span class="arithmatex">\(O(r \cdot n \cdot d)\)</span>、路径 <span class="arithmatex">\(O(n/r)\)</span></td>
+<td>只看邻居 r 个</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(n &lt; d\)</span> 时 <span class="arithmatex">\(n^2 d &lt; n d^2\)</span></td>
+<td>attention 比 RNN 省的条件</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="22-embedding-softmax.html">← 第 22 章 · 输入 embedding 与输出 softmax：词怎么变成向量，向量怎么变回词</a><a href="24-wrap-up.html">第 24 章 · 收尾：数参数、warmup 学习率、对照原文通读 §3 →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

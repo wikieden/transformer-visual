@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>拼装 Transformer</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:11px}</style></head>
+<body><main>
+<h1>第 21 章 · 拼装：encoder 层、decoder 层、三种 attention、一轮写一个词</h1>
+<p class="sub">配套讲义：<a href="../lessons/21-transformer-layer.html">第 21 章 · 拼装：一个 Transformer 层；encoder / decoder 全图；三种 attention</a>。MHA = Multi-Head Attention（多头注意力）；FFN = Feed-Forward Network（前馈网络）；LN = LayerNorm（层归一化）。例子：原文"狗 咬 人"→ 译文 "dog bites man"。分数表里只画格子，不画具体分数。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="n">自己拖：原文几个词 n</label><input type="range" id="n" min="2" max="8" step="1" value="3"><span id="nv">3</span></div>
+<div class="row"><label for="k">自己拖：decoder 第几轮 k（输入 k 个词）</label><input type="range" id="k" min="1" max="8" step="1" value="2"><span id="kv">2</span></div>
+<p class="note">看点：① encoder 层两道工序（开会、消化），每道之后加回原稿 + LayerNorm；② decoder 层三道工序，多了"回头查原文"，开会那道要遮；③ 三种 attention 的分数表：行 = 谁提问，列 = 问了谁，原文开会 3 × 3 不遮、译文开会遮右上、译文问原文 2 × 3 不遮；④ 一轮写一个词：encoder 只跑 1 次，decoder 每轮输入多 1 个词，③ 的分数表多 1 行，取最后一行选下一个词。滑块：改原文词数 n 和轮数 k，看三张分数表和输出的形状。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const SRC=['狗','咬','人'],OUT=['<开始>','dog','bites','man'],PICK=['dog','bites','man','<结束>'];
+const ST=[{cap:'encoder 层：开会 → 加回 + LN → 消化 → 加回 + LN',s:0},
+  {cap:'decoder 层：三道工序，多出"回头查原文"，开会那道要遮',s:1},
+  {cap:'① 原文自己开会：3 个词问 3 个词，3 × 3，不遮',s:2},
+  {cap:'② 译文自己开会：2 × 2，遮右上（后面的词还没写出来）',s:3},
+  {cap:'③ 译文问原文：2 个词问 3 个词，2 × 3，不遮',s:4},
+  {cap:'第 1 轮：encoder 读原文一次，存成 e；decoder 输入 <开始>',s:5,k:1},
+  {cap:'第 2 轮：encoder 不重跑；decoder 输入多 1 个词',s:5,k:2},
+  {cap:'第 3 轮：③ 的分数表又多 1 行，列数不变',s:5,k:3},
+  {cap:'第 4 轮：选出 <结束> 就停。encoder 1 次，decoder 4 轮',s:5,k:4}];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+function defs(){const d=el('defs',{},sv);['var(--muted)','var(--warm)','var(--teal)'].forEach((c,i)=>{const m=el('marker',{id:'m'+i,viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:6,markerHeight:6,orient:'auto'},d);el('path',{d:'M0,0 L10,5 L0,10 z',fill:c},m)})}
+function box(x,y,w,h,t,col,op){el('rect',{x,y,width:w,height:h,rx:6,fill:col,opacity:op==null?.18:op,stroke:col},sv);return txt(t,{x:x+w/2,y:y+h/2+5,'text-anchor':'middle',class:'big'},sv)}
+function down(x,y1,y2,c){el('line',{x1:x,y1,x2:x,y2,stroke:c||'var(--muted)','stroke-width':1.5,'marker-end':'url(#m0)'},sv)}
+function rail(yFrom,yTo,left){el('path',{d:`M${left},${yFrom} H180 V${yTo} H${left}`,fill:'none',stroke:'var(--amber)','stroke-width':1.5,'stroke-dasharray':'4 3','marker-end':'url(#m0)'},sv)}
+// 一层的竖向流程：items = [[文字, 颜色, 是否"加回+LN"]]
+function stack(items,y0,h,gap,label){const cx=340,w=240,left=cx-w/2;let y=y0,prevIn=y0-12;
+  box(left,y-36,w,26,label,'var(--muted)',.08);down(cx,y-10,y);
+  items.forEach(([t,c,add],i)=>{if(add){box(left+30,y,w-60,h,t,'var(--amber)',.15);rail(prevIn,y+h/2,left+30)}
+    else{prevIn=y-4;box(left,y,w,h,t,c)}
+    y+=h;if(i<items.length-1)down(cx,y,y+gap);y+=gap});
+  return y}
+function grid(x0,y0,R,C,rl,cl,mask,col,maxW,maxH){const cs=Math.min(34,maxW/C,maxH/R);
+  for(let i=0;i<R;i++)for(let j=0;j<C;j++){const m=mask&&j>i,x=x0+j*cs,y=y0+i*cs;
+    el('rect',{x:x+1,y:y+1,width:cs-2,height:cs-2,rx:3,fill:m?'var(--muted)':col,opacity:m?.35:.3,stroke:m?'var(--muted)':col},sv);
+    if(m&&cs>=26)txt('−∞',{x:x+cs/2,y:y+cs/2+4,'text-anchor':'middle',class:'v'},sv)}
+  if(rl)rl.forEach((t,i)=>txt(t,{x:x0-5,y:y0+i*cs+cs/2+4,'text-anchor':'end',class:'v'},sv));
+  if(cl)cl.forEach((t,j)=>txt(t,{x:x0+j*cs+cs/2,y:y0-6,'text-anchor':'middle',class:'v'},sv));
+  return cs}
+function three(n,k,rN,cN,rK,show){
+  const P=[{t:'① 原文自己开会',R:n,C:n,rl:rN,cl:rN,mask:false,col:'var(--teal)',d:'不遮',o:`出去 ${n} × 512`},
+    {t:'② 译文自己开会',R:k,C:k,rl:rK,cl:rK,mask:true,col:'var(--purple)',d:'遮右上',o:`出去 ${k} × 512`},
+    {t:'③ 译文问原文',R:k,C:n,rl:rK,cl:cN,mask:false,col:'var(--warm)',d:'不遮',o:`出去 ${k} × 512`}];
+  P.forEach((p,i)=>{if(i>=show)return;const x=20+i*222;
+    txt(p.t,{x:x+105,y:72,'text-anchor':'middle',class:'big'},sv).style.fill=p.col;
+    txt(`行 = ${i===0?'原文':'译文'}（提问），列 = ${i===1?'译文':'原文'}（被问）`,{x:x+105,y:92,'text-anchor':'middle',class:'m'},sv);
+    grid(x+58,124,p.R,p.C,p.rl,p.cl,p.mask,p.col,150,150);
+    txt(`分数表 ${p.R} × ${p.C}，${p.d}`,{x:x+105,y:300,'text-anchor':'middle',class:'big'},sv);
+    txt(p.o,{x:x+105,y:322,'text-anchor':'middle',class:'m'},sv)});
+  txt('行看谁提问，列看问了谁，输出行数跟着提问的人走',{x:340,y:370,'text-anchor':'middle',class:'m'},sv)}
+function rounds(r){
+  // 左：encoder 只跑一次
+  el('rect',{x:24,y:62,width:190,height:250,rx:10,fill:'var(--teal)',opacity:.08,stroke:'var(--teal)'},sv);
+  txt('encoder（只跑 1 次）',{x:119,y:84,'text-anchor':'middle',class:'big'},sv).style.fill='var(--teal)';
+  SRC.forEach((w,i)=>box(44+i*52,100,44,28,w,'var(--muted)',.12));
+  down(119,132,160);box(44,162,150,34,'6 层 encoder','var(--teal)');down(119,198,226);
+  txt('e（3 × 512）',{x:119,y:244,'text-anchor':'middle',class:'big'},sv);
+  SRC.forEach((w,i)=>el('rect',{x:54+i*44,y:254,width:38,height:14,rx:3,fill:'var(--teal)',opacity:.7},sv));
+  txt('存起来，每轮都查这一份',{x:119,y:296,'text-anchor':'middle',class:'m'},sv);
+  // 右：decoder 第 r 轮
+  txt(`decoder 第 ${r} 轮：输入 ${r} 个词`,{x:470,y:72,'text-anchor':'middle',class:'big'},sv).style.fill='var(--warm)';
+  for(let i=0;i<r;i++)box(262+i*96,84,88,26,OUT[i],'var(--warm)',i===r-1&&r>1?.4:.15);
+  const cs=grid(388,150,r,3,OUT.slice(0,r),SRC,false,'var(--warm)',120,120);
+  txt('③ 译文问原文',{x:388+1.5*cs,y:128,'text-anchor':'middle',class:'m'},sv);
+  el('rect',{x:388,y:150+(r-1)*cs,width:3*cs,height:cs,fill:'none',stroke:'var(--warm)','stroke-width':2.5,rx:3},sv);
+  const bx=388+1.5*cs,by=150+r*cs+4;
+  el('path',{d:`M214,261 C300,261 ${bx},${by+60} ${bx},${by}`,fill:'none',stroke:'var(--teal)','stroke-width':2,'marker-end':'url(#m2)'},sv);
+  txt('e 提供 K、V（3 列）',{x:282,y:246,'text-anchor':'middle',class:'m'},sv).style.fill='var(--teal)';
+  const yl=150+(r-0.5)*cs;el('line',{x1:388+3*cs+4,y1:yl,x2:520,y2:yl,stroke:'var(--warm)','stroke-width':2,'marker-end':'url(#m1)'},sv);
+  txt('取最后一行',{x:530,y:yl-14,class:'m'},sv);txt(`选出：${PICK[r-1]}`,{x:530,y:yl+6,class:'big'},sv).style.fill='var(--warm)';
+  txt(`分数表 ${r} × 3：行 = 这一轮输入的 ${r} 个词，列 = 原文 3 个词`,{x:340,y:340,'text-anchor':'middle',class:'big'},sv);
+  txt(`到现在：encoder 跑了 1 次，decoder 跑了 ${r} 轮`,{x:340,y:368,'text-anchor':'middle',class:'m'},sv)}
+function draw(){
+  clear(sv);defs();
+  if(custom!==null){const {n,kk}=custom,nums=a=>Array.from({length:a},(_,i)=>String(i+1));
+    txt(`原文 ${n} 个词，decoder 第 ${kk} 轮（输入 ${kk} 个词）`,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+    three(n,kk,nums(n),nums(n),nums(kk),3);return}
+  const f=ST[FR[k]];txt(f.cap,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+  if(f.s===0){stack([['开会：Multi-Head Attention','var(--purple)'],['加回 x → LayerNorm','',1],['消化：FFN','var(--teal)'],['加回 z → LayerNorm','',1]],100,34,18,'进来 3 × 512');
+    down(340,322,340);txt('出去 3 × 512',{x:340,y:356,'text-anchor':'middle',class:'big'},sv);
+    txt('× 6 层',{x:560,y:190,'text-anchor':'middle',class:'big'},sv);txt('结构一样，参数各一套',{x:560,y:212,'text-anchor':'middle',class:'m'},sv);
+    txt('虚线 = 残差：把原稿加回来',{x:96,y:380,'text-anchor':'middle',class:'m'},sv).style.fill='var(--amber)'}
+  else if(f.s===1){const yEnd=stack([['看自己写过的（masked，遮）','var(--purple)'],['加回 → LayerNorm','',1],['回头查原文（encoder-decoder）','var(--warm)'],['加回 → LayerNorm','',1],['消化：FFN','var(--teal)'],['加回 → LayerNorm','',1]],92,28,8,'进来：已写的译文');
+    box(500,170,150,40,'e：encoder 输出','var(--teal)');
+    el('line',{x1:500,y1:190,x2:462,y2:190,stroke:'var(--teal)','stroke-width':2,'marker-end':'url(#m2)'},sv);
+    txt('K、V 从这里来',{x:575,y:230,'text-anchor':'middle',class:'m'},sv);
+    txt('Q 从译文来',{x:575,y:250,'text-anchor':'middle',class:'m'},sv);
+    txt('× 6 层',{x:575,y:300,'text-anchor':'middle',class:'big'},sv);
+    txt('一层：2 个 attention、1 个 FFN、3 次 LN',{x:340,y:yEnd+18,'text-anchor':'middle',class:'m'},sv)}
+  else if(f.s<=4)three(3,2,SRC,SRC,['dog','bites'],f.s-1);
+  else rounds(f.k);
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+function onSlide(){ANIM.stop();custom={n:+$('n').value,kk:+$('k').value};$('nv').textContent=custom.n;$('kv').textContent=custom.kk;draw()}
+$('n').oninput=onSlide;$('k').oninput=onSlide;
+setupPlayer({captureSeed:1,reset,next},1600);
+</script></body></html>

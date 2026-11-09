@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>加权平均</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:12px}</style></head>
+<body><main>
+<h1>第 4 章 · 按比例取信息：加权平均</h1>
+<p class="sub">配套讲义：<a href="../lessons/04-weighted-average.html">第 4 章 · 按比例取信息：加权平均</a>。信息向量 [像女生的程度, 是人的程度]：小明 [0, 10]、苹果 [0, 0]、小红 [10, 10]；比例用第 3 章的 0.25、0.125、0.625。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="s">自己拖：小红的分数（比例按第 3 章重算）</label><input type="range" id="s" min="0" max="20" step="1" value="5"><span id="sv2">5</span></div>
+<p class="note">看点：① 三个词的信息向量画成三个点（横 = 像女生，纵 = 是人）；② 每个向量乘上自己的比例（箭头缩短）；③ 缩短后的箭头首尾相接，终点就是"她"的新向量 [6.25, 8.75]；④ 结果总落在三个点围成的三角形里，比例大的那个点把它拉过去。滑块：小红分数越高，"她"越靠近小红。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const NM=['小明','苹果','小红'],V=[[0,10],[0,0],[10,10]],COL=['var(--teal)','var(--amber)','var(--purple)'];
+const X=v=>80+v*26,Y=v=>355-v*26;
+const ST=[{cap:'三个词各带一个信息向量 [像女生, 是人]',s:0},{cap:'比例：小明 0.25、苹果 0.125、小红 0.625',s:1},{cap:'每个向量乘上比例：0.25×[0,10] = [0,2.5]，0.625×[10,10] = [6.25,6.25]',s:2},{cap:'按位置加起来（箭头首尾相接）："她" = [6.25, 8.75]',s:3},{cap:'大部分信息取自小红：比较像女生，并且很确定是人',s:4}];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+const fmt=v=>String(Math.round(v*1000)/1000);
+function defs(){const d=el('defs',{},sv);COL.concat(['var(--warm)']).forEach((c,i)=>{const m=el('marker',{id:'a'+i,viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:6,markerHeight:6,orient:'auto'},d);el('path',{d:'M0,0 L10,5 L0,10 z',fill:c},m)})}
+function arrow(x1,y1,x2,y2,i,w){if(Math.hypot(x2-x1,y2-y1)<2)return;el('line',{x1,y1,x2,y2,stroke:i<3?COL[i]:'var(--warm)','stroke-width':w||2.5,'marker-end':`url(#a${i})`},sv)}
+function plane(){
+  el('line',{x1:X(0),y1:Y(0),x2:X(11),y2:Y(0),stroke:'var(--muted)'},sv);el('line',{x1:X(0),y1:Y(0),x2:X(0),y2:Y(11.5),stroke:'var(--muted)'},sv);
+  txt('像女生 →',{x:X(11),y:Y(0)+18,'text-anchor':'end',class:'m'},sv);txt('是人 ↑',{x:X(0)+6,y:Y(11.5)+4,class:'m'},sv);
+  [0,5,10].forEach(t=>{txt(String(t),{x:X(t),y:Y(0)+16,'text-anchor':'middle',class:'m'},sv);txt(String(t),{x:X(0)-8,y:Y(t)+4,'text-anchor':'end',class:'m'},sv)});
+}
+function scene(P,s){
+  plane();
+  el('polygon',{points:V.map(v=>X(v[0])+','+Y(v[1])).join(' '),fill:'var(--accent-bg)',opacity:s>=4?.8:.0},sv);
+  V.forEach((v,i)=>{el('circle',{cx:X(v[0]),cy:Y(v[1]),r:6,fill:COL[i]},sv);
+    const t=txt(`${NM[i]} [${v}]`+(s>=1?`  × ${fmt(P[i])}`:''),{x:X(v[0])+12,y:Y(v[1])+(i===1?-10:i===2?5:-10),'text-anchor':'start',class:'big'},sv);t.style.fill=COL[i]});
+  if(s===0)V.forEach((v,i)=>arrow(X(0),Y(0),X(v[0]),Y(v[1]),i,1.5));
+  const sc=V.map((v,i)=>[v[0]*P[i],v[1]*P[i]]);
+  if(s===2)sc.forEach((v,i)=>arrow(X(0),Y(0),X(v[0]),Y(v[1]),i));
+  if(s>=3){let cx=0,cy=0;sc.forEach((v,i)=>{arrow(X(cx),Y(cy),X(cx+v[0]),Y(cy+v[1]),i);cx+=v[0];cy+=v[1]});
+    el('circle',{cx:X(cx),cy:Y(cy),r:8,fill:'var(--warm)'},sv);
+    const t=txt(`她 = [${fmt(cx)}, ${fmt(cy)}]`,{x:X(cx)+14,y:Y(cy)+22,class:'big'},sv);t.style.fill='var(--warm)';
+    txt(`第 1 个位置：${P.map((p,i)=>fmt(p)+'×'+V[i][0]).join(' + ')} = ${fmt(cx)}`,{x:365,y:330,class:'m'},sv);
+    txt(`第 2 个位置：${P.map((p,i)=>fmt(p)+'×'+V[i][1]).join(' + ')} = ${fmt(cy)}`,{x:365,y:350,class:'m'},sv);
+    if(s>=4)txt('结果总在三角形里',{x:X(5),y:Y(5.6),'text-anchor':'middle',class:'m'},sv);
+  }
+}
+function draw(){
+  clear(sv);defs();
+  if(custom!==null){const S=[2,1,custom],t=3+custom,P=S.map(v=>v/t);
+    txt(`小红 ${custom} 分 → 比例 [${P.map(fmt).join(', ')}]`,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);scene(P,4);return}
+  const f=ST[FR[k]];txt(f.cap,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);scene([0.25,0.125,0.625],f.s);
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('s').oninput=e=>{ANIM.stop();custom=+e.target.value;$('sv2').textContent=custom;draw()};
+setupPlayer({captureSeed:1,reset,next},1600);
+</script></body></html>

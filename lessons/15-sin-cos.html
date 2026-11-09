@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 15 章 · sin 和 cos：圆上转圈 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="15-sin-cos">第 15 章 · sin 和 cos：圆上转圈</h1><p><a class="btn" href="../animations/15-sin-cos.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：sin、cos 是什么？为什么它们适合拿来做位置的"号码牌"？<br />
+讲解日期：2026-11-05 · 上一章：<a href="../lessons/14-positional-encoding.html">第 14 章 位置编码（上）</a> · 下一章：<a href="../lessons/16-multi-clock.html">第 16 章 位置编码（下）：多档时钟</a><br />
+前置：本章是数学前置，不对应论文原文；第 16 章再回到 AIAYN §3.5。<br />
+本章缩写：<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；pos = position（位置，座位号）；PE = Positional Encoding（位置编码）；sin = sine（正弦）；cos = cosine（余弦）；RoPE = Rotary Position Embedding（旋转位置编码）；AIAYN = Attention Is All You Need（本课主论文）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="1-1-2026-11-05">第一步：坐摩天轮，高度永远在 −1 到 1 之间（2026-11-05）</h3>
+<p><strong>接上一章</strong>：号码牌的数不能无限变大，不然会盖住词本身。我们想要一种号码牌，<strong>座位号一直往上加，牌上的数却始终待在一个小范围里</strong>。</p>
+<p><strong>类比：摩天轮。</strong> 摩天轮的半径是 1。你从<strong>正右边</strong>（和中心轴一样高的位置）上车，然后逆时针往上转。</p>
+<p>只看一件事：<strong>你比中心轴高多少</strong>（在中心轴下面就是负数）。</p>
+<pre><code>            1/4 圈：最高 +1
+                 ●
+              ╱     ╲
+ 1/2 圈：0  ●    ·    ●  0 圈（上车）：0
+              ╲     ╱
+                 ●
+            3/4 圈：最低 −1
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>转了多少圈</th>
+<th>在哪</th>
+<th>比中心轴高多少</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>正右边（上车点）</td>
+<td>0</td>
+</tr>
+<tr>
+<td>1/4</td>
+<td>最顶上</td>
+<td><strong>+1</strong></td>
+</tr>
+<tr>
+<td>1/2</td>
+<td>正左边</td>
+<td>0</td>
+</tr>
+<tr>
+<td>3/4</td>
+<td>最底下</td>
+<td><strong>−1</strong></td>
+</tr>
+<tr>
+<td>1</td>
+<td>又回到正右边</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键</strong>：不管转多少圈，你最高只到 +1，最低只到 −1，<strong>永远不会跑出这个范围</strong>。这正是上一章的号码牌缺的性质。</p>
+<p>这个"比中心轴高多少"，数学里就叫 <strong>sin</strong>（正弦）。公式和角度的写法下一步再讲，这一步只记住：<strong>sin 就是摩天轮上的高度，永远在 −1 到 1 之间。</strong></p>
+<h3 id="2026-11-05">第二步：转一圈就重复一次（2026-11-05）</h3>
+<p>题 1 的答案说明了一件事：转 1¼ 圈和转 1/4 圈，人坐在<strong>同一个位置</strong>，高度都是 +1。</p>
+<p><strong>摩天轮每转一整圈，就回到原来的地方，高度也跟着从头再来一遍。</strong></p>
+<table>
+<thead>
+<tr>
+<th>转了多少圈</th>
+<th>0</th>
+<th>1/4</th>
+<th>1/2</th>
+<th>3/4</th>
+<th>1</th>
+<th>1¼</th>
+<th>1½</th>
+<th>1¾</th>
+<th>2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>高度 sin</td>
+<td>0</td>
+<td>+1</td>
+<td>0</td>
+<td>−1</td>
+<td>0</td>
+<td><strong>+1</strong></td>
+<td>0</td>
+<td>−1</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>后半段和前半段一模一样。这种"隔一段就重复"的性质叫<strong>周期 period</strong>；摩天轮的周期就是 1 圈。</p>
+<p><strong>这对号码牌意味着什么：</strong></p>
+<ul>
+<li>好处：数永远在 −1 到 1 之间，不会盖住词（解决了第 14 章的毛病）；</li>
+<li>新问题：如果让"座位号 = 转了几圈"，那么转 1/4 圈和转 1¼ 圈的两个座位会拿到<strong>一模一样的号码牌</strong>，又分不清了。</li>
+</ul>
+<p>这个新问题先记着，第 16 章用"多档时钟"解决。下一步先看另一个更小的问题：<strong>就算在一圈之内，只看高度也会弄混</strong>。</p>
+<h3 id="cos2026-11-05">第三步：再加一个数 cos：左右偏多少（2026-11-05）</h3>
+<p>题 2 的结论：正右边和正左边高度都是 0，<strong>只看高度分不清</strong>，缺了一个维度的信息。</p>
+<p><strong>补上缺的那个维度：</strong> 除了"比中心轴高多少"，再记一个"<strong>比中心轴偏右多少</strong>"（偏左就是负数）。这个数叫 <strong>cos</strong>（余弦）。</p>
+<pre><code>                 最顶上
+              cos 0, sin +1
+                   ●
+                ╱     ╲
+ 正左边       ●    ·    ●   正右边（上车点）
+ cos −1, sin 0  ╲     ╱    cos +1, sin 0
+                   ●
+                 最底下
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>转了多少圈</th>
+<th>在哪</th>
+<th>cos（偏右多少）</th>
+<th>sin（高多少）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>正右边</td>
+<td><strong>+1</strong></td>
+<td>0</td>
+</tr>
+<tr>
+<td>1/4</td>
+<td>最顶上</td>
+<td>0</td>
+<td>+1</td>
+</tr>
+<tr>
+<td>1/2</td>
+<td>正左边</td>
+<td><strong>−1</strong></td>
+<td>0</td>
+</tr>
+<tr>
+<td>3/4</td>
+<td>最底下</td>
+<td>？</td>
+<td>？</td>
+</tr>
+</tbody>
+</table>
+<p>现在正右边是 (cos, sin) = (+1, 0)，正左边是 (−1, 0)，<strong>分得清了</strong>。</p>
+<p><strong>一句话</strong>：sin 是高度，cos 是左右；两个数放在一起 (cos, sin)，就能说清你在圆上的哪一点。cos 的值也一样永远在 −1 到 1 之间，也是转一圈重复一次。</p>
+<h3 id="cos-sin-2026-11-05">第四步：拿 (cos, sin) 当号码牌（2026-11-05）</h3>
+<p>回到第 14 章的号码牌。新做法：<strong>座位号每加 1，摩天轮就多转 1/4 圈</strong>；号码牌就是那一刻的 (cos, sin)。</p>
+<table>
+<thead>
+<tr>
+<th>座位</th>
+<th>转了多少圈</th>
+<th>号码牌 (cos, sin)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 号</td>
+<td>1/4</td>
+<td>(0, 1)</td>
+</tr>
+<tr>
+<td>2 号</td>
+<td>1/2</td>
+<td>(−1, 0)</td>
+</tr>
+<tr>
+<td>3 号</td>
+<td>3/4</td>
+<td>(0, −1)</td>
+</tr>
+<tr>
+<td>4 号</td>
+<td>1</td>
+<td>(1, 0)</td>
+</tr>
+</tbody>
+</table>
+<p>和第 14 章的老号码牌比一比，还是"狗" = [2, 0]：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>老号码牌 [0, 座位号]</th>
+<th>新号码牌 (cos, sin)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>狗坐 3 号座</td>
+<td>[2, 0] + [0, 3] = [2, 3]</td>
+<td>[2, 0] + [0, −1] = <strong>[2, −1]</strong></td>
+</tr>
+<tr>
+<td>狗坐 1000 号座</td>
+<td>[2, 0] + [0, 1000] = [2, 1000]，词被盖住</td>
+<td>1000 × 1/4 = 250 圈，正好回到上车点 → [2, 0] + [1, 0] = <strong>[3, 0]</strong></td>
+</tr>
+</tbody>
+</table>
+<p>新号码牌的每个数都在 −1 到 1 之间，<strong>座位号再大，也盖不住词</strong>。</p>
+<p><strong>类比回顾</strong>：老号码牌像一把一直往前延伸的尺子，数越写越大；新号码牌像钟表指针，只在表盘上转圈，指针尖永远在表盘里。</p>
+<h3 id="radian2026-11-05">第五步：换个单位：弧度 radian（2026-11-05）</h3>
+<p><strong>为什么要换单位</strong>：到现在我们一直用"转了几圈"。但论文的公式写的是 <span class="arithmatex">\(\sin(pos/10000^{2i/d_{model}})\)</span>，括号里直接是一个数。数学里 sin、cos 括号里的数，默认用的单位是<strong>弧度 radian</strong>，不是"圈"。</p>
+<p><strong>类比：沿着摩天轮的边走了多远。</strong> 摩天轮半径是 1，绕一整圈的边长（周长）= 2π ≈ 6.28。所以：</p>
+<blockquote>
+<p>弧度 = 你沿着摩天轮的边走了多长的路。转 1 整圈 = 走了 6.28 = <strong>2π 弧度</strong>。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>转了多少圈</th>
+<th>角度</th>
+<th>弧度（沿边走了多远）</th>
+<th>sin</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1/4</td>
+<td>90°</td>
+<td>π/2 ≈ 1.57</td>
+<td>1</td>
+</tr>
+<tr>
+<td>1/2</td>
+<td>180°</td>
+<td>π ≈ 3.14</td>
+<td>？</td>
+</tr>
+<tr>
+<td>3/4</td>
+<td>270°</td>
+<td>3π/2 ≈ 4.71</td>
+<td>−1</td>
+</tr>
+<tr>
+<td>1</td>
+<td>360°</td>
+<td>2π ≈ 6.28</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p><strong>写法</strong>：<span class="arithmatex">\(\sin(\pi/2) = 1\)</span> 的意思就是"沿边走 1.57（转 1/4 圈）时，高度是 1"。</p>
+<p><strong>例子</strong>：<span class="arithmatex">\(\sin(1)\)</span> 就是沿边走了 1 的路，大约是 1 ÷ 6.28 ≈ <strong>0.16 圈</strong>（约 57°），还没到最顶上，高度约 0.84。</p>
+<p>所以论文里 <span class="arithmatex">\(\sin(pos)\)</span> 这种写法，意思是"座位号是几，就沿边走几的路"：1 号座走 1，2 号座走 2……每个座位大约多转 0.16 圈。</p>
+<h3 id="sin-cos">动画演示：坐摩天轮看 sin 和 cos</h3>
+<p><img alt="摩天轮 sin cos" src="../animations/15-sin-cos.gif" /></p>
+<p>可交互版：<a href="../animations/15-sin-cos.html">animations/15-sin-cos.html</a>（用浏览器打开，可播放、单步，还能拖滑块转到任意圈数）。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>前半段：蓝点转两圈。橙色竖线是 sin（高度），绿色横线是 cos（左右），紫色弧是沿边走过的路（弧度）；读数始终在 −1 到 1 之间；</li>
+<li>右边的 sin 曲线：第二圈把第一圈原样再画一遍，这就是周期；</li>
+<li>后半段：(cos, sin) 当号码牌，每个座位多转 1/4 圈。从 5 号座开始，和前面的座位撞牌（变红）。</li>
+</ol>
+<h2 id="_2">练习与作答记录</h2>
+<p><strong>题 1</strong>：转了 1/4 圈时高度是 +1。转了 1¼ 圈（一整圈再加 1/4 圈）时，高度是多少？</p>
+<p><strong>作答</strong>（2026-11-05）："1"。✓</p>
+<p><strong>点评</strong>：对。1¼ 圈 = 转完一整圈回到上车点，再转 1/4 圈到最顶上，所以和 1/4 圈一样是 +1。这就是第二步要讲的"转一圈就重复"。已加入卡片 R29。</p>
+<p><strong>题 2</strong>：转 0 圈（正右边）和转 1/2 圈（正左边）时，高度各是多少？如果只告诉你高度，你分得清自己在正右边还是正左边吗？</p>
+<p><strong>作答</strong>（2026-11-05）："0，0，分不清，缺一个维度信息"。✓</p>
+<p><strong>点评</strong>：完全对，而且自己说出了"缺一个维度"，这正是第三步要补的东西：再加一个数 cos，记录左右位置。已加入卡片 R30。</p>
+<p><strong>题 3</strong>：转 3/4 圈（最底下）时，cos 和 sin 各是多少？</p>
+<p><strong>作答</strong>（2026-11-05）："0，−1，的确这样就清楚了"。✓</p>
+<p><strong>点评</strong>：对。最底下不偏左也不偏右，cos = 0；在中心轴下面 1，sin = −1。四个点 (1, 0)、(0, 1)、(−1, 0)、(0, −1) 各不相同，一圈之内每个位置都分得清。</p>
+<p><strong>题 4</strong>：用第四步的新号码牌（座位号每加 1 多转 1/4 圈），5 号座转了几圈？它的号码牌是多少？和哪个座位的牌一样？</p>
+<p><strong>作答</strong>（2026-11-05）："1.25 圈，和 1 号一样"。✓</p>
+<p><strong>点评</strong>：对。5 × 1/4 = 1¼ 圈，转完一圈后再转 1/4 圈，号码牌是 (0, 1)，和 1 号座撞牌。这就是第二步说的"转一圈就重复"：只用一个摩天轮，每隔 4 个座位牌就重复一次。第 16 章用"多档时钟"（好几个转速不同的摩天轮）解决。已加入卡片 R31。</p>
+<p><strong>题 5</strong>：<span class="arithmatex">\(\sin(\pi)\)</span> 是多少？（提示：π ≈ 3.14 弧度是转了几圈？）</p>
+<p><strong>作答</strong>（2026-11-05）："半圈"。✓（答了提示，最后一步没说出来）</p>
+<p><strong>点评</strong>：对，π 弧度就是半圈（一整圈是 2π）。半圈在正左边，高度是 0（题 2 答过），所以 <span class="arithmatex">\(\sin(\pi) = 0\)</span>。已加入卡片 R32。</p>
+<h2 id="_3">口诀</h2>
+<blockquote>
+<p>sin 管高低，cos 管左右；<br />
+转圈不出正负一，一圈一重复；<br />
+一圈等于 2π，括号里是走了多远。</p>
+</blockquote>
+<h2 id="_4">本章复习卡片</h2>
+<ul>
+<li>R29（sin 是摩天轮上的高度：范围 −1 到 1，转一圈重复）</li>
+<li>R30（只看 sin 分不清左右，要加 cos；(cos, sin) 合起来定位圆上一点）</li>
+<li>R31（(cos, sin) 当号码牌：不会盖住词，但只用一个摩天轮会撞牌）</li>
+<li>R32（弧度：沿边走了多远；1 圈 = 2π）</li>
+</ul>
+<h2 id="_5">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_6">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Khan Academy · Trigonometry</td>
+<td>Unit circle（单位圆）一节</td>
+<td>和本章摩天轮同一套讲法：半径为 1 的圆、sin 是纵坐标、cos 是横坐标</td>
+</tr>
+<tr>
+<td>★ BetterExplained, An Intuitive Guide to Angles, Degrees and Radians</td>
+<td>全文</td>
+<td>为什么用弧度：弧度 = 沿圆走过的路程，和第五步一样</td>
+</tr>
+<tr>
+<td>Attention Is All You Need</td>
+<td>§3.5，L287–L297；特别是 L291</td>
+<td>先看一眼正弦公式："wavelengths form a geometric progression from 2π to 10000 · 2π"，第 16 章逐字讲</td>
+</tr>
+<tr>
+<td>Formal Algorithms for Transformers</td>
+<td>Algorithm 2 Positional embedding（L248、L278）</td>
+<td>位置向量的伪代码，第 16 章会对照</td>
+</tr>
+<tr>
+<td>Kazemnejad, Transformer Architecture: The Positional Encoding（博客）</td>
+<td>全文</td>
+<td>读完第 16 章再看：把多档时钟画成图</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_7">数学原理</h3>
+<ul>
+<li><strong>单位圆定义</strong>：半径为 1 的圆上，从正右边逆时针走过 θ 弧度到达的点，坐标就是 (cos θ, sin θ)。本章的摩天轮就是单位圆。</li>
+<li><strong>范围</strong>：<span class="arithmatex">\(-1 \le \sin\theta \le 1\)</span>，<span class="arithmatex">\(-1 \le \cos\theta \le 1\)</span>。这是它们能做号码牌的原因：不会盖住词（第 14 章的毛病）。</li>
+<li><strong>周期</strong>：<span class="arithmatex">\(\sin(\theta + 2\pi) = \sin\theta\)</span>，cos 同理。转一圈就重复，所以只用一个摩天轮会撞牌（第 16 章）。</li>
+<li><strong>勾股定理</strong>：点在半径为 1 的圆上，所以 <span class="arithmatex">\(\cos^2\theta + \sin^2\theta = 1\)</span>。</li>
+<li><strong>弧度</strong>：圆周长 = 2π × 半径，半径为 1 时一整圈的路长是 2π。所以 360° = 2π 弧度，1 弧度 ≈ 57°。</li>
+<li><strong>预告：和角公式</strong>：<span class="arithmatex">\(\sin(a+b)=\sin a\cos b+\cos a\sin b\)</span>，<span class="arithmatex">\(\cos(a+b)=\cos a\cos b-\sin a\sin b\)</span>。论文 L293 说"<span class="arithmatex">\(PE_{pos+k}\)</span> 可以写成 <span class="arithmatex">\(PE_{pos}\)</span> 的线性函数"，靠的就是它；RoPE（阶段 B）也建立在它上面。</li>
+</ul>
+<h3 id="_8">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>点的坐标 = (cos θ, sin θ)</td>
+<td>cos 管左右，sin 管高低</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(-1 \le \sin\theta, \cos\theta \le 1\)</span></td>
+<td>永远不出这个范围</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\sin(\theta+2\pi)=\sin\theta\)</span></td>
+<td>周期 2π：转一圈重复</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\cos^2\theta+\sin^2\theta=1\)</span></td>
+<td>点永远在半径为 1 的圆上</td>
+</tr>
+<tr>
+<td>1 圈 = 360° = 2π 弧度</td>
+<td>单位换算</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\sin 0=0,\ \sin(\pi/2)=1,\ \sin\pi=0,\ \sin(3\pi/2)=-1\)</span></td>
+<td>四个特殊点（cos 依次是 1, 0, −1, 0）</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\sin(a+b)=\sin a\cos b+\cos a\sin b\)</span></td>
+<td>和角公式，第 16 章和 RoPE 用</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="14-positional-encoding.html">← 第 14 章 · 位置编码 positional encoding</a><a href="16-multi-clock.html">第 16 章 · 位置编码（下）：多档时钟 →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

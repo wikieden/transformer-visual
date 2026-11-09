@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 12 章 · 转置与公式 1 完整走一遍 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="12-1">第 12 章 · 转置与公式 1 完整走一遍</h1><p><a class="btn" href="../animations/12-transpose-formula.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：<span class="arithmatex">\(K^\top\)</span> 右上角的 <span class="arithmatex">\(^\top\)</span> 是什么？把 Q、K、V 代进公式 1，从头到尾怎么算？<br />
+讲解日期：2026-10-26 · 上一章：<a href="../lessons/11-matrix-qk.html">第 11 章 大写的 Q、K、V</a> · 下一章：<a href="../lessons/13-multi-head.html">第 13 章 多头注意力</a><br />
+对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> 式 (1)，L175<br />
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；<span class="arithmatex">\(d_v\)</span>：v = value，每个 value 向量有几个数（64）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；GPT = Generative Pre-trained Transformer（生成式预训练 Transformer）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="_2">第一步：矩阵乘矩阵的规则</h3>
+<p>第 10 章：<strong>向量乘矩阵 = 向量和矩阵的每一列各做一次点积。</strong></p>
+<p>推广一步：<strong>矩阵乘矩阵 = 左边的每一行，和右边的每一列，各做一次点积。</strong> 结果的第 i 行第 j 列 = 左边第 i 行 · 右边第 j 列。</p>
+<p><span class="arithmatex">\(QK^\top\)</span> 想要的是：第 i 行第 j 列 = 第 i 个词的 q · 第 j 个词的 k。</p>
+<ul>
+<li>左边 <span class="arithmatex">\(Q\)</span>：每一<strong>行</strong>是一个 q ✓</li>
+<li>右边需要：每一<strong>列</strong>是一个 k。但 <span class="arithmatex">\(K\)</span> 里每个 k 是<strong>行</strong>，方向不对。</li>
+</ul>
+<h3 id="top">第二步：转置 <span class="arithmatex">\(^\top\)</span> = 把表格翻过来，行变列</h3>
+<p><span class="arithmatex">\(K^\top\)</span> 读作"K 转置"（transpose）：<strong>原来的第 1 行变成第 1 列，第 2 行变成第 2 列……</strong></p>
+<div class="arithmatex">\[K=\begin{bmatrix}1 &amp; 0\\ 0 &amp; 2\\ 1 &amp; 1\end{bmatrix}\begin{matrix}\leftarrow\text{小明}\\ \leftarrow\text{小红}\\ \leftarrow\text{她}\end{matrix}
+\qquad\Longrightarrow\qquad
+K^\top=\begin{bmatrix}1 &amp; 0 &amp; 1\\ 0 &amp; 2 &amp; 1\end{bmatrix}\]</div>
+<p><span class="arithmatex">\(K^\top\)</span> 的三列依次是小明、小红、她的 k。3 行 × 2 列变成 2 行 × 3 列。</p>
+<p>现在 <span class="arithmatex">\(Q\)</span>（每行一个 q）乘 <span class="arithmatex">\(K^\top\)</span>（每列一个 k），正好每个 q 和每个 k 都做一次点积，得到第 11 章那张 3 × 3 分数表。</p>
+<h3 id="_3">形状小规则</h3>
+<p><span class="arithmatex">\(Q\)</span> 是 3 × <strong>2</strong>，<span class="arithmatex">\(K^\top\)</span> 是 <strong>2</strong> × 3：左边的列数必须等于右边的行数（都是 <span class="arithmatex">\(d_k\)</span>），因为做点积的两个向量必须一样长。结果是 3 × 3（词数 × 词数）。</p>
+<h2 id="_4">练习与作答记录</h2>
+<p><strong>题 1</strong>：把矩阵 <span class="arithmatex">\(\begin{bmatrix}1 &amp; 2 &amp; 3\\ 4 &amp; 5 &amp; 6\end{bmatrix}\)</span> 转置，写出结果，它是几行几列？</p>
+<p><strong>第 1 次作答</strong>："2 列 3 行。" 形状 ✓（原来 2 行 × 3 列，转置后 3 行 × 2 列），但没写出具体结果，追问。</p>
+<p><strong>第 2 次作答</strong>（提示第 1 列已填好后）：第 2 列填 4，5，6 ✓</p>
+<div class="arithmatex">\[\begin{bmatrix}1 &amp; 2 &amp; 3\\ 4 &amp; 5 &amp; 6\end{bmatrix}^\top=\begin{bmatrix}1 &amp; 4\\ 2 &amp; 5\\ 3 &amp; 6\end{bmatrix}\]</div>
+<h2 id="1">讲解（续）：公式 1 完整走一遍（只算"她"那一行）</h2>
+<p>用第 11 章的例子，<span class="arithmatex">\(d_k=2\)</span>。四步：</p>
+<ol>
+<li><strong>打分</strong>：<span class="arithmatex">\(\mathbf q_{\text{她}}=[0,2]\)</span> 和 <span class="arithmatex">\(K^\top\)</span> 的每一列做点积。作答 <strong>[0, 4, 2]</strong> ✓（·小明 [1,0] = 0，·小红 [0,2] = 4，·她 [1,1] = 2）</li>
+<li><strong>缩放</strong>：除以 <span class="arithmatex">\(\sqrt{d_k}=\sqrt2\approx1.41\)</span>。作答："缩放到 1 附近，都是合理的数值。" 目的 ✓，数值由讲解给出：<strong>[0, 2.83, 1.41]</strong>。补充：缩放让分数<strong>整体</strong>回到 ±1 的量级，不是每个都正好变成 1；个别分数仍可到 2～3，这正是"有重点"。</li>
+<li><strong>分比例</strong>：softmax([0, 2.83, 1.41])</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>词</th>
+<th>缩放后分数</th>
+<th><span class="arithmatex">\(e^{x}\)</span></th>
+<th>比例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>小明</td>
+<td>0</td>
+<td>1</td>
+<td>0.045</td>
+</tr>
+<tr>
+<td>小红</td>
+<td>2.83</td>
+<td>16.94</td>
+<td>0.769</td>
+</tr>
+<tr>
+<td>她</td>
+<td>1.41</td>
+<td>4.10</td>
+<td>0.186</td>
+</tr>
+<tr>
+<td>合计</td>
+<td></td>
+<td>22.04</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p>小红的比例：作答 0.78（有偏差），正确 <strong>0.769</strong>，验算 <span class="arithmatex">\(1-0.045-0.186=0.769\)</span>。对照：不缩放时 [0,4,2] 的 softmax 小红约 0.867，缩放后 0.769，没有逼近 1。
+4. <strong>取信息</strong>：设三个词的 v 为 小明 [0,10]、小红 [10,10]、她 [5,5]，输出 <span class="arithmatex">\(=0.045\mathbf v_{\text{小明}}+0.769\mathbf v_{\text{小红}}+0.186\mathbf v_{\text{她}}\)</span>。第 1 个位置：作答"8.5 左右"，接近；精确为 <span class="arithmatex">\(0+7.69+0.93=\mathbf{8.62}\)</span>。第 2 个位置：<span class="arithmatex">\(0.45+7.69+0.93=\mathbf{9.07}\)</span>。</p>
+<p>"她"的新向量 <strong>[8.62, 9.07]</strong>，很接近小红的 v [10, 10]：<strong>"她"主要取了小红的信息。</strong></p>
+<h3 id="_5">四步一览（"她"这一行）</h3>
+<table>
+<thead>
+<tr>
+<th>步</th>
+<th>公式里</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① 打分</td>
+<td><span class="arithmatex">\(\mathbf q K^\top\)</span></td>
+<td>[0, 4, 2]</td>
+</tr>
+<tr>
+<td>② 缩放</td>
+<td><span class="arithmatex">\(\div\sqrt{2}\)</span></td>
+<td>[0, 2.83, 1.41]</td>
+</tr>
+<tr>
+<td>③ 分比例</td>
+<td>softmax</td>
+<td>[0.045, 0.769, 0.186]</td>
+</tr>
+<tr>
+<td>④ 取信息</td>
+<td><span class="arithmatex">\(\times V\)</span></td>
+<td>[8.62, 9.07]</td>
+</tr>
+</tbody>
+</table>
+<p>对每个词都做一遍，就是公式 1 一次算出的整张输出矩阵（每行一个词的新向量）。</p>
+<h2 id="1_1">动画演示：转置翻表格；公式 1 四步走一遍</h2>
+<p><img alt="转置与公式 1" src="../animations/12-transpose-formula.gif" /></p>
+<p>可交互版：<a href="../animations/12-transpose-formula.html">animations/12-transpose-formula.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"）。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>K 每一行是一个 k；转置后 <span class="arithmatex">\(K^\top\)</span> 每一列是一个 k，颜色跟着走；</li>
+<li>形状规则：(3 × 2) × (2 × 3)，中间的 2 相等，结果 3 × 3；</li>
+<li>"她"那一行四步：打分 [0, 4, 2] → 除以 √2 → softmax [0.045, 0.769, 0.186] → 乘 V 得 [8.62, 9.07]；</li>
+<li>滑块：改"她"的 q = [0, a]，四步一起重算。</li>
+</ol>
+<h2 id="_6">本章复习卡片</h2>
+<p>R22 转置 · R23 公式 1 四步完整走一遍（见 <a href="../review.html">../review.md</a>）</p>
+<h2 id="_7">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_8">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>式 (1)，L175</td>
+<td>公式 1 原文</td>
+</tr>
+<tr>
+<td>★ The Annotated Transformer（本地 <code>materials/code/annotated-transformer/repo/the_annotated_transformer.py</code>）</td>
+<td><code>def attention</code>，L519</td>
+<td>公式 1 写成代码只有几行，逐行对照</td>
+</tr>
+<tr>
+<td>nanoGPT（本地 <code>materials/code/nanoGPT/repo/model.py</code>）</td>
+<td><code>class CausalSelfAttention</code>，L29</td>
+<td>实际 GPT 里的写法（带因果 mask，第 17 章）</td>
+</tr>
+<tr>
+<td>CS336 a1 handout</td>
+<td>§3.5.4，Problem (scaled_dot_product_attention)</td>
+<td>作业里你要亲手实现它</td>
+</tr>
+<tr>
+<td>Formal Algorithms for Transformers</td>
+<td>Algorithm 4 Attention</td>
+<td>带 Mask 的完整伪代码</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_9">数学原理</h3>
+<ul>
+<li><strong>转置</strong>：行变列、列变行，第 i 行第 j 列的数换到第 j 行第 i 列。</li>
+<li><strong>乘积的转置</strong>：先转置再反过来乘，<span class="arithmatex">\((AB)^\top = B^\top A^\top\)</span>。推导公式时常用。</li>
+<li><strong>形状检查</strong>：每一步都检查形状能不能乘、结果是几行几列，这是读论文和写代码时最实用的习惯。</li>
+<li><strong>softmax 按行做</strong>：每一行是一个词对所有词的分数，各行分别变成比例。</li>
+</ul>
+<h3 id="_10">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\((A^\top)_{ij} = A_{ji}\)</span></td>
+<td>转置</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\((AB)^\top = B^\top A^\top\)</span></td>
+<td>乘积的转置</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{Attention}(Q,K,V)=\text{softmax}(\frac{QK^\top}{\sqrt{d_k}})V\)</span></td>
+<td>公式 1</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\((n \times d_k)(d_k \times n) = (n \times n)\)</span></td>
+<td>分数表的形状</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\((n \times n)(n \times d_v) = (n \times d_v)\)</span></td>
+<td>输出的形状：每个词一个新向量</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="11-matrix-qk.html">← 第 11 章 · 大写的 Q、K、V：一次算出所有分数</a><a href="13-multi-head.html">第 13 章 · 多头注意力 multi-head attention →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

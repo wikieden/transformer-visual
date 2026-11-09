@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>附录 · 缩写与术语表 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="_1">附录 · 缩写与术语表</h1>
+<blockquote>
+<p>用途：讲义里遇到缩写，先查这一页。每章开头的"本章缩写"只列这一章用到的。整理日期：2026-11-06（用户反馈：有缩写时要给全称，方便理解）。</p>
+</blockquote>
+<h2 id="_2">结构与符号</h2>
+<table>
+<thead>
+<tr>
+<th>缩写</th>
+<th>全称</th>
+<th>意思</th>
+<th>第一次出现</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q / K / V</td>
+<td>Query / Key / Value</td>
+<td>查询 / 键 / 值：Q 拿去问"我要找什么"，K 回答"我是什么"，V 是真正交出去的内容（第 9 章）</td>
+<td><a href="../lessons/01-vector.html">第 1 章</a></td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(d_{model}\)</span></td>
+<td>dimension of the model</td>
+<td>模型维度：每个词向量有几个数（512）</td>
+<td><a href="../lessons/01-vector.html">第 1 章</a></td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(d_k\)</span></td>
+<td>dimension of key</td>
+<td>key（和 query）向量有几个数（64）</td>
+<td><a href="../lessons/06-softmax-exp.html">第 6 章</a></td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(d_v\)</span></td>
+<td>dimension of value</td>
+<td>value 向量有几个数（64）</td>
+<td><a href="../lessons/12-transpose-formula.html">第 12 章</a></td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(d_h\)</span></td>
+<td>dimension of a head</td>
+<td>每个注意力头的维度（有的论文这样写，等于 <span class="arithmatex">\(d_k\)</span>）</td>
+<td><a href="../lessons/08-sqrt-dk.html">第 8 章</a></td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(d_{ff}\)</span></td>
+<td>dimension of feed-forward</td>
+<td>FFN 中间那层有几个数（2048 = 512 × 4）</td>
+<td><a href="../lessons/20-ffn.html">第 20 章</a></td>
+</tr>
+<tr>
+<td>pos</td>
+<td>position</td>
+<td>位置：词在句子里坐第几号座（第 14–16 章）</td>
+<td><a href="../lessons/14-positional-encoding.html">第 14 章</a></td>
+</tr>
+<tr>
+<td>PE</td>
+<td>Positional Encoding</td>
+<td>位置编码：给每个座位发的号码牌（第 14–16 章）</td>
+<td><a href="../lessons/14-positional-encoding.html">第 14 章</a></td>
+</tr>
+<tr>
+<td>FFN</td>
+<td>Feed-Forward Network</td>
+<td>前馈网络：数据只往前送；每层第二个子层（第 20 章）</td>
+<td><a href="../lessons/04-weighted-average.html">第 4 章</a></td>
+</tr>
+<tr>
+<td>LayerNorm / LN</td>
+<td>Layer Normalization</td>
+<td>层归一化：用一个词自己的数减 μ、除以 σ（第 19 章）</td>
+<td><a href="../lessons/01-vector.html">第 1 章</a></td>
+</tr>
+<tr>
+<td>RMS / RMSNorm</td>
+<td>Root Mean Square (Normalization)</td>
+<td>均方根：平方 → 平均 → 开根号；RMSNorm 只除以它、不减平均（第 19 章）</td>
+<td><a href="../lessons/03-softmax-ratio.html">第 3 章</a></td>
+</tr>
+<tr>
+<td>BatchNorm</td>
+<td>Batch Normalization</td>
+<td>批归一化：跨一批样本、同一个位置算平均（第 19 章插问）</td>
+<td><a href="../lessons/19-layernorm.html">第 19 章</a></td>
+</tr>
+<tr>
+<td>ReLU</td>
+<td>Rectified Linear Unit</td>
+<td>整流线性单元：max(0, z)，负数变 0（第 20 章）</td>
+<td><a href="../lessons/20-ffn.html">第 20 章</a></td>
+</tr>
+<tr>
+<td>sigmoid（σ）</td>
+<td>sigmoid（S-shaped）</td>
+<td>S 形函数：σ(x) = 1 / (1 + e^(−x))，大正数 → 1，大负数 → 0（第 20 章）</td>
+<td><a href="../lessons/20-ffn.html">第 20 章</a></td>
+</tr>
+<tr>
+<td>SiLU / Swish</td>
+<td>Sigmoid Linear Unit</td>
+<td>圆滑版 ReLU：SiLU(x) = x · σ(x)（第 20 章）</td>
+<td><a href="../lessons/20-ffn.html">第 20 章</a></td>
+</tr>
+<tr>
+<td>GLU / SwiGLU</td>
+<td>Gated Linear Unit / Swish + GLU</td>
+<td>带闸门的 FFN：Llama 3、Qwen 2.5 在用（第 20 章）</td>
+<td><a href="../lessons/20-ffn.html">第 20 章</a></td>
+</tr>
+<tr>
+<td>MQA / GQA / MLA</td>
+<td>Multi-Query / Grouped-Query / Multi-head Latent Attention</td>
+<td>多查询 / 分组查询 / 多头潜在注意力：几个头共用 K、V，省内存（阶段 A7）</td>
+<td><a href="../lessons/13-multi-head.html">第 13 章</a></td>
+</tr>
+<tr>
+<td>QK / OV circuit</td>
+<td>Query–Key / Output–Value circuit</td>
+<td>可解释性论文的说法：QK 管"看谁"，OV 管"拿什么、写回什么"</td>
+<td><a href="../lessons/09-qkv.html">第 9 章</a></td>
+</tr>
+<tr>
+<td>embedding</td>
+<td>embedding</td>
+<td>嵌入：把词换成一个向量；实现上就是查一张 V × <span class="arithmatex">\(d_{model}\)</span> 的表（第 22 章）</td>
+<td><a href="../lessons/22-embedding-softmax.html">第 22 章</a></td>
+</tr>
+<tr>
+<td>token</td>
+<td>token</td>
+<td>词元：模型眼里的一个"词"，可能是整词，也可能是词的一块</td>
+<td><a href="../lessons/22-embedding-softmax.html">第 22 章</a></td>
+</tr>
+<tr>
+<td>tokenizer</td>
+<td>token + -izer</td>
+<td>分词器：把句子切成 token 并编号</td>
+<td><a href="../lessons/22-embedding-softmax.html">第 22 章</a></td>
+</tr>
+<tr>
+<td>V</td>
+<td>Vocabulary size</td>
+<td>词表大小：一共有多少个不同的 token（论文英德约 37000）</td>
+<td><a href="../lessons/22-embedding-softmax.html">第 22 章</a></td>
+</tr>
+<tr>
+<td>ID</td>
+<td>identifier</td>
+<td>编号：每个 token 在词表里的号码</td>
+<td><a href="../lessons/22-embedding-softmax.html">第 22 章</a></td>
+</tr>
+<tr>
+<td>BPE</td>
+<td>Byte-Pair Encoding</td>
+<td>字节对编码：一种切词、编号的方法（CS336 a1 要写）</td>
+<td><a href="../lessons/22-embedding-softmax.html">第 22 章</a></td>
+</tr>
+<tr>
+<td>logits</td>
+<td>logits</td>
+<td>softmax 之前每个词的原始分数</td>
+<td><a href="../lessons/22-embedding-softmax.html">第 22 章</a></td>
+</tr>
+<tr>
+<td>greedy</td>
+<td>greedy decoding</td>
+<td>贪心：每轮直接挑概率最大的词</td>
+<td><a href="../lessons/22-embedding-softmax.html">第 22 章</a></td>
+</tr>
+<tr>
+<td>beam search</td>
+<td>beam search</td>
+<td>束搜索：同时保留几条最好的候选句子往下走（论文 beam size 4）</td>
+<td><a href="../lessons/22-embedding-softmax.html">第 22 章</a></td>
+</tr>
+<tr>
+<td>one-hot</td>
+<td>one-hot vector</td>
+<td>独热向量：只有一个位置是 1、其余是 0；乘 E 等于取那一行</td>
+<td><a href="../lessons/22-embedding-softmax.html">第 22 章</a></td>
+</tr>
+<tr>
+<td>n</td>
+<td>sequence length</td>
+<td>序列长度：句子里有几个 token</td>
+<td><a href="../lessons/23-complexity.html">第 23 章</a></td>
+</tr>
+<tr>
+<td>CNN</td>
+<td>Convolutional Neural Network</td>
+<td>卷积神经网络：每次只看相邻 k 个词的滑动小窗</td>
+<td><a href="../lessons/23-complexity.html">第 23 章</a></td>
+</tr>
+<tr>
+<td>k / r</td>
+<td>kernel size / restricted neighborhood</td>
+<td>卷积一次看几个词 / 受限 attention 只看前后几个邻居</td>
+<td><a href="../lessons/23-complexity.html">第 23 章</a></td>
+</tr>
+<tr>
+<td>参数 / parameter</td>
+<td>parameter</td>
+<td>模型里靠训练学出来的数（<span class="arithmatex">\(W^Q\)</span>、<span class="arithmatex">\(W_1\)</span>、表 E 里的每个数）</td>
+<td><a href="../lessons/24-wrap-up.html">第 24 章</a></td>
+</tr>
+<tr>
+<td>bias</td>
+<td>bias</td>
+<td>偏置：矩阵乘完以后再加上的那串数 b</td>
+<td><a href="../lessons/24-wrap-up.html">第 24 章</a></td>
+</tr>
+<tr>
+<td>M</td>
+<td>million</td>
+<td>百万：65M = 6500 万</td>
+<td><a href="../lessons/24-wrap-up.html">第 24 章</a></td>
+</tr>
+<tr>
+<td>lr</td>
+<td>learning rate</td>
+<td>学习率：每一步调参数时迈多大的步子</td>
+<td><a href="../lessons/24-wrap-up.html">第 24 章</a></td>
+</tr>
+<tr>
+<td>warmup</td>
+<td>warmup</td>
+<td>热身：训练刚开始时学习率从小慢慢升上去（论文前 4000 步）</td>
+<td><a href="../lessons/24-wrap-up.html">第 24 章</a></td>
+</tr>
+<tr>
+<td>Adam</td>
+<td>Adaptive Moment Estimation</td>
+<td>自适应矩估计：论文用的优化器，决定每个参数往哪调、调多少</td>
+<td><a href="../lessons/24-wrap-up.html">第 24 章</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">数学</h2>
+<table>
+<thead>
+<tr>
+<th>缩写</th>
+<th>全称</th>
+<th>意思</th>
+<th>第一次出现</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>softmax</td>
+<td>soft + max</td>
+<td>柔和版取最大：把一串分数变成加起来是 1 的比例（第 3、6 章）</td>
+<td><a href="../lessons/02-dot-product.html">第 2 章</a></td>
+</tr>
+<tr>
+<td>⊙</td>
+<td>element-wise product（Hadamard product）</td>
+<td>两串数对位相乘、不加起来，结果还是一串数（点积会加起来，得一个数）</td>
+<td><a href="../lessons/03-softmax-ratio.html">第 3 章</a></td>
+</tr>
+<tr>
+<td>exp</td>
+<td>exponential</td>
+<td>指数：exp(x) = eˣ（第 5 章）</td>
+<td><a href="../lessons/03-softmax-ratio.html">第 3 章</a></td>
+</tr>
+<tr>
+<td>sin</td>
+<td>sine</td>
+<td>正弦：圆上转圈时的高低（第 15 章）</td>
+<td><a href="../lessons/14-positional-encoding.html">第 14 章</a></td>
+</tr>
+<tr>
+<td>cos</td>
+<td>cosine</td>
+<td>余弦：圆上转圈时的左右（第 15 章）</td>
+<td><a href="../lessons/02-dot-product.html">第 2 章</a></td>
+</tr>
+<tr>
+<td>max</td>
+<td>maximum</td>
+<td>取最大：max(0, z) 在 0 和 z 里取大的</td>
+<td><a href="../lessons/20-ffn.html">第 20 章</a></td>
+</tr>
+<tr>
+<td>O(·)</td>
+<td>Big-O notation</td>
+<td>大 O 记号：只看 n、d 变大时工作量按什么规律涨，不管常数（<span class="arithmatex">\(O(n^2 d)\)</span>）</td>
+<td><a href="../lessons/23-complexity.html">第 23 章</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">论文与模型名</h2>
+<table>
+<thead>
+<tr>
+<th>缩写</th>
+<th>全称</th>
+<th>意思</th>
+<th>第一次出现</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT</td>
+<td>Generative Pre-trained Transformer</td>
+<td>生成式预训练 Transformer：OpenAI 的模型系列，只用 decoder</td>
+<td><a href="../lessons/12-transpose-formula.html">第 12 章</a></td>
+</tr>
+<tr>
+<td>BERT</td>
+<td>Bidirectional Encoder Representations from Transformers</td>
+<td>Google 的模型，只用 encoder，左右两边都能看</td>
+<td><a href="../lessons/16-multi-clock.html">第 16 章</a></td>
+</tr>
+<tr>
+<td>LLaMA</td>
+<td>Large Language Model Meta AI</td>
+<td>Meta 的开源大模型；用 pre-LN + RMSNorm + RoPE + SwiGLU</td>
+<td><a href="../lessons/19-layernorm.html">第 19 章</a></td>
+</tr>
+<tr>
+<td>PaLM</td>
+<td>Pathways Language Model</td>
+<td>Google 的大模型</td>
+<td><a href="../lessons/19-layernorm.html">第 19 章</a></td>
+</tr>
+<tr>
+<td>RoPE</td>
+<td>Rotary Position Embedding</td>
+<td>旋转位置编码：把向量按位置转一个角度（阶段 A7）</td>
+<td><a href="../lessons/14-positional-encoding.html">第 14 章</a></td>
+</tr>
+<tr>
+<td>RoFormer</td>
+<td>Rotary (Trans)former</td>
+<td>提出 RoPE 的那篇论文里的模型</td>
+<td><a href="../lessons/14-positional-encoding.html">第 14 章</a></td>
+</tr>
+<tr>
+<td>NoPE</td>
+<td>No Positional Encoding</td>
+<td>不加位置编码，只靠因果 mask 隐约知道顺序</td>
+<td><a href="../lessons/14-positional-encoding.html">第 14 章</a></td>
+</tr>
+<tr>
+<td>ALiBi</td>
+<td>Attention with Linear Biases</td>
+<td>按距离给分数减一个数，代替位置编码</td>
+<td><a href="../lessons/14-positional-encoding.html">第 14 章</a></td>
+</tr>
+<tr>
+<td>ResNet</td>
+<td>Residual Network</td>
+<td>残差网络：残差连接的出处（第 18 章）</td>
+<td><a href="../lessons/18-residual.html">第 18 章</a></td>
+</tr>
+<tr>
+<td>NMT</td>
+<td>Neural Machine Translation</td>
+<td>用神经网络做翻译</td>
+<td><a href="../lessons/02-dot-product.html">第 2 章</a></td>
+</tr>
+<tr>
+<td>RNN</td>
+<td>Recurrent Neural Network</td>
+<td>循环神经网络：一个词一个词按顺序读，Transformer 之前的主流</td>
+<td><a href="../lessons/06-softmax-exp.html">第 6 章</a></td>
+</tr>
+<tr>
+<td>AIAYN</td>
+<td>Attention Is All You Need</td>
+<td>本课主论文（Vaswani et al. 2017）的首字母</td>
+<td><a href="../lessons/15-sin-cos.html">第 15 章</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">评测与硬件</h2>
+<table>
+<thead>
+<tr>
+<th>缩写</th>
+<th>全称</th>
+<th>意思</th>
+<th>第一次出现</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PPL</td>
+<td>perplexity</td>
+<td>困惑度：模型猜下一个词有多"犹豫"，越低越好</td>
+<td><a href="../lessons/16-multi-clock.html">第 16 章</a></td>
+</tr>
+<tr>
+<td>BLEU</td>
+<td>Bilingual Evaluation Understudy</td>
+<td>翻译评分：机器译文和人工译文有多像，越高越好</td>
+<td><a href="../lessons/16-multi-clock.html">第 16 章</a></td>
+</tr>
+<tr>
+<td>GPU</td>
+<td>Graphics Processing Unit</td>
+<td>图形处理器（显卡）：擅长同时做大量乘加</td>
+<td><a href="../lessons/11-matrix-qk.html">第 11 章</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="_6">资料</h2>
+<table>
+<thead>
+<tr>
+<th>缩写</th>
+<th>全称</th>
+<th>意思</th>
+<th>第一次出现</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CS336</td>
+<td>Stanford CS 336: Language Modeling from Scratch</td>
+<td>斯坦福课程编号；handout 是它作业 1 的说明文档</td>
+<td><a href="../lessons/01-vector.html">第 1 章</a></td>
+</tr>
+<tr>
+<td>handout</td>
+<td>—</td>
+<td>课程发的作业说明文档</td>
+<td>—</td>
+</tr>
+<tr>
+<td>arXiv</td>
+<td>读作 archive</td>
+<td>论文预印本网站；编号如 1706.03762 = 2017 年 6 月第 3762 篇</td>
+<td>—</td>
+</tr>
+<tr>
+<td>L132</td>
+<td>Line 132</td>
+<td>本地文本版的第 132 行</td>
+<td>—</td>
+</tr>
+<tr>
+<td>§3.1</td>
+<td>section 3.1</td>
+<td>论文第 3.1 节</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Eq. (2)</td>
+<td>Equation (2)</td>
+<td>论文第 (2) 号公式</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Alg 4</td>
+<td>Algorithm 4</td>
+<td>论文第 4 号算法</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Fig. / Figure</td>
+<td>Figure</td>
+<td>论文的图</td>
+<td>—</td>
+</tr>
+<tr>
+<td>[11]</td>
+<td>—</td>
+<td>论文末尾参考文献的第 11 篇</td>
+<td>—</td>
+</tr>
+<tr>
+<td>et al.</td>
+<td>et alii（拉丁语）</td>
+<td>"等人"：作者不止一个</td>
+<td>—</td>
+</tr>
+<tr>
+<td>README</td>
+<td>read me</td>
+<td>"先读我"：目录、说明文件</td>
+<td>—</td>
+</tr>
+<tr>
+<td>GIF</td>
+<td>Graphics Interchange Format</td>
+<td>会动的图片格式，嵌在讲义里</td>
+<td>—</td>
+</tr>
+<tr>
+<td>html</td>
+<td>HyperText Markup Language</td>
+<td>网页文件；可交互动画用浏览器打开</td>
+<td>—</td>
+</tr>
+<tr>
+<td>PDF</td>
+<td>Portable Document Format</td>
+<td>论文原文格式</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

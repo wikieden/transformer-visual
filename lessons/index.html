@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>讲义：从零读懂 attention · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="attention">讲义：从零读懂 attention</h1>
+<p>对话讲解的完整留档，按章节整理。每章结构相同：<strong>本章回答的问题 → 讲解（白话类比 → 公式 → 例子）→ 练习与作答记录 → 口诀 → 本章复习卡片 → 附录 · 延伸阅读</strong>（推荐论文和书、数学原理、公式清单，给以后深入学习用）。</p>
+<ul>
+<li>复习卡片集中在 <a href="../review.html">../review.md</a>，按间隔规则复习；</li>
+<li>公式速查见 <a href="../A0-basics-vector-dot-softmax.html">../A0-basics-vector-dot-softmax.md</a>；</li>
+<li>论文原文对照见 ../A2-attention-is-all-you-need.md（等基础讲完再读）。</li>
+</ul>
+<h2 id="2026-10-26">全流程总览（2026-10-26 复述）</h2>
+<p>目标：读到"小明把苹果给了小红，因为<strong>她</strong>饿了"里的"她"时，让模型弄清"她"指的是谁。</p>
+<pre><code>每个词 → 词向量 x（512 个数）                           第 1 章
+   │  乘三个不同的矩阵 W^Q、W^K、W^V                    第 10 章
+   ▼
+q（我要找什么）  k（我是什么）  v（我携带的信息）       第 9 章
+   │  所有词各自的 q、k、v 排成矩阵                     第 11 章
+   ▼
+Q            K            V
+   │
+① 打分：QKᵀ —— 每个 q 和每个 k 做点积，得到分数表       第 2、11、12 章
+② 缩放：÷ √d_k —— 防止分数太大、softmax 饱和            第 7、8 章
+③ 分比例：softmax —— 套 eˣ 再除以总和，每行加起来 = 1   第 3、5、6 章
+④ 取信息：× V —— 按比例对 v 做加权平均                  第 4 章
+   ▼
+每个词的新向量（&quot;她&quot;≈ 主要取了小红的信息）
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>步</th>
+<th>做什么</th>
+<th>为什么这样做</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>词变向量</td>
+<td>每个词变成一串数字</td>
+<td>模型只认识数字</td>
+</tr>
+<tr>
+<td>变出 q、k、v</td>
+<td>同一个 x 乘三个矩阵</td>
+<td>"我要找什么""我是什么""我带什么信息"是三回事</td>
+</tr>
+<tr>
+<td>排成矩阵</td>
+<td>每个词一行</td>
+<td>一次算完所有词</td>
+</tr>
+<tr>
+<td>① 打分</td>
+<td><span class="arithmatex">\(QK^\top\)</span></td>
+<td>点积越大越像；转置是为了让 k 变成列</td>
+</tr>
+<tr>
+<td>② 缩放</td>
+<td><span class="arithmatex">\(\div\sqrt{d_k}\)</span></td>
+<td>64 个数加起来分数会到 ±8，除以 8 拉回 ±1</td>
+</tr>
+<tr>
+<td>③ 分比例</td>
+<td>softmax</td>
+<td>保证都是正数、加起来是 1、拉开差距</td>
+</tr>
+<tr>
+<td>④ 取信息</td>
+<td><span class="arithmatex">\(\times V\)</span></td>
+<td>关系大的词贡献多，得到新的含义</td>
+</tr>
+</tbody>
+</table>
+<p>合起来就是论文公式 1：<span class="arithmatex">\(\text{Attention}(Q,K,V)=\text{softmax}\!\left(\dfrac{QK^\top}{\sqrt{d_k}}\right)V\)</span></p>
+<h2 id="_1">目录</h2>
+<table>
+<thead>
+<tr>
+<th>章</th>
+<th>主题</th>
+<th>卡片</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../lessons/01-vector.html">1</a></td>
+<td>向量：用一串数字描述一个东西</td>
+<td>R01</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/02-dot-product.html">2</a></td>
+<td>点积：对位相乘再相加</td>
+<td>R02、R03</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/03-softmax-ratio.html">3</a></td>
+<td>softmax（上）：分数变比例；和 LayerNorm 的区别</td>
+<td>R06、R07</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/04-weighted-average.html">4</a></td>
+<td>按比例取信息：加权平均；attention 四步</td>
+<td>R09、R10</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/05-power-and-e.html">5</a></td>
+<td>次方与 e</td>
+<td>R04、R05</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/06-softmax-exp.html">6</a></td>
+<td>softmax（下）：为什么套 <span class="arithmatex">\(e^{x}\)</span></td>
+<td>R08、R11</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/07-saturation.html">7</a></td>
+<td>softmax 饱和；饱和 vs 过拟合</td>
+<td>R12、R13</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/08-sqrt-dk.html">8</a></td>
+<td>为什么除以 <span class="arithmatex">\(\sqrt{d_k}\)</span></td>
+<td>R14、R15</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/09-qkv.html">9</a></td>
+<td>Q、K、V 分别是什么；为什么 Q、K 要分开</td>
+<td>R16</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/10-matrix-transform.html">10</a></td>
+<td>转换与矩阵：Q、K、V 怎么从词向量变出来</td>
+<td>R17、R18</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/11-matrix-qk.html">11</a></td>
+<td>大写的 Q、K、V；<span class="arithmatex">\(QK^\top\)</span> 是一张分数表</td>
+<td>R19、R20</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/12-transpose-formula.html">12</a></td>
+<td>转置 <span class="arithmatex">\(^\top\)</span> 与公式 1 完整走一遍</td>
+<td>R22、R23</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/13-multi-head.html">13</a></td>
+<td>多头注意力 multi-head</td>
+<td>R24、R25</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/14-positional-encoding.html">14</a></td>
+<td>位置编码（上）：attention 不知道顺序；号码牌 <span class="arithmatex">\(x_i'=x_i+p_i\)</span> 及其毛病</td>
+<td>R26、R27、R28</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/15-sin-cos.html">15</a></td>
+<td>sin 和 cos：圆上转圈（摩天轮）；周期；弧度</td>
+<td>R29、R30、R31、R32</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/16-multi-clock.html">16</a></td>
+<td>位置编码（下）：多档时钟；论文正弦公式</td>
+<td>R33、R34、R35、R36、R37、R38、R39、R40、R41</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/17-causal-mask.html">17</a></td>
+<td>因果 mask：不许偷看后面的词</td>
+<td>R42、R43、R44、R45、R46</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/18-residual.html">18</a></td>
+<td>残差连接：输出 = 输入 + 子层(输入)</td>
+<td>R47、R48、R49</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/19-layernorm.html">19</a></td>
+<td>LayerNorm：平均值、方差，把每个词的数字调到统一范围；pre-LN、RMSNorm</td>
+<td>R50–R56</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/20-ffn.html">20</a></td>
+<td>前馈网络 FFN：每个词回到自己座位上消化；ReLU、SiLU、SwiGLU</td>
+<td>R57–R64</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/21-transformer-layer.html">21</a></td>
+<td>拼装：一个 Transformer 层；encoder / decoder 全图；三种 attention</td>
+<td>R65–R69</td>
+<td>完成</td>
+</tr>
+<tr>
+<td><a href="../lessons/22-embedding-softmax.html">22</a></td>
+<td>输入 embedding 与输出 softmax：词怎么变成向量，向量怎么变回词</td>
+<td>—</td>
+<td>正文完成，练习待做</td>
+</tr>
+<tr>
+<td><a href="../lessons/23-complexity.html">23</a></td>
+<td>复杂度：为什么 attention 是 n²，长文本为什么难</td>
+<td>—</td>
+<td>正文完成，练习待做</td>
+</tr>
+<tr>
+<td><a href="../lessons/24-wrap-up.html">24</a></td>
+<td>收尾：数参数、warmup 学习率、对照原文通读 §3</td>
+<td>—</td>
+<td>正文完成，练习待做</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2026-10-26_1">后续大纲（2026-10-26 拟定，讲到再微调）</h2>
+<p>目标：讲完 Attention Is All You Need §3 的全部内容，最后能直接读懂原文。</p>
+<table>
+<thead>
+<tr>
+<th>章</th>
+<th>主题</th>
+<th>要用到的前置</th>
+<th>对应原文</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>14</td>
+<td>位置编码（上）：为什么需要；最朴素的做法：给每个位置加一个向量</td>
+<td>向量加法</td>
+<td>§3.5</td>
+</tr>
+<tr>
+<td>15</td>
+<td>前置：sin 和 cos 是什么（圆上转圈）</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>16</td>
+<td>位置编码（下）：论文的正弦公式、"多档时钟"；A2 自测题 2</td>
+<td>第 15 章</td>
+<td>§3.5</td>
+</tr>
+<tr>
+<td>17</td>
+<td>因果 mask：生成时不能偷看后面的词（−∞ 的作用）</td>
+<td>softmax、<span class="arithmatex">\(e^{x}\)</span></td>
+<td>§3.1、§3.2.3</td>
+</tr>
+<tr>
+<td>18</td>
+<td>残差连接：输出 = 输入 + 子层(输入)</td>
+<td>向量加法</td>
+<td>§3.1</td>
+</tr>
+<tr>
+<td>19</td>
+<td>LayerNorm（含前置：平均值、方差）</td>
+<td>—</td>
+<td>§3.1</td>
+</tr>
+<tr>
+<td>20</td>
+<td>前馈网络 FFN 与 ReLU</td>
+<td>向量乘矩阵</td>
+<td>§3.3</td>
+</tr>
+<tr>
+<td>21</td>
+<td>拼装：一个 Transformer 层；encoder / decoder 全图；三种 attention</td>
+<td>第 13–20 章</td>
+<td>§3.1、§3.2.3</td>
+</tr>
+<tr>
+<td>22</td>
+<td>输入 embedding 与输出 softmax：怎么从向量预测下一个词</td>
+<td>softmax</td>
+<td>§3.4</td>
+</tr>
+<tr>
+<td>23</td>
+<td>复杂度：为什么 attention 是 <span class="arithmatex">\(n^2\)</span>，长文本为什么难</td>
+<td>点积</td>
+<td>Table 1、§4</td>
+</tr>
+<tr>
+<td>24</td>
+<td>收尾：A2 自测题 1（数参数）、warmup 学习率、对照原文通读 §3</td>
+<td>全部</td>
+<td>§3、§5.3</td>
+</tr>
+</tbody>
+</table>
+<p>§3 讲完以后，按 study-plan 阶段 A 往下走（A4 参数 / FLOPs 计算、A7 induction heads），然后动手做 CS336 a1 §3（T-M0），亲手写一个 Transformer。</p>
+<h2 id="3-2026-10-26">全局路线：§3 之后还要学什么（2026-10-26）</h2>
+<table>
+<thead>
+<tr>
+<th>段</th>
+<th>学什么</th>
+<th>一句话</th>
+<th>去哪</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① 原版怎么工作</td>
+<td>AIAYN §3（<strong>进行中，第 14–24 章</strong>）</td>
+<td>2017 年最初的 Transformer</td>
+<td>本讲义</td>
+</tr>
+<tr>
+<td>② 模型怎么学会的</td>
+<td>loss（交叉熵）、梯度与反向传播、优化器 AdamW、学习率</td>
+<td>前面只说过"微调分数"，这里讲清楚训练到底怎么调</td>
+<td>CS336 a1 §4</td>
+</tr>
+<tr>
+<td>③ 零件升级</td>
+<td>Pre-LN、RMSNorm、SwiGLU、RoPE、长文本外推、QK-norm</td>
+<td>2017 年到现在，每个零件被换成了什么、为什么</td>
+<td>study-plan 阶段 B</td>
+</tr>
+<tr>
+<td>④ 现代模型配方</td>
+<td>LLaMA / Qwen / DeepSeek 的组合；GQA、MLA 省内存</td>
+<td>今天的大模型具体长什么样</td>
+<td>阶段 C</td>
+</tr>
+<tr>
+<td>⑤ 变大不变慢</td>
+<td>MoE 混合专家</td>
+<td>参数多但每次只用一部分</td>
+<td>阶段 D</td>
+</tr>
+<tr>
+<td>⑥ 让 attention 变快</td>
+<td>FlashAttention、滑动窗口、稀疏注意力</td>
+<td>解决 <span class="arithmatex">\(n^2\)</span>（第 23 章会讲问题本身）</td>
+<td>阶段 E</td>
+</tr>
+<tr>
+<td>⑦ attention 的替代者</td>
+<td>线性注意力、Mamba、混合架构</td>
+<td>不用 softmax 能不能更省</td>
+<td>阶段 F</td>
+</tr>
+<tr>
+<td>贯穿</td>
+<td>动手：CS336 a1 写一个 Transformer；里程碑 T-M1–T-M8</td>
+<td>每段学完都在自己的模型上改一改</td>
+<td>study-plan 里程碑</td>
+</tr>
+</tbody>
+</table>
+<h2 id="17">延展（主线 ①–⑦ 之后）</h2>
+<h3 id="a-transformer18-materialspapers07-vision-sources">延展 A · 视觉 Transformer（计划；18 篇论文已归档到 <code>materials/papers/07-vision/</code>，见 SOURCES）</h3>
+<p>把学过的 attention 用到图像和视频上。核心想法：<strong>把图片切成小方块，每个方块当成一个"词"</strong>，后面的计算和文字完全一样。</p>
+<table>
+<thead>
+<tr>
+<th>主题</th>
+<th>一句话</th>
+<th>用到主线的哪部分</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ViT</td>
+<td>图片切成 16×16 的小块，每块变成一个向量，送进 Transformer</td>
+<td>第 1–14 章全部</td>
+</tr>
+<tr>
+<td>CLIP</td>
+<td>图片和文字各变成一个向量，用点积判断"图文是否匹配"</td>
+<td>第 2 章点积、softmax</td>
+</tr>
+<tr>
+<td>MAE</td>
+<td>遮住大部分小块，让模型猜回来，借此学会看图</td>
+<td>第 21 章 encoder</td>
+</tr>
+<tr>
+<td>DiT / 扩散模型</td>
+<td>用 Transformer 一步步把噪声变成图片</td>
+<td>主线 ② 训练</td>
+</tr>
+<tr>
+<td>多模态大模型（LLaVA 类）</td>
+<td>图片小块和文字放进同一串，一起做 attention</td>
+<td>第 13、22 章</td>
+</tr>
+<tr>
+<td>工业案例</td>
+<td>Cosmos 3：ViT + 视频 VAE + 扩散 + 3D 位置编码，同时处理文字、图像、视频、动作</td>
+<td>见 nvidia-cosmos3</td>
+</tr>
+</tbody>
+</table>
+<h3 id="b-transformer">延展 B · 不属于 Transformer 本身、在别的目录</h3>
+<table>
+<thead>
+<tr>
+<th>主题</th>
+<th>去哪</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>推理服务与 KV cache</td>
+<td>llm-full-stack</td>
+</tr>
+<tr>
+<td>多卡训练</td>
+<td>distributed-pretraining</td>
+</tr>
+<tr>
+<td>GPU 编程</td>
+<td>cuda-programming</td>
+</tr>
+<tr>
+<td>对齐 / RLHF</td>
+<td>CS336 a5、cs285-deep-rl</td>
+</tr>
+<tr>
+<td>世界模型</td>
+<td>cis6280-world-models、nvidia-cosmos3</td>
+</tr>
+</tbody>
+</table>
+<p>附录：<a href="../lessons/appendix-vector-ops.html">向量常见操作速查</a>（记不清时先看这一页）。</p>
+<p>附录：<a href="../lessons/appendix-glossary.html">缩写与术语表</a>（遇到缩写先查这一页；每章开头另有一行"本章缩写"）。</p>
+<p>章节顺序按"读起来最顺"排，和实际讲解顺序略有不同（第 5 章是讲第 6 章时临时补的前置知识）。</p>
+<h2 id="_2">口诀汇总</h2>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>口诀</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>向量</td>
+<td>一串数字描一物，位置含义不能乱</td>
+</tr>
+<tr>
+<td>点积</td>
+<td>对位相乘再相加，数字越大越像它</td>
+</tr>
+<tr>
+<td>softmax</td>
+<td>分数变比例，加起来等于一</td>
+</tr>
+<tr>
+<td>区分</td>
+<td>softmax 分注意，LayerNorm 稳数值</td>
+</tr>
+<tr>
+<td>流程</td>
+<td>词变向量 → 点积打分 → softmax 分比例 → 按比例取信息</td>
+</tr>
+<tr>
+<td>Q、K、V</td>
+<td>Q 去问，K 来答"像不像"，V 是最后拿走的东西</td>
+</tr>
+<tr>
+<td>向量乘矩阵</td>
+<td>向量乘矩阵，竖着取列做点积</td>
+</tr>
+<tr>
+<td>多头</td>
+<td>一头只有一组比，多头各看各的戏；拼回原长再汇总</td>
+</tr>
+<tr>
+<td>位置编码</td>
+<td>号码牌跟座位走，谁坐上来谁戴上；牌不能无限变大，不然盖住词本身</td>
+</tr>
+<tr>
+<td>sin、cos</td>
+<td>sin 管高低，cos 管左右；转圈不出正负一，一圈一重复；一圈等于 2π</td>
+</tr>
+<tr>
+<td>多档时钟</td>
+<td>快慢轮子排一排；括号里 = 座位号 × 步长；快轮管近，慢轮管远；挪几个座位，每轮转个固定角</td>
+</tr>
+<tr>
+<td>因果 mask</td>
+<td>后面是答案要遮住；分数表遮右上角，能看填 0，要遮填 −∞；e 的 −∞ 次方是 0</td>
+</tr>
+<tr>
+<td>残差连接</td>
+<td>子层只写批注不撕原文：输出 = x + 子层(x)；层层往上加，原词一直在；没话说就写 0</td>
+</tr>
+<tr>
+<td>LayerNorm</td>
+<td>先减平均对中心，再除标准差统一宽窄；分母加 ε；整理完乘 γ 加 β；pre-LN 先整理给子层看；RMSNorm 不减平均只除 RMS</td>
+</tr>
+<tr>
+<td>FFN</td>
+<td>开会靠 attention，消化靠 FFN；先摊开四倍，过门卫负数变 0，再收回；两次转换连着做等于一次；新版 SiLU 加闸门，八分之三保预算</td>
+</tr>
+</tbody>
+</table>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

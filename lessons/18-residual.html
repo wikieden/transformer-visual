@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 18 章 · 残差连接：输出 = 输入 + 子层(输入) · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="18">第 18 章 · 残差连接：输出 = 输入 + 子层(输入)</h1><p><a class="btn" href="../animations/18-residual.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：attention 算完的新向量，为什么不直接拿来用，而要再加上原来的向量？为什么有了它层可以叠很多？<br />
+讲解日期：2026-11-05 · 上一章：<a href="../lessons/17-causal-mask.html">第 17 章 因果 mask</a> · 下一章：<a href="../lessons/19-layernorm.html">第 19 章 LayerNorm</a><br />
+对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.1，L128–L135、L139–L140<br />
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；FFN = Feed-Forward Network（前馈网络）；LayerNorm / LN = Layer Normalization（层归一化）；sin = sine（正弦）；cos = cosine（余弦）；ResNet = Residual Network（残差网络）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="attention-2026-11-05">第一步：attention 的结果会把词自己"顶掉"（2026-11-05）</h3>
+<p><strong>先认识"子层"</strong>：Transformer 的每一层里有两个小零件，论文叫 <strong>sub-layer（子层）</strong>：第一个是多头 attention（第 9–13 章），第二个是前馈网络 FFN（第 20 章）。子层做的事可以记成 <span class="arithmatex">\(\text{Sublayer}(x)\)</span>：输入一个词的向量 <span class="arithmatex">\(x\)</span>，输出一个新向量。</p>
+<p><strong>问题</strong>：拿第 17 章"狗咬人"里的"咬"来看。设 "狗" = [2, 0]，"咬" = [0, 1]（第 14 章用过的词向量），"咬"那一行加了 mask 后的权重是 0.73、0.27、0。attention 按比例取信息（第 4 章；为了简单，这里直接拿词向量当 V）：</p>
+<div class="arithmatex">\[0.73 \times [2, 0] + 0.27 \times [0, 1] = [1.46,\ 0.27]\]</div>
+<p>如果直接拿 [1.46, 0.27] 当"咬"的新向量：第 2 个数（"咬"自己的特征）从 1 掉到了 0.27，整个向量看起来更像"狗" [2, 0]。<strong>"咬"取来了别人的信息，却把自己是谁弄丢了。</strong></p>
+<p><strong>类比：改作文。</strong> 老师批改时用红笔在原文旁边<strong>写批注</strong>，你的作文还在；而不是把你的作文<strong>撕掉，换成他写的一篇</strong>。attention 的结果应该是"批注"，加在原来的向量上，而不是顶替它。</p>
+<p><strong>修法：残差连接（residual connection）</strong>：把子层的输出<strong>加回</strong>原来的输入：</p>
+<div class="arithmatex">\[\text{输出} = x + \text{Sublayer}(x)\]</div>
+<p>论文 L131–L133：每个子层外面都套一个残差连接，子层的输出是 <span class="arithmatex">\(\text{LayerNorm}(x + \text{Sublayer}(x))\)</span>。LayerNorm 是第 19 章的内容，这一章只看括号里的 <span class="arithmatex">\(x + \text{Sublayer}(x)\)</span>。</p>
+<p><strong>一句话</strong>：子层算出来的是"批注"，要加在原来的向量上；输出 = 输入 + 子层(输入)，词自己的信息不会丢。</p>
+<h3 id="6-2026-11-05">第二步：6 层叠起来：原文一直在，每层往上加批注（2026-11-05）</h3>
+<p><strong>论文有几层</strong>：encoder 是 <span class="arithmatex">\(N = 6\)</span> 个一模一样的层叠起来（L128），每层两个子层，一共 12 个子层，每个都套着残差连接。</p>
+<p>（这一步先不管 LayerNorm，第 19 章再加进来。）</p>
+<p><strong>把加法一层层展开</strong>：记第 0 层输入是 <span class="arithmatex">\(x_0\)</span>，第 <span class="arithmatex">\(\ell\)</span> 个子层的批注是 <span class="arithmatex">\(s_\ell\)</span>：</p>
+<div class="arithmatex">\[x_1 = x_0 + s_1$$
+$$x_2 = x_1 + s_2 = x_0 + s_1 + s_2$$
+$$\vdots$$
+$$x_{12} = x_0 + s_1 + s_2 + \cdots + s_{12}\]</div>
+<p>最后的向量 = <strong>最初的词向量</strong> + 12 条批注。原来的 <span class="arithmatex">\(x_0\)</span> 从头到尾一直在里面，没有被谁换掉过。</p>
+<p><strong>不加残差会怎样</strong>：每一层都把上一层的结果整个换成新的，<span class="arithmatex">\(x_{12} = \text{Sub}_{12}(\cdots\text{Sub}_2(\text{Sub}_1(x_0)))\)</span>。原来的词要穿过 12 次改写才能留到最后。</p>
+<p><strong>类比：传话游戏 vs 共享文档。</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>传话游戏（不加残差）</th>
+<th>共享文档加批注（加残差）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>怎么传</td>
+<td>每个人只听上一个人的复述，再说给下一个</td>
+<td>原文一直在文档里，每个人只在旁边加批注</td>
+</tr>
+<tr>
+<td>传 12 个人以后</td>
+<td>原话可能早就走样了</td>
+<td>原文完好，外加 12 条批注</td>
+</tr>
+</tbody>
+</table>
+<p>这条从头贯穿到尾、不断往上加东西的向量，后来的研究常叫它 <strong>residual stream（残差流）</strong>：每个子层从里面读信息，算出批注，再加回去。</p>
+<p><strong>一句话</strong>：有了残差连接，最后的向量 = 原词向量 + 每个子层的批注；原文一直在，不会被层层改写弄丢。</p>
+<h3 id="2026-11-05">第三步：没话说就不写：残差让"什么都不做"变得容易（2026-11-05）</h3>
+<p><strong>问题</strong>：叠 6 层、12 个子层，万一某个子层没学到什么有用的东西，会不会把结果弄坏？</p>
+<p><strong>不加残差</strong>：输出 = <span class="arithmatex">\(\text{Sublayer}(x)\)</span>，结果完全由这个子层决定。一个没用的子层要想"不添乱"，必须学会<strong>把输入一字不差地抄出来</strong>（输出 = 输入）。让一堆乘法加法恰好算出"原样不变"，并不容易。</p>
+<p><strong>加了残差</strong>：输出 = <span class="arithmatex">\(x + \text{Sublayer}(x)\)</span>。这个子层想"不添乱"，只要让批注 <span class="arithmatex">\(\text{Sublayer}(x)\)</span> 接近 <strong>0</strong> 就行，输入就原样通过。</p>
+<p><strong>类比：传话员 vs 批注员。</strong> 传话员没听懂也得复述一遍，复述错了就传歪了；批注员没什么可说，<strong>空着不写</strong>就行，原文不受影响。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>不加残差</th>
+<th>加残差</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>子层没用时要做到</td>
+<td>输出 = 输入（原样抄一遍）</td>
+<td>批注 = 0（空着不写）</td>
+</tr>
+<tr>
+<td>难不难</td>
+<td>难</td>
+<td>容易</td>
+</tr>
+<tr>
+<td>最坏情况</td>
+<td>把结果弄坏</td>
+<td>这一层像不存在</td>
+</tr>
+</tbody>
+</table>
+<p>所以有了残差，层数可以放心往上加：多加的层最差也就是"没帮上忙"，不会把前面的成果抹掉。论文引用的 [11] 是 He 等人 2015 年的 ResNet（L577），这个想法最早就是为了把图像网络叠到上百层提出来的。</p>
+<p><strong>一句话</strong>：有残差时，子层只负责"补充"；没什么可补充就写 0，输入原样通过，所以叠很多层也不怕。</p>
+<h3 id="vs">动画演示：两条路：加残差 vs 不加残差</h3>
+<p><img alt="残差连接" src="../animations/18-residual.gif" /></p>
+<p>可交互版：<a href="../animations/18-residual.html">animations/18-residual.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"；滑块调"批注写多大"，拖到 0 就是每层都空着不写）。</p>
+<p>"咬" = [0, 1] 依次穿过 4 个子层（论文有 12 个），每个子层写一条批注；绿色柱是第 1 个数（"谁在咬"），橙色柱是第 2 个数（"咬自己"）。批注数字是编的，只看形状。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>上面一条加残差（共享文档加批注），下面一条不加（传话游戏）；</li>
+<li>子层 1 之后：上面 [1.46, 1.27]，"咬自己"还在；下面 [1.46, 0.27]，快没了（第一步、题 1）；</li>
+<li>子层 3 批注为 0：上面原样透传；下面变成 [0, 0]，词整个没了（第三步、题 3）；</li>
+<li>最后上面 = 原词 + 所有批注（第二步），下面只剩最后一个子层写的东西。</li>
+</ol>
+<h2 id="_2">练习与作答记录</h2>
+<p><strong>题 1</strong>："咬"原来是 [0, 1]，attention 子层算出来是 [1.46, 0.27]。用残差连接，"咬"的新向量是多少？第 2 个数（"咬"自己的特征）还在吗？</p>
+<p><strong>作答</strong>（2026-11-05）："1.46，1.27"。✓（向量算对；"还在吗"没明说，数字已经说明了）</p>
+<p><strong>点评</strong>：对。[0, 1] + [1.46, 0.27] = [1.46, 1.27]。第 2 个数是 1.27，比原来的 1 还大，"咬"自己的特征完整保留；第 1 个数 1.46 是从"狗"那里取来的信息（"谁在咬"）。对比不加残差的 [1.46, 0.27]，自己的特征只剩 0.27。已加入卡片 R47。</p>
+<p><strong>题 2</strong>：残差连接要把 <span class="arithmatex">\(x\)</span> 和 <span class="arithmatex">\(\text{Sublayer}(x)\)</span> 对位相加。论文 L134–L135 说"所有子层和 embedding 层的输出都是 <span class="arithmatex">\(d_{model} = 512\)</span> 维"，为什么必须这样？（提示：第 16 章题 2）</p>
+<p><strong>作答</strong>（2026-11-05）："一共 256 层，sin cos 一起就是"。✗（又回到了第 16 章题 2 的"256 × 2 = 512"，而且把"层"和"轮子"混了）</p>
+<p><strong>点评</strong>：这题和位置编码的 256 个轮子没有关系，层数也是 6 层（L128），不是 256 层。答案只在"<strong>对位相加</strong>"四个字里：</p>
+<ol>
+<li>对位相加 = 第 1 个数加第 1 个数，第 2 个数加第 2 个数……两个向量<strong>必须一样长</strong>，每个位置才有人配对；</li>
+<li><span class="arithmatex">\(x\)</span> 是 512 个数（词向量 <span class="arithmatex">\(d_{model} = 512\)</span>），所以 <span class="arithmatex">\(\text{Sublayer}(x)\)</span> 也必须是 512 个数，<span class="arithmatex">\(x + \text{Sublayer}(x)\)</span> 才加得起来；</li>
+<li>加完还是 512 个数，下一个子层再加，照样对得上。12 个子层一路加下去，每一步都得是 512。</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>能对位相加吗</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>[1, 2, 3] + [4, 5, 6]</td>
+<td>能：[5, 7, 9]</td>
+</tr>
+<tr>
+<td>[1, 2, 3] + [4, 5]</td>
+<td>不能：第 3 个数没人配对</td>
+</tr>
+</tbody>
+</table>
+<p>和第 16 章题 2 是同一个道理：那里是"号码牌要和词向量相加，所以号码牌也是 512 个数"；这里是"子层输出要和输入相加，所以子层输出也是 512 个数"。<strong>先有"要相加"，才定"一样长"</strong>。已加入卡片 R48，R34 补了一条复习记录。</p>
+<p><strong>题 2 再练</strong>：如果某个模型的词向量是 768 个数，它的每个子层输出应该是几个数？为什么？</p>
+<p><strong>作答</strong>（2026-11-05）："768，要相加就必须一致"。✓</p>
+<p><strong>点评</strong>：完全对，而且理由说的就是"要相加"，因果顺序对了。</p>
+<p><strong>题 3</strong>：某个子层的批注是 [0, 0]，输入 <span class="arithmatex">\(x\)</span> = [1.46, 1.27]。残差后是多少？这一层相当于什么？</p>
+<p><strong>作答</strong>（2026-11-05）："1.46，1.27，相当于透传了特征"。✓</p>
+<p><strong>点评</strong>：对。[1.46, 1.27] + [0, 0] = [1.46, 1.27]，"透传"这个词很准：这一层什么都没改，输入原样传给下一层，就像这一层不存在。不加残差的话，这一层输出 [0, 0]，"咬"就整个没了。已加入卡片 R49。</p>
+<h2 id="_3">口诀</h2>
+<blockquote>
+<p>子层只写批注，不撕原文：输出 = x + 子层(x)；<br />
+层层往上加，原词一直在；<br />
+要相加就得一样长，没话说就写 0，原样透传。</p>
+</blockquote>
+<h2 id="_4">本章复习卡片</h2>
+<ul>
+<li>R47（残差连接：输出 = x + Sublayer(x)；"咬" [0, 1] + [1.46, 0.27] = [1.46, 1.27]，自己的特征不丢）</li>
+<li>R48（为什么所有子层输出都是 <span class="arithmatex">\(d_{model}\)</span> 维：残差要对位相加，两个向量必须一样长）</li>
+<li>R49（残差让"不做事"容易：批注 = 0 时输入原样透传；不加残差则要学会原样抄写，否则把结果弄坏）</li>
+</ul>
+<h2 id="_5">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_6">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>§3.1 L128–L135（encoder）、L139–L140（decoder）</td>
+<td>本章原文：<span class="arithmatex">\(N = 6\)</span> 层、每层两个子层；每个子层外套残差，输出 <span class="arithmatex">\(\text{LayerNorm}(x + \text{Sublayer}(x))\)</span>；所有子层输出 <span class="arithmatex">\(d_{model} = 512\)</span> 维是为了能相加（题 2）</td>
+</tr>
+<tr>
+<td>★ CS336 assignment 1 handout</td>
+<td>§3.5 Pre-Norm Transformer Block（L937–L951）；§3.6（L1255–L1260）</td>
+<td>动手要写的版本：原论文是 post-norm，现在通用的是 pre-norm（先 norm 再进子层，再加残差）；L947–L948 正好用了"residual stream"这个说法。第 19 章讲完 LayerNorm 再细看</td>
+</tr>
+<tr>
+<td>He et al. 2015，Deep Residual Learning for Image Recognition（ResNet，论文引用 [11]，L577）</td>
+<td>引言 + Figure 2（残差块示意图）</td>
+<td>残差连接的出处：第三步"没话说就写 0"的原始动机，把图像网络叠到上百层（本地没有文本版）</td>
+</tr>
+<tr>
+<td>Olsson et al. 2022，In-context Learning and Induction Heads</td>
+<td>L469、L706、L817 等处</td>
+<td>"residual stream"的用法：每个 attention head 从残差流读、往残差流写（第二步）。阶段 A7 精读</td>
+</tr>
+<tr>
+<td>Xiong et al. 2020，On Layer Normalization in the Transformer Architecture</td>
+<td><code>preln-on-layer-normalization-2002.04745.txt</code></td>
+<td>学完第 19 章再读：LayerNorm 放在残差的里面还是外面，对训练有多大影响</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_7">数学原理</h3>
+<ul>
+<li><strong>展开成求和</strong>：<span class="arithmatex">\(x_\ell = x_{\ell-1} + s_\ell\)</span> 一路代下去，<span class="arithmatex">\(x_L = x_0 + \sum_{\ell=1}^{L} s_\ell\)</span>。最后的向量 = 原词向量 + 所有子层的批注（第二步；不考虑 LayerNorm 时严格成立）。</li>
+<li><strong>恒等映射容易学</strong>：要让一层"什么都不做"，不加残差要学 <span class="arithmatex">\(f(x) = x\)</span>；加了残差只要学 <span class="arithmatex">\(f(x) = 0\)</span>（比如权重全接近 0）。后者容易得多（第三步）。</li>
+<li><strong>预告：梯度的直路</strong>：对 <span class="arithmatex">\(y = x + f(x)\)</span> 求导，<span class="arithmatex">\(\frac{dy}{dx} = 1 + f'(x)\)</span>。那个"1"意味着训练时的改错信号总能沿着 <span class="arithmatex">\(+x\)</span> 这条路原样传回前面的层，不会在层层相乘中变得很小。主线 ②（反向传播）再细讲。</li>
+<li><strong>对位相加要求同维度</strong>：<span class="arithmatex">\(x, \text{Sublayer}(x) \in \mathbb{R}^{d_{model}}\)</span>，所以所有子层的输入输出都是 <span class="arithmatex">\(d_{model}\)</span> 维（题 2，同第 16 章 R34）。</li>
+</ul>
+<h3 id="_8">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(y = x + \text{Sublayer}(x)\)</span></td>
+<td>残差连接：原向量 + 批注</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{LayerNorm}(x + \text{Sublayer}(x))\)</span></td>
+<td>论文原式（L132–L133），LayerNorm 第 19 章讲</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(x_L = x_0 + \sum_{\ell=1}^{L} s_\ell\)</span></td>
+<td>层层叠加：原词一直在（residual stream）</td>
+</tr>
+<tr>
+<td>批注 <span class="arithmatex">\(= 0 \Rightarrow y = x\)</span></td>
+<td>没话说就透传</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\frac{d}{dx}\left(x + f(x)\right) = 1 + f'(x)\)</span></td>
+<td>梯度有一条直路（主线 ② 预告）</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="17-causal-mask.html">← 第 17 章 · 因果 mask：不许偷看后面的词</a><a href="19-layernorm.html">第 19 章 · LayerNorm：把每个词的数字调到统一范围 →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

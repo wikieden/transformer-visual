@@ -1,0 +1,885 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 21 章 · 拼装：一个 Transformer 层；encoder / decoder 全图；三种 attention · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="21-transformer-encoder-decoder-attention">第 21 章 · 拼装：一个 Transformer 层；encoder / decoder 全图；三种 attention</h1><p><a class="btn" href="../animations/21-transformer-layer.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：第 13–20 章学的零件（multi-head attention、残差、LayerNorm、FFN、因果 mask），怎么拼成一个完整的层？encoder 和 decoder 各长什么样？论文里说的"三种 attention"分别是谁问谁？<br />
+讲解日期：2026-11-06 起 · 上一章：<a href="../lessons/20-ffn.html">第 20 章 前馈网络 FFN</a> · 下一章：<a href="../lessons/22-embedding-softmax.html">第 22 章 输入 embedding 与输出 softmax</a><br />
+对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3 开头 L110–L125，§3.1 L127–L143，§3.2.3 L222–L238<br />
+本章缩写：MHA = Multi-Head Attention（多头注意力）；FFN = Feed-Forward Network（前馈网络）；LayerNorm / LN = Layer Normalization（层归一化）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；N = Number of layers（叠几层，论文 6）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="encoder-2026-11-06">第一步：一个 encoder 层 = 两道工序，每道工序外面都套"加回原稿 + 调范围"（2026-11-06）</h3>
+<p><strong>类比：流水线上的一个工位。</strong> 一句话的每个词是一份稿子，进到工位后要过两道工序：</p>
+<table>
+<thead>
+<tr>
+<th>工序</th>
+<th>做什么</th>
+<th>学过的章</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① 开会</td>
+<td>multi-head self-attention：每个词去听整句话，把有用的信息拿过来</td>
+<td>第 4–13 章</td>
+</tr>
+<tr>
+<td>② 回座位消化</td>
+<td>FFN：每个词拿着开会记下的东西，自己加工</td>
+<td>第 20 章</td>
+</tr>
+</tbody>
+</table>
+<p>每道工序做完，都要做两件"收尾"：</p>
+<ul>
+<li><strong>加回原稿</strong>（残差，第 18 章）：把工序前的稿子加回来，工序只负责"改了多少"；</li>
+<li><strong>调范围</strong>（LayerNorm，第 19 章）：把每个词的 512 个数调到统一范围。</li>
+</ul>
+<p><strong>公式</strong>（论文 L132–L133："the output of each sub-layer is LayerNorm(x + Sublayer(x))"）。把两道工序写开：</p>
+<div class="arithmatex">\[z = \text{LayerNorm}\big(x + \text{MHA}(x)\big)$$
+$$\text{输出} = \text{LayerNorm}\big(z + \text{FFN}(z)\big)\]</div>
+<ul>
+<li>x：进这一层的稿子，每个词 512 个数；</li>
+<li>z：开完会、加回、调好范围之后的中间结果；</li>
+<li>第二行把 z 当成新的"原稿"，再过 FFN、加回、调范围。</li>
+</ul>
+<p><strong>为什么能一层一层叠上去：形状始终不变。</strong> 论文 L134–L135：所有子层和 embedding 层的输出都是 <span class="arithmatex">\(d_{model} = 512\)</span> 维。一个词进来 512 个数，出去还是 512 个数，所以：</p>
+<ul>
+<li>残差 <span class="arithmatex">\(x + \text{MHA}(x)\)</span> 两边一样长，才能相加（第 18 章）；</li>
+<li>第 1 层的输出可以直接当第 2 层的输入，一直叠下去。</li>
+</ul>
+<p><strong>叠几层</strong>：论文 L129，"a stack of N = 6 identical layers"。</p>
+<ul>
+<li><strong>identical</strong>（一模一样）指的是<strong>结构</strong>一样：每层都是"开会 → 加回调范围 → 消化 → 加回调范围"；</li>
+<li><strong>参数</strong>每层各一套（第 20 章 L248–L249 讲过，FFN 每层参数不同；attention 也一样）。</li>
+</ul>
+<p><strong>一句话</strong>：一个 encoder 层就是"开会、消化"两道工序，每道之后加回原稿、调范围；进出都是每词 512 个数，所以能叠 6 层。</p>
+<h3 id="decoder-2026-11-07">第二步：一个 decoder 层 = 三道工序，多出来的一道是"回头查原文"（2026-11-07）</h3>
+<p><strong>类比：翻译员写译文。</strong> encoder 已经把原文"狗咬人"读透了（6 层出来，每个词 512 个数）。decoder 是翻译员，一个词一个词往外写译文 "dog bites man"。每写下一个词，要过三道工序：</p>
+<table>
+<thead>
+<tr>
+<th>工序</th>
+<th>做什么</th>
+<th>谁问谁</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① 看自己写过的</td>
+<td>masked self-attention：只看已经写出的译文，<strong>不许偷看后面</strong>（第 17 章的因果 mask）</td>
+<td>译文问译文</td>
+</tr>
+<tr>
+<td>② 回头查原文</td>
+<td>encoder-decoder attention：拿着"我现在要写什么"去原文里找相关的词</td>
+<td>译文问原文</td>
+</tr>
+<tr>
+<td>③ 回座位消化</td>
+<td>FFN，和 encoder 里一样</td>
+<td>不问别人</td>
+</tr>
+</tbody>
+</table>
+<p>和 encoder 比，只有两处不同：</p>
+<ul>
+<li><strong>多了工序 ②</strong>（论文 L138–L139："inserts a third sub-layer, which performs multi-head attention over the output of the encoder stack"）；</li>
+<li><strong>工序 ① 加了 mask</strong>（L141–L143：不让位置 i 看到 i 后面的词）。原因是生成时后面的词还没写出来，训练时也得假装看不见。</li>
+</ul>
+<p><strong>工序 ② 的 Q、K、V 从哪来</strong>（§3.2.3，L225–L226）：</p>
+<ul>
+<li>Q（"我要找什么"）来自 decoder 自己，也就是工序 ① 的结果；</li>
+<li>K、V（"原文里有什么"）来自 <strong>encoder 最后一层的输出</strong>。</li>
+</ul>
+<p>用第 9 章的话说：提问的是翻译员，被查的是原文。</p>
+<p><strong>公式</strong>。每道工序之后照样"加回原稿 + 调范围"（L140："residual connections around each of the sub-layers, followed by layer normalization"）。y 是已写出译文的向量，e 是 encoder 的输出：</p>
+<div class="arithmatex">\[a = \text{LayerNorm}\big(y + \text{MaskedMHA}(y)\big)$$
+$$b = \text{LayerNorm}\big(a + \text{MHA}(Q{=}a,\ K{=}e,\ V{=}e)\big)$$
+$$\text{输出} = \text{LayerNorm}\big(b + \text{FFN}(b)\big)\]</div>
+<p><strong>例子</strong>：翻译员已经写了 "dog"，正要写第 2 个词。</p>
+<ul>
+<li>① "dog" 只能看自己（后面还空着）；</li>
+<li>② 拿着 Q 去原文"狗、咬、人"里打分，"咬"分最高，拿到"咬"的信息；</li>
+<li>③ 消化后，最后一层的输出交给第 22 章要讲的 softmax，选出 "bites"。</li>
+</ul>
+<p><strong>形状</strong>：每个译文词进来 512 个数，出去还是 512 个数。decoder 也叠 N = 6 层（L137）。工序 ② 的 K、V 每一层都用 <strong>同一份</strong> encoder 最终输出。</p>
+<p><strong>一句话</strong>：decoder 层 = 看自己写过的（带 mask）→ 回头查原文（Q 自己出，K、V 原文出）→ 消化；每道之后都加回、调范围。</p>
+<h3 id="attention-2026-11-07">第三步：三种 attention 放在一起看：谁提问、查谁、能不能看全（2026-11-07）</h3>
+<p><strong>类比：三种会。</strong> 论文 L223 说 Transformer 用了"three different ways"的 multi-head attention。三种用法的算法完全一样，都是第 12 章的公式 1：softmax(QKᵀ / √d_k) V。不同的只有两点：<strong>Q、K、V 从哪来</strong>，<strong>要不要 mask</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>用法</th>
+<th>在哪</th>
+<th>Q 从哪来</th>
+<th>K、V 从哪来</th>
+<th>能看谁</th>
+<th>mask</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① encoder self-attention</td>
+<td>encoder 每层</td>
+<td>encoder 上一层</td>
+<td>encoder 上一层（和 Q 同一处）</td>
+<td>原文所有词（L232–L233）</td>
+<td>不要</td>
+</tr>
+<tr>
+<td>② masked self-attention</td>
+<td>decoder 每层工序 ①</td>
+<td>decoder 上一步</td>
+<td>decoder 上一步（和 Q 同一处）</td>
+<td>自己和前面的词（L234–L235）</td>
+<td><strong>要</strong>：遮住后面的，填 −∞（L237）</td>
+</tr>
+<tr>
+<td>③ encoder-decoder attention</td>
+<td>decoder 每层工序 ②</td>
+<td>decoder（工序 ① 的结果）</td>
+<td><strong>encoder 最后一层输出</strong></td>
+<td>原文所有词（L226–L227）</td>
+<td>不要：原文早就全部给出了</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>名字里带 <strong>self</strong> 的（① ②）：Q、K、V 来自同一处，是"自己人开会"（L230–L231："all of the keys, values and queries come from the same place"）。</li>
+<li>③ 是两拨人：译文提问，原文回答。这种也常叫 <strong>cross-attention</strong>（cross = 交叉：两边交叉着问）。</li>
+</ul>
+<p><strong>新东西：③ 的分数表不一定是方的。</strong> 用第 12 章的形状规则：(行 × d_k) 乘 (d_k × 列)，结果 = <strong>Q 的个数 × K 的个数</strong>。</p>
+<ul>
+<li>① ② 里 Q 和 K 来自同一句话，个数一样，所以分数表是方的；</li>
+<li>③ 里 Q 有几行由译文词数决定，K 有几行由原文词数决定，两者可以不一样。</li>
+</ul>
+<p><strong>例子</strong>：原文"狗咬人"3 个词，译文已经写了 "dog bites" 2 个词。</p>
+<table>
+<thead>
+<tr>
+<th>用法</th>
+<th>Q 个数</th>
+<th>K 个数</th>
+<th>分数表</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① encoder self</td>
+<td>3（原文）</td>
+<td>3（原文）</td>
+<td>3 × 3，全看</td>
+</tr>
+<tr>
+<td>② masked self</td>
+<td>2（译文）</td>
+<td>2（译文）</td>
+<td>2 × 2，右上角遮掉</td>
+</tr>
+<tr>
+<td>③ encoder-decoder</td>
+<td>2（译文）</td>
+<td>3（原文）</td>
+<td><strong>2 × 3</strong>：每个译文词给 3 个原文词打分</td>
+</tr>
+</tbody>
+</table>
+<p>分数表乘上 V 以后，每个 Q 得到一个新向量，所以输出的行数总是 <strong>Q 的个数</strong>。③ 的输出是 2 × 512，和译文对齐，可以加回译文的残差。</p>
+<p><strong>一句话</strong>：三种 attention 用的是同一个公式。self 是自己人开会：encoder 全看，decoder 遮住后面；encoder-decoder 是译文问原文，不遮，分数表是译文词数 × 原文词数。</p>
+<h3 id="2026-11-07">第三步（重讲）：沿着数据流串起来，一个例子从头走到尾（2026-11-07）</h3>
+<p>第三步一次讲了两张表，太快了（练习记录里卡住了）。这里换一种讲法：不按"三种"并排比，而是<strong>跟着数据往前走</strong>，看它依次经过哪三次 attention。</p>
+<p><strong>唯一要记的规则</strong>：分数表 = <strong>几个词在提问 × 被问的有几个词</strong>。</p>
+<ul>
+<li>每个提问的词，要给每个被问的词各打一个分；</li>
+<li>所以<strong>行 = 提问的词，列 = 被问的词</strong>；</li>
+<li>分数表乘 V 之后，<strong>每个提问的词拿回一个新的 512 维向量</strong>，所以输出的行数 = 提问的词数。</li>
+</ul>
+<p><strong>例子</strong>：原文"狗咬人"3 个词，翻译员已经写了 "dog bites" 2 个词，正要写第 3 个词。</p>
+<p><strong>站 0 · 起点。</strong> 原文是 3 行 × 512 列的表（每个词一行）；已写的译文是 2 × 512。</p>
+<p><strong>站 1 · 原文自己开会（① encoder self-attention）。</strong> 在 encoder 里，还没轮到译文。</p>
+<ul>
+<li>谁提问：狗、咬、人（3 个）；被问的：还是狗、咬、人（3 个）；</li>
+<li>分数表 3 × 3。比如"咬"那一行是：咬对狗、咬对咬、咬对人，各一个分：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>提问 ＼ 被问</th>
+<th>狗</th>
+<th>咬</th>
+<th>人</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>狗</td>
+<td>分</td>
+<td>分</td>
+<td>分</td>
+</tr>
+<tr>
+<td>咬</td>
+<td>分</td>
+<td>分</td>
+<td>分</td>
+</tr>
+<tr>
+<td>人</td>
+<td>分</td>
+<td>分</td>
+<td>分</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>不遮：原文整句早就给全了，谁都能看谁；</li>
+<li>输出：3 个提问的词各拿回一个新向量，得到 3 × 512；</li>
+<li>这样做 6 层，最后得到 <strong>e（3 × 512）</strong>：原文"读透"之后的版本。它先<strong>存起来</strong>，等 decoder 来查。</li>
+</ul>
+<p><strong>站 2 · 译文自己开会（② masked self-attention，decoder 工序 ①）。</strong></p>
+<ul>
+<li>谁提问：dog、bites（2 个）；被问的：dog、bites（2 个）；</li>
+<li>分数表 2 × 2，<strong>右上角遮掉</strong>：写 dog 的时候 bites 还没写出来，dog 不许看 bites：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>提问 ＼ 被问</th>
+<th>dog</th>
+<th>bites</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>dog</td>
+<td>分</td>
+<td><strong>−∞（遮住）</strong></td>
+</tr>
+<tr>
+<td>bites</td>
+<td>分</td>
+<td>分</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>输出 2 × 512，记作 a。</li>
+</ul>
+<p><strong>站 3 · 译文问原文（③ encoder-decoder attention，decoder 工序 ②）。</strong> 这是唯一一次两边<strong>不同</strong>的会。</p>
+<ul>
+<li>谁提问：dog、bites，Q 来自 a，2 行；</li>
+<li>被问的：狗、咬、人，K、V 来自站 1 存下的 e，3 行；</li>
+<li>分数表 <strong>2 × 3</strong>，不是方的：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>提问 ＼ 被问</th>
+<th>狗</th>
+<th>咬</th>
+<th>人</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>dog</td>
+<td>分</td>
+<td>分</td>
+<td>分</td>
+</tr>
+<tr>
+<td>bites</td>
+<td>分</td>
+<td><strong>分最高</strong></td>
+<td>分</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>不遮：原文早就全给了，翻译员当然可以看整句原文；</li>
+<li>输出：2 个提问的词各拿回一个新向量，是 <strong>2 × 512</strong>，不是 3 × 512。所以它能和 a（2 × 512）相加做残差。</li>
+</ul>
+<p><strong>串起来一张表：</strong></p>
+<table>
+<thead>
+<tr>
+<th>站</th>
+<th>谁提问（行）</th>
+<th>被问（列）</th>
+<th>分数表</th>
+<th>遮不遮</th>
+<th>输出</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 原文开会</td>
+<td>原文 3</td>
+<td>原文 3</td>
+<td>3 × 3</td>
+<td>不遮</td>
+<td>3 × 512（存成 e）</td>
+</tr>
+<tr>
+<td>2 译文开会</td>
+<td>译文 2</td>
+<td>译文 2</td>
+<td>2 × 2</td>
+<td>遮右上角</td>
+<td>2 × 512（a）</td>
+</tr>
+<tr>
+<td>3 译文问原文</td>
+<td>译文 2</td>
+<td>原文 3</td>
+<td>2 × 3</td>
+<td>不遮</td>
+<td>2 × 512</td>
+</tr>
+</tbody>
+</table>
+<p><strong>一句话</strong>：行看谁提问，列看问了谁，输出跟着提问的人走；只有"译文自己开会"要遮，因为只有那里有"还没写出来"的词。</p>
+<h3 id="2026-11-07_1">第四步：全图：左边读原文一次，右边一个词一个词地写（2026-11-07）</h3>
+<p><strong>类比：翻译员和他的笔记。</strong> 先把原文从头到尾读透，做成一份笔记，这一步只做一次。然后一个词一个词地写译文：每写一个新词，都看一遍自己写过的，再翻笔记查原文。</p>
+<p>论文 Figure 1（L120–L125）把这张图分成左右两半：左边 encoder，右边 decoder。</p>
+<pre><code>           原文 狗 咬 人 (n = 3)                    已写的译文 &lt;开始&gt; dog bites (m = 3)
+                  │                                              │
+       embedding + 位置编码（第 14–16 章）           embedding + 位置编码
+                  │                                              │
+     ┌────────────▼────────────┐                 ┌───────────────▼───────────────┐
+     │ encoder 层 × 6          │                 │ decoder 层 × 6                │
+     │  ① 原文自己开会（不遮）  │                 │  ② 译文自己开会（遮右上）      │
+     │  FFN                    │                 │  ③ 译文问原文（不遮）◄─── e ───┤
+     └────────────┬────────────┘                 │  FFN                          │
+                  │                              └───────────────┬───────────────┘
+          e（n × 512）── 送进右边每一层的 ③                       │ m × 512
+                                                  取最后一行 → 第 22 章：线性层 + softmax
+                                                                 │
+                                                         下一个词：man
+</code></pre>
+<p><strong>左半边 encoder：只跑一次。</strong></p>
+<ul>
+<li>原文 n 个词，先变成向量并加上位置编码（第 14–16 章），再过 6 层；</li>
+<li>出来 <strong>e（n × 512）</strong>，论文叫 z（L113–L114："maps an input sequence … to a sequence of continuous representations z"）；</li>
+<li>e 存起来。decoder <strong>每一层</strong>的 ③ 都来查<strong>同一份</strong> e。</li>
+</ul>
+<p><strong>右半边 decoder：每写一个词跑一轮。</strong> 论文 L114–L116："generates an output sequence … one element at a time"，每一步都是 auto-regressive（自回归），把前面已经生成的词当成新的输入。</p>
+<table>
+<thead>
+<tr>
+<th>轮</th>
+<th>decoder 的输入（已写的）</th>
+<th>输入几个词</th>
+<th>选出的下一个词</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>&lt;开始&gt;</td>
+<td>1</td>
+<td>dog</td>
+</tr>
+<tr>
+<td>2</td>
+<td>&lt;开始&gt; dog</td>
+<td>2</td>
+<td>bites</td>
+</tr>
+<tr>
+<td>3</td>
+<td>&lt;开始&gt; dog bites</td>
+<td>3</td>
+<td>man</td>
+</tr>
+<tr>
+<td>4</td>
+<td>&lt;开始&gt; dog bites man</td>
+<td>4</td>
+<td>&lt;结束&gt;</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>&lt;开始&gt;</strong>：第 1 轮还一个词都没写，总得有个词来提问，所以先放一个"开始"记号。这就是 L142 说的输出整体往右挪一格（"the output embeddings are offset by one position"）。前面几步为了简单，没把它算进去。</li>
+<li><strong>&lt;结束&gt;</strong>：选出它就停。</li>
+<li>每一轮只取 decoder 输出的<strong>最后一行</strong>（最新那个词的 512 个数），交给第 22 章要讲的"线性层 + softmax"，算出下一个词。</li>
+<li>原文不变，所以 <strong>encoder 不重跑</strong>，每一轮都用同一份 e。</li>
+</ul>
+<p><strong>n 和 m 可以不一样</strong>：原文 n 个词，译文 m 个词（L113–L114 用了两个字母：x₁…xₙ 和 y₁…yₘ）。这正是第三步里 ③ 的分数表是 m × n、不是方的原因。</p>
+<p><strong>一句话</strong>：encoder 把原文读一次，存成 e；decoder 一轮写一个词，每轮先看自己写过的（遮），再查 e（不遮），取最后一行去选下一个词，直到写出 &lt;结束&gt;。</p>
+<h3 id="encoder-decoder">动画演示：encoder 层、decoder 层、三张分数表、一轮写一个词</h3>
+<p><img alt="拼装 Transformer" src="../animations/21-transformer-layer.gif" /></p>
+<p>可交互版：<a href="../animations/21-transformer-layer.html">animations/21-transformer-layer.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"；两个滑块分别改原文词数 n 和 decoder 第几轮 k）。</p>
+<p>例子沿用讲解：原文"狗 咬 人"→ 译文 "dog bites man"。分数表只画格子，不画具体分数。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>encoder 层：开会 → 加回 + LayerNorm → 消化 → 加回 + LayerNorm，虚线是残差；进出都是 3 × 512，叠 6 层（第一步）；</li>
+<li>decoder 层：三道工序，多了"回头查原文"，K、V 从 e 来、Q 从译文来；一层 2 个 attention、1 个 FFN、3 次 LN（第二步）；</li>
+<li>三张分数表依次出现：① 原文开会 3 × 3 不遮，② 译文开会 2 × 2 遮右上，③ 译文问原文 2 × 3 不遮；输出行数跟着提问的人走（第三步）；</li>
+<li>四轮生成：左边 encoder 只跑 1 次存成 e，右边 decoder 每轮输入多 1 个词，③ 的分数表多 1 行、列数不变，取最后一行选出下一个词，选出 &lt;结束&gt; 就停（第四步）；</li>
+<li>滑块：拖 n 和 k，三张分数表变成 n × n、k × k（遮右上）、k × n。</li>
+</ol>
+<h2 id="_2">练习与作答记录</h2>
+<p><strong>题 1</strong>："狗咬人"3 个词，进入 encoder 时是 3 个词 × 512 个数。
+（a）出了第 1 层，是几个词 × 几个数？出了第 6 层呢？
+（b）6 层 encoder 一共有几个 attention 子层、几个 FFN 子层？LayerNorm 一共做了几次？</p>
+<p><strong>作答</strong>（2026-11-07）："3个词512，还是一样"</p>
+<p>（a）✓ 第 1 层出来是 3 × 512，第 6 层出来还是 3 × 512。每个子层的输出都是 <span class="arithmatex">\(d_{model}=512\)</span> 维（L134–L135），词数也不变：attention 让词和词交换信息，但不会增加或减少词。（b）</p>
+<p><strong>作答</strong>（2026-11-07）："3,3,3"</p>
+<p>✗ 应是 <strong>6、6、12</strong>。数子层和词数无关：3 个词共用同一套子层，词多词少，层里的零件个数都不变。这里的 3 很可能是把"3 个词"带进来了。</p>
+<p>先数一层（看第一步的两行公式）：</p>
+<table>
+<thead>
+<tr>
+<th>一层里</th>
+<th>个数</th>
+<th>在公式哪里</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>attention 子层</td>
+<td>1</td>
+<td>第一行的 MHA</td>
+</tr>
+<tr>
+<td>FFN 子层</td>
+<td>1</td>
+<td>第二行的 FFN</td>
+</tr>
+<tr>
+<td>LayerNorm</td>
+<td>2</td>
+<td>每行最外面各一个</td>
+</tr>
+</tbody>
+</table>
+<p>再乘层数 6：attention 6 个、FFN 6 个、LayerNorm 6 × 2 = 12 次。</p>
+<p><strong>再练 1</strong>：如果把 encoder 改成叠 N = 4 层，一共有几个 attention 子层、几个 FFN 子层、几次 LayerNorm？如果句子从 3 个词变成 10 个词，这三个数会变吗？</p>
+<p><strong>作答</strong>（2026-11-07）："4，4，8，不回"（"不回"按"不会"理解）</p>
+<p>✓ 4 层：attention 4 个、FFN 4 个、LayerNorm 4 × 2 = 8 次；从 3 个词变成 10 个词，这三个数都不变。词数只决定每个子层要处理几行（3 × 512 还是 10 × 512），不决定层里有几个零件。</p>
+<p><strong>题 2</strong>（第二步 decoder 层）：
+（a）一个 decoder 层里有几个 attention 子层、几个 FFN 子层、几次 LayerNorm？6 层 decoder 一共几次 LayerNorm？
+（b）工序 ②（encoder-decoder attention）里，Q 从哪来？K 和 V 从哪来？</p>
+<p><strong>作答</strong>（2026-11-07）："1,1,2,12"</p>
+<p>（a）✗ 应是 <strong>2、1、3，6 层一共 18 次</strong>。这是把 encoder 层的数（1、1、2）原样搬了过来，漏掉了 decoder 多出来的工序 ②"回头查原文"。按第二步的三行公式数：</p>
+<table>
+<thead>
+<tr>
+<th>一层 decoder 里</th>
+<th>个数</th>
+<th>在公式哪里</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>attention 子层</td>
+<td>2</td>
+<td>第一行 MaskedMHA（看自己）+ 第二行 MHA（查原文）</td>
+</tr>
+<tr>
+<td>FFN 子层</td>
+<td>1</td>
+<td>第三行的 FFN</td>
+</tr>
+<tr>
+<td>LayerNorm</td>
+<td>3</td>
+<td>三行最外面各一个：每道工序后面都跟一次</td>
+</tr>
+</tbody>
+</table>
+<p>6 层：attention 12 个，FFN 6 个，LayerNorm 6 × 3 = 18 次。窍门：数 LayerNorm 就是数工序，几道工序就几次。
+（b）未作答。</p>
+<p><strong>再练 2</strong>：(1) 一个完整的 Transformer（encoder 6 层 + decoder 6 层）里，一共有几个 attention 子层？(2) 补答题 2（b）：工序 ② 里，Q 从哪来？K 和 V 从哪来？</p>
+<p><strong>作答</strong>（2026-11-07）："18，Q从来自 decoder 自己也就是工序 ① 的结果，K、V 表示"原文里有什么"，来自 encoder 最后一层的输出"</p>
+<p>（1）✓ encoder 6 层 × 1 + decoder 6 层 × 2 = 6 + 12 = 18 个 attention 子层。（2）✓ Q 来自 decoder 自己（工序 ① 的结果），K、V 来自 encoder 最后一层的输出（L225–L226）。</p>
+<p><strong>题 3</strong>（第三步 三种 attention）：原文 5 个词，译文已经写了 4 个词。
+（a）三种 attention 的分数表各是几行几列？
+（b）三种里哪一种要用 mask？
+（c）encoder-decoder attention 输出几行？为什么是这个数？</p>
+<p><strong>作答</strong>（2026-11-07）："啊、"，接着说"这里仔细串起来再讲解下"</p>
+<p>卡住：第三步一次讲了两张对比表，又引入"分数表不是方的"，步子太大。先只给了一条规则（分数表 = 提问的词数 × 被问的词数），又沿着数据流重讲了一遍（见上面"第三步（重讲）"），题 3 拆成小问一个一个做。</p>
+<p><strong>题 3 · 小问 1</strong>：原文有 5 个词。在 ① encoder self-attention 里，是谁问谁？分数表几行几列？</p>
+<p><strong>作答</strong>（2026-11-07）："前面词文后面，表5x512"（"前面词文后面"按"前面的词问后面的词"理解）</p>
+<p>✗ 两处混了：</p>
+<ol>
+<li><strong>谁问谁</strong>：应是"5 个原文词每个都问全部 5 个原文词（包括自己）"。encoder 不遮，没有前后之分。"前面的词只能看前面"是 decoder 里 mask 的规矩，这里搬错了地方。</li>
+<li><strong>5 × 512 是稿子表，不是分数表。</strong> 一次 attention 里出现两种表：</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>表</th>
+<th>一行是什么</th>
+<th>一格是什么</th>
+<th>5 个词时</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>稿子表（进来、出去的词向量）</td>
+<td>一个词</td>
+<td>这个词 512 个数里的一个</td>
+<td><strong>5 × 512</strong></td>
+</tr>
+<tr>
+<td>分数表（QKᵀ）</td>
+<td>一个提问的词</td>
+<td>这个词对某个被问的词打的<strong>一个分</strong></td>
+<td><strong>5 × 5</strong></td>
+</tr>
+</tbody>
+</table>
+<p>分数表和 512 没关系：一格就是"两个词之间合不合拍"的一个数。稿子表 5 × 512 进来，先变出 5 × 5 的分数表，再乘 V，又回到 5 × 512 出去。</p>
+<p><strong>小问 1 再练</strong>：原文还是 5 个词，encoder self-attention。（1）分数表几行几列？（2）出去的稿子表几行几列？</p>
+<p><strong>作答</strong>（2026-11-07）："5<em>5，出去的5</em>512"</p>
+<p>✓ 分数表 5 × 5（5 个词提问 × 5 个词被问），出去的稿子表 5 × 512（每个提问的词拿回一个 512 维新向量）。</p>
+<p><strong>题 3 · 小问 2</strong>：译文已经写了 4 个词。在 ② 译文自己开会（masked self-attention）里，分数表几行几列？要不要遮？遮的话遮哪一块？</p>
+<p><strong>作答</strong>（2026-11-07）："4*4,遮掉右上半"</p>
+<p>✓ 4 × 4，遮右上。补一句精确的：遮的是<strong>对角线右上方</strong>的格子，对角线本身不遮，因为每个词可以看自己（L234–L235："up to and including that position"）。4 × 4 一共 16 格，遮掉 6 格（3 + 2 + 1），留下 10 格：</p>
+<table>
+<thead>
+<tr>
+<th>提问 ＼ 被问</th>
+<th>词1</th>
+<th>词2</th>
+<th>词3</th>
+<th>词4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>词1</td>
+<td>分</td>
+<td>−∞</td>
+<td>−∞</td>
+<td>−∞</td>
+</tr>
+<tr>
+<td>词2</td>
+<td>分</td>
+<td>分</td>
+<td>−∞</td>
+<td>−∞</td>
+</tr>
+<tr>
+<td>词3</td>
+<td>分</td>
+<td>分</td>
+<td>分</td>
+<td>−∞</td>
+</tr>
+<tr>
+<td>词4</td>
+<td>分</td>
+<td>分</td>
+<td>分</td>
+<td>分</td>
+</tr>
+</tbody>
+</table>
+<p><strong>题 3 · 小问 3</strong>：原文 5 个词，译文已经写了 4 个词。在 ③ 译文问原文（encoder-decoder attention）里：（1）分数表几行几列？（2）要不要遮？（3）出去的稿子表几行几列？</p>
+<p><strong>作答</strong>（2026-11-07）："解释下"</p>
+<p>卡住：③ 是唯一一次"两拨人"的会，提问的和被问的不是同一句话，所以行数和列数不一样，这里第一次遇到。换成"翻译员查原文"的场景，一问一问拆开讲：</p>
+<ul>
+<li><strong>谁提问 → 定行数。</strong> 翻译员手里已经写下的每个译文词，都要回头去原文里找"我该对应哪个词"。提问的是<strong>译文的词</strong>（Q 来自 decoder），每个译文词占一行。</li>
+<li><strong>被问的是谁 → 定列数。</strong> 被查的是<strong>原文的词</strong>（K 来自 encoder 最后一层的输出 e），每个原文词占一列。每个译文词要给每个原文词各打一个分。</li>
+<li><strong>遮不遮。</strong> 遮只有一个理由：那个词<strong>还没写出来</strong>。原文是一开始就整句给出的，没有"还没写出来"的原文词。</li>
+<li><strong>输出几行。</strong> 每个提问的词拿回一个新的 512 维向量；被问的词不拿东西走。所以输出的行数 = 提问的词数，列数 = 512。</li>
+</ul>
+<p>对照小例子填一遍（"狗咬人"→ 已写 "dog bites"），右边一栏留给自己填：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>例子：原文 3，译文 2</th>
+<th>小问 3：原文 5，译文 4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>谁提问（行）</td>
+<td>译文 2 个：dog、bites</td>
+<td>?</td>
+</tr>
+<tr>
+<td>被问（列）</td>
+<td>原文 3 个：狗、咬、人</td>
+<td>?</td>
+</tr>
+<tr>
+<td>分数表</td>
+<td>2 × 3</td>
+<td>?</td>
+</tr>
+<tr>
+<td>遮不遮</td>
+<td>不遮：原文早就全给了</td>
+<td>?</td>
+</tr>
+<tr>
+<td>出去的稿子表</td>
+<td>2 × 512</td>
+<td>?</td>
+</tr>
+</tbody>
+</table>
+<p><strong>作答</strong>（2026-11-07）："4，5，4x5，遮住右上，4*512"</p>
+<p>行 4 ✓、列 5 ✓、分数表 4 × 5 ✓、出去 4 × 512 ✓；<strong>遮不遮 ✗</strong>，应是<strong>不遮</strong>。</p>
+<p>"遮右上"是从 ② 译文自己开会那里带过来的习惯。遮的唯一理由是"那个词还没写出来"：</p>
+<ul>
+<li>② 里，被问的是<strong>译文</strong>。写第 1 个词时，第 2、3、4 个词确实还没写出来，所以要遮；</li>
+<li>③ 里，被问的是<strong>原文</strong>。原文 5 个词一开始就整句给出了，没有一个是"还没写出来"的，所以<strong>没有要遮的</strong>。</li>
+</ul>
+<p>论文 L226–L227 也说了："every position in the decoder to attend over all positions in the input sequence"，每个译文词都能看全部原文词。</p>
+<p>还有一个信号：4 × 5 的表不是方的，"右上半"连对角线都对不齐。遮右上只在"自己问自己"的方表里才说得通。</p>
+<p><strong>小问 3 再练</strong>：原文"狗咬人"，译文正在写，已经写了 "dog bites"。
+（1）在 ③ 译文问原文里，dog 能不能看原文最后一个词"人"？为什么？
+（2）在 ② 译文自己开会里，dog 能不能看 bites？为什么？</p>
+<p><strong>作答</strong>（2026-11-07）："能，原文都是能看，dog看不到bites，自回归只看之前的的"</p>
+<p>✓ 两问都对。（1）dog 能看"人"：原文整句早就给出了，③ 不遮；（2）dog 看不到 bites：② 是自回归（auto-regressive，L236：auto = 自己，regressive = 往回看，即一个词一个词往后生成，每次只能用自己前面已经生成的），后面的词还没写出来。</p>
+<p><strong>题 4</strong>（第四步 全图）：把"狗咬人"翻成 "dog bites man"，按上面的 4 轮生成。
+（a）整个过程中 encoder 一共跑几次？decoder 一共跑几轮？
+（b）第 2 轮（输入"&lt;开始&gt; dog"）时，decoder 里 ③ 译文问原文的分数表是几行几列？</p>
+<p><strong>作答</strong>（2026-11-07）："你讲解下"</p>
+<p>卡住：第四步第一次把"时间"加了进来（一轮一轮地生成），要分清哪些只做一次、哪些每轮都做。换一个例子拆开讲：原文"我 爱 吃 苹果"（4 个词）→ 译文 "I love apples"。</p>
+<p><strong>（a）为什么 encoder 只跑一次，decoder 跑好几轮？</strong></p>
+<ul>
+<li>encoder 的活是<strong>读原文、做笔记 e</strong>。原文从头到尾不变，笔记做一次就够了，后面每一轮都翻同一份 e。</li>
+<li>decoder 的活是<strong>选出下一个词</strong>。每跑一轮只选出 1 个词，所以要选出几个词，就跑几轮。别忘了最后那个 &lt;结束&gt; 也是选出来的。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>轮</th>
+<th>decoder 的输入</th>
+<th>选出</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>&lt;开始&gt;</td>
+<td>I</td>
+</tr>
+<tr>
+<td>2</td>
+<td>&lt;开始&gt; I</td>
+<td>love</td>
+</tr>
+<tr>
+<td>3</td>
+<td>&lt;开始&gt; I love</td>
+<td>apples</td>
+</tr>
+<tr>
+<td>4</td>
+<td>&lt;开始&gt; I love apples</td>
+<td>&lt;结束&gt;</td>
+</tr>
+</tbody>
+</table>
+<p>数一数：要选出 I、love、apples、&lt;结束&gt; 4 个词，所以 decoder 跑 4 轮；encoder 只跑 1 次。</p>
+<p><strong>（b）第 2 轮 ③ 的分数表怎么定？</strong> 还是那条规则：行看谁提问，列看问了谁。</p>
+<ul>
+<li>谁提问：这一轮 decoder 的输入里有几个词，就有几个词在提问。第 2 轮输入是"&lt;开始&gt; I"，2 个词，所以 2 行；</li>
+<li>被问的：原文的笔记 e，原文有几个词就几列。"我 爱 吃 苹果"是 4 个，所以 4 列；</li>
+<li>所以是 <strong>2 × 4</strong>。到了第 3 轮，输入多了一个 love，就变成 3 × 4。行数一轮比一轮多 1，列数始终不变。</li>
+</ul>
+<p>对照填一遍，右边一栏留给自己填：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>例子：我 爱 吃 苹果 → I love apples</th>
+<th>题 4：狗咬人 → dog bites man</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>encoder 跑几次</td>
+<td>1</td>
+<td>?</td>
+</tr>
+<tr>
+<td>decoder 要选出哪些词</td>
+<td>I、love、apples、&lt;结束&gt;</td>
+<td>?</td>
+</tr>
+<tr>
+<td>decoder 跑几轮</td>
+<td>4</td>
+<td>?</td>
+</tr>
+<tr>
+<td>第 2 轮 decoder 的输入</td>
+<td>&lt;开始&gt; I（2 个词）</td>
+<td>?</td>
+</tr>
+<tr>
+<td>原文几个词</td>
+<td>4</td>
+<td>?</td>
+</tr>
+<tr>
+<td>第 2 轮 ③ 分数表</td>
+<td>2 × 4</td>
+<td>?</td>
+</tr>
+</tbody>
+</table>
+<p><strong>作答</strong>（2026-11-07）："1轮，dog bites man 结束符号，4，dog，3，2*3"</p>
+<p>✓ 基本全对：encoder 1 次，要选出 dog、bites、man、&lt;结束&gt;，decoder 跑 4 轮，原文 3 个词，第 2 轮 ③ 分数表 2 × 3。</p>
+<p>一处小漏：第 2 轮 decoder 的输入是 <strong>"&lt;开始&gt; dog" 两个词</strong>，不只是 dog。&lt;开始&gt; 一直留在输入里，也在提问。你的 2 × 3 其实已经把它算进去了。</p>
+<h2 id="_3">口诀</h2>
+<blockquote>
+<p>编码一层两道工，开会消化各一回；每道之后加回原稿、调范围，进出 512 能叠六层。<br />
+解码一层三道工，看自己（要遮）、查原文（不遮）、再消化；三次 LayerNorm 数工序。<br />
+分数表：行看谁提问，列看问了谁；输出几行跟提问的人走。<br />
+只有"还没写出来"才要遮：原文早给全，译文后面空。<br />
+原文读一次存成 e，译文一轮写一个，取最后一行选下一个，写出结束就收工。</p>
+</blockquote>
+<h2 id="_4">本章复习卡片</h2>
+<ul>
+<li>R65 · 一个 encoder 层：attention 1、FFN 1、LayerNorm 2；6 层 6、6、12；和词数无关（题 1（b）答成 3、3、3）</li>
+<li>R66 · 一个 decoder 层：attention 2、FFN 1、LayerNorm 3；6 层 12、6、18（题 2（a）照搬了 encoder 的数）</li>
+<li>R67 · 分数表几行几列：行 = 提问的词，列 = 被问的词，输出行数 = 提问的词数；三种 attention 哪种不是方的、哪种要遮（第三步卡住；小问 3 把 mask 带进了译文问原文）</li>
+<li>R68 · 稿子表（词数 × 512）vs 分数表（提问词数 × 被问词数）（小问 1 答成 5 × 512）</li>
+<li>R69 · 生成时 encoder 跑 1 次、decoder 每轮选 1 个词；第 k 轮 ③ 的分数表 k × 原文词数（题 4 卡住）</li>
+</ul>
+<h2 id="_5">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_6">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>§3 开头 L110–L125；§3.1 L127–L143；§3.2.3 L222–L238</td>
+<td>本章原文：encoder 把 x₁…xₙ 变成 z、decoder 一个一个生成 y₁…yₘ（L112–L116，auto-regressive）；Figure 1 左右两半（L120–L125）；encoder 两个子层、LayerNorm(x + Sublayer(x))、<span class="arithmatex">\(d_{model}\)</span> = 512（L129–L135）；decoder 第三个子层和 mask、输出挪一格（L137–L143）；三种 attention（L223–L238）</td>
+</tr>
+<tr>
+<td>★ Phuong &amp; Hutter 2022，Formal Algorithms for Transformers</td>
+<td><code>formal-algorithms-transformers-2207.09238.txt</code> Algorithm 8（L670 起）；Algorithm 10（L802 起）</td>
+<td>用伪代码把整张图写一遍：Algorithm 8 EDTransformer 就是本章的 encoder-decoder（每个 decoder 层有自注意力、cross-attention、MLP 三组参数）；Algorithm 10 DTransformer 是 GPT 那种只有 decoder 的版本（L407–L408 说 GPT 是 decoder-only）</td>
+</tr>
+<tr>
+<td>★ CS336 assignment 1 handout</td>
+<td>§3.1 L639–L643；§3.1.2 L656–L662；Figure 1、2（L622）</td>
+<td>下一步要动手写的模型：decoder-only Transformer LM，每个 block 进出都是 (batch, seq, <span class="arithmatex">\(d_{model}\)</span>)，self-attention 汇集信息、FFN 非线性加工。它相当于本章右半边<strong>去掉"回头查原文"那道工序</strong>：没有原文，只有自己写过的</td>
+</tr>
+<tr>
+<td>Xiong et al. 2020，On Layer Normalization in the Transformer Architecture</td>
+<td><code>preln-on-layer-normalization-2002.04745.txt</code> 摘要 L15–L39</td>
+<td>本章按原论文用 post-LN（先加回再 LayerNorm）；现在的大模型多用 pre-LN，第 19 章第五步讲过</td>
+</tr>
+<tr>
+<td>Bahdanau et al. 2014，Neural Machine Translation by Jointly Learning to Align and Translate</td>
+<td><code>bahdanau-attention-1409.0473.txt</code> §3 L149 起，§3.1 L154–L173</td>
+<td>"译文问原文"的前身：在 RNN 翻译模型里，每写一个目标词，都按权重把原文各词加权求和成一个 context vector（L164–L173）。AIAYN L227–L229 说 encoder-decoder attention 就是在模仿这种机制</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_7">数学原理</h3>
+<ul>
+<li><strong>矩阵形状规则</strong>（第 12 章）：<span class="arithmatex">\((m \times d_k)(d_k \times n) = m \times n\)</span>。encoder-decoder attention 里 Q 有 m 行（译文）、K 有 n 行（原文），所以 <span class="arithmatex">\(QK^\top\)</span> 是 m × n；再乘 V（n × <span class="arithmatex">\(d_v\)</span>）得到 m × <span class="arithmatex">\(d_v\)</span>，行数跟 Q 走。</li>
+<li><strong>mask 只改 softmax 的输入</strong>（第 17 章）：要遮的格子加 −∞，<span class="arithmatex">\(e^{-\infty} = 0\)</span>，权重正好为 0。encoder self-attention 和 encoder-decoder attention 的 mask 全是 0（不遮）。</li>
+<li><strong>数子层</strong>：encoder 每层 2 个子层、decoder 每层 3 个；每个子层后面跟 1 次 LayerNorm，所以 LayerNorm 次数 = 子层数。论文配置共 6 × 2 + 6 × 3 = 30 个子层、30 次 LayerNorm。</li>
+<li><strong>自回归</strong>：<span class="arithmatex">\(P(y_1, \dots, y_m) = \prod_{t} P(y_t \mid y_{&lt;t}, x)\)</span>，每一轮只算一个条件概率：给定原文 x 和前面写过的 <span class="arithmatex">\(y_{&lt;t}\)</span>，下一个词是什么（第 22 章接着讲 softmax 输出）。</li>
+</ul>
+<h3 id="_8">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(z = \text{LN}(x + \text{MHA}(x))\)</span>，输出 <span class="arithmatex">\(= \text{LN}(z + \text{FFN}(z))\)</span></td>
+<td>一个 encoder 层（post-LN）</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(a = \text{LN}(y + \text{MaskedMHA}(y))\)</span></td>
+<td>decoder 工序 ①：看自己写过的，遮右上</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(b = \text{LN}(a + \text{MHA}(Q{=}a, K{=}e, V{=}e))\)</span></td>
+<td>decoder 工序 ②：回头查原文，Q 来自译文、K/V 来自 encoder 输出</td>
+</tr>
+<tr>
+<td>输出 <span class="arithmatex">\(= \text{LN}(b + \text{FFN}(b))\)</span></td>
+<td>decoder 工序 ③：消化</td>
+</tr>
+<tr>
+<td>分数表 = 提问词数 × 被问词数</td>
+<td>① n × n，② m × m（遮），③ m × n</td>
+</tr>
+<tr>
+<td>输出 = 提问词数 × <span class="arithmatex">\(d_{model}\)</span></td>
+<td>三种 attention 都一样</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="20-ffn.html">← 第 20 章 · 前馈网络 FFN：每个词回到自己座位上消化</a><a href="22-embedding-softmax.html">第 22 章 · 输入 embedding 与输出 softmax：词怎么变成向量，向量怎么变回词 →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

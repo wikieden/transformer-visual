@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>前馈网络 FFN</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:11px}</style></head>
+<body><main>
+<h1>第 20 章 · 前馈网络 FFN（Feed-Forward Network）：每个词回到自己座位上消化</h1>
+<p class="sub">配套讲义：<a href="../lessons/20-ffn.html">第 20 章 · 前馈网络 FFN：每个词回到自己座位上消化</a>。一个词缩成 2 个数（论文 512），中间层 8 个数（4 倍，论文 2048）。矩阵里的数是编的，只看形状。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="k">自己拖：把输入整体乘 k</label><input type="range" id="k" min="-20" max="20" step="1" value="10"><span id="kv">1</span></div>
+<p class="note">看点：① 2 个数先摊开成 8 个（× W₁）；② ReLU（Rectified Linear Unit）把负的拦成 0；③ 再收回 2 个数（× W₂），好和残差相加；④ SwiGLU：闸门路 SiLU(W₁x) ⊙ 内容路 W₃x，中间层缩到约 8/3 倍（这里 5 格）。滑块：输入整体乘 k，下面画出输出第 1 个数随 k 怎么变：不夹激活是一条直线（两次转换 = 一次），夹 ReLU 在 0 处折一下，夹 SiLU 圆滑地弯过去。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const X=[1,-0.5];
+const W1=[[1,-1,0.5,-1,1.5,0.2,0.6,-0.4],[-0.4,0,0,1,-1,1,-0.6,1.4]];
+const W2=[[0.5,-0.2],[0.3,0.4],[-0.6,0.5],[0.2,0.3],[0.4,0.1],[-0.5,0.6],[0.3,-0.4],[0.1,0.2]];
+const W3=[[0.8,0.5,-1,0.6,1],[1,-1,0.4,0.2,-0.5]];
+const sig=z=>1/(1+Math.exp(-z)),silu=z=>z*sig(z),relu=z=>Math.max(0,z);
+const mulL=(x,W)=>W[0].map((_,j)=>x.reduce((a,xi,i)=>a+xi*W[i][j],0));       // 行向量 × 矩阵
+const mulR=(h,W)=>W[0].map((_,j)=>h.reduce((a,hi,i)=>a+hi*W[i][j],0));
+const ffn=(x,act)=>{const h=mulL(x,W1);return mulR(h.map(act),W2)};
+const W1s=W1.map(r=>r.slice(0,5)),W2s=W2.slice(0,5);
+const fmt=v=>{const r=Math.round(v*100)/100;return (Object.is(r,-0)?0:r).toString().replace('-','−')};
+const vec=x=>'['+x.map(fmt).join(', ')+']';
+const H=mulL(X,W1),R=H.map(relu),Y=mulR(R,W2);
+const G=mulL(X,W1s).map(silu),C=mulL(X,W3),P=G.map((g,i)=>g*C[i]),YS=mulR(P,W2s);
+const ST=[
+  {cap:'输入：一个词 2 个数（论文 512 个）',s:0},
+  {cap:'① × W₁：摊开成 8 个数（4 倍，论文 2048）',s:1},
+  {cap:'② ReLU：负数拦下变成 0，正数原样通过',s:2},
+  {cap:'③ × W₂：收回 2 个数，好和残差 x 相加',s:3},
+  {cap:'SwiGLU：闸门路 SiLU(W₁x) ⊙ 内容路 W₃x（逐个相乘）',s:4},
+  {cap:'SwiGLU 收回：W₂(闸门 ⊙ 内容)，三个矩阵，没有 b',s:5}
+];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+function bars(x0,w,y0,half,vals,top,o={}){
+  const n=vals.length,cw=w/n;
+  el('line',{x1:x0,y1:y0,x2:x0+w,y2:y0,stroke:'var(--muted)'},sv);
+  vals.forEach((v,i)=>{
+    const bx=x0+i*cw+cw*0.15,bw=cw*0.7,h=v/top*half;
+    const col=o.cols?o.cols[i]:(v>=0?'var(--teal)':'var(--warm)');
+    const r=el('rect',{x:bx,y:h>=0?y0-h:y0,width:bw,height:Math.max(Math.abs(h),1),rx:3,fill:col},sv);
+    if(o.dim&&o.dim[i])r.setAttribute('opacity','.2');
+    const t=txt(fmt(v),{x:bx+bw/2,y:h>=0?y0-h-4:y0-h+12,'text-anchor':'middle',class:'v'},sv);
+    if(o.dim&&o.dim[i]){t.textContent='→ 0';t.style.fill='var(--bad)';t.setAttribute('y',y0-6)}
+  });
+  if(o.label)txt(o.label,{x:x0+w/2,y:y0+half+22,'text-anchor':'middle',class:'m'},sv);
+}
+function arrow(x1,x2,y,lab){
+  el('line',{x1,y1:y,x2,y2:y,stroke:'var(--accent)','stroke-width':2,'marker-end':'url(#ar)'},sv);
+  const t=txt(lab,{x:(x1+x2)/2,y:y-8,'text-anchor':'middle',class:'m'},sv);t.style.fill='var(--accent)';
+}
+function defs(){const d=el('defs',{},sv),m=el('marker',{id:'ar',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:6,markerHeight:6,orient:'auto'},d);el('path',{d:'M0,0 L10,5 L0,10 z',fill:'var(--accent)'},m)}
+function drawFrame(s){
+  const y0=230,half=95,top=2.2;
+  bars(30,90,y0,half,X,top,{label:'输入 x（2 个数）'});
+  if(s>=1&&s<=3){
+    arrow(125,175,y0-60,'× W₁');
+    bars(180,330,y0,half,s>=2?H.map(v=>v):H,top,{dim:s>=2?H.map(v=>v<0):null,label:s>=2?'中间层 8 个数：过了 ReLU':'中间层 8 个数（4 倍）'});
+  }
+  if(s===3){arrow(515,565,y0-60,'× W₂');bars(570,90,y0,half,Y,top,{label:'输出（2 个数）'})}
+  if(s>=4){
+    const rows=[[G,'闸门 SiLU(W₁x)：放多少',125],[C,'内容 W₃x：放什么',225],[P,'⊙ 逐个相乘',325]];
+    rows.forEach(([v,l,y],i)=>{bars(190,300,y,34,v,2.2,{cols:v.map(()=>['var(--purple)','var(--amber)','var(--teal)'][i])});
+      const t=txt(l,{x:i<2?500:340,y:i<2?y+4:y+52,'text-anchor':i<2?'start':'middle',class:'m'},sv);t.style.fill=['var(--purple)','var(--amber)','var(--teal)'][i]});
+    txt('中间层缩到约 8/3 倍（这里 5 格）',{x:340,y:76,'text-anchor':'middle',class:'m'},sv);
+    txt('⊙',{x:172,y:280,'text-anchor':'middle',class:'big'},sv);
+    if(s===5){arrow(500,565,325,'× W₂');bars(570,90,325,34,YS,2.2,{label:'输出（2 个数）'})}
+  }
+}
+function drawCustom(kk){
+  const x=X.map(v=>v*kk);
+  txt(`输入整体乘 k = ${fmt(kk)}：x = ${vec(x)}`,{x:340,y:26,'text-anchor':'middle',class:'cap'},sv);
+  const h=mulL(x,W1),y=mulR(h.map(relu),W2),top=4.4;
+  bars(30,90,140,60,x,top,{label:'输入'});arrow(125,175,70,'× W₁');
+  bars(180,330,140,60,h,top,{dim:h.map(v=>v<0)});arrow(515,565,70,'ReLU 后 × W₂');
+  bars(570,90,140,60,y,top,{label:'输出'});
+  // 下半：输出第 1 个数 随 k 的变化
+  const px0=90,px1=630,py0=330,ph=60,K=2,Ymax=3;
+  const PX=t=>px0+(t+K)/(2*K)*(px1-px0),PY=v=>py0-v/Ymax*ph;
+  el('line',{x1:px0,y1:py0,x2:px1,y2:py0,stroke:'var(--muted)'},sv);
+  el('line',{x1:PX(0),y1:py0-ph-6,x2:PX(0),y2:py0+ph,stroke:'var(--line)'},sv);
+  txt('k',{x:px1+10,y:py0+4,class:'m'},sv);txt('输出第 1 个数',{x:PX(0)+6,y:py0-ph-8,class:'m'},sv);
+  [['无激活（直线）',z=>z,'var(--muted)'],['ReLU（折一下）',relu,'var(--warm)'],['SiLU（圆滑地弯）',silu,'var(--purple)']].forEach(([l,a,c],i)=>{
+    let d='';for(let t=-K;t<=K+1e-9;t+=0.05){const v=ffn(X.map(u=>u*t),a)[0];d+=(d?'L':'M')+PX(t).toFixed(1)+','+PY(v).toFixed(1)}
+    el('path',{d,fill:'none',stroke:c,'stroke-width':2.5},sv);
+    const tt=txt('— '+l,{x:px0+10+i*175,y:392,class:'m'},sv);tt.style.fill=c;
+    const v=ffn(x,a)[0];el('circle',{cx:PX(kk),cy:PY(v),r:5,fill:c},sv);
+  });
+}
+function draw(){
+  clear(sv);defs();
+  if(custom!==null){drawCustom(custom);return}
+  const f=ST[FR[k]];
+  txt(f.cap,{x:340,y:26,'text-anchor':'middle',class:'cap'},sv);
+  txt(`x = ${vec(X)}`+(f.s===3?`　→　输出 ${vec(Y)}`:'')+(f.s===5?`　→　输出 ${vec(YS)}`:''),{x:340,y:52,'text-anchor':'middle',class:'big'},sv);
+  drawFrame(f.s);
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('k').oninput=e=>{ANIM.stop();custom=+e.target.value/10;$('kv').textContent=fmt(custom);draw()};
+setupPlayer({captureSeed:1,reset,next},1600);
+</script></body></html>

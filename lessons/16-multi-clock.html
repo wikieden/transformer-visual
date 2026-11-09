@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 16 章 · 位置编码（下）：多档时钟 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="16">第 16 章 · 位置编码（下）：多档时钟</h1><p><a class="btn" href="../animations/16-multi-clock.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：一个摩天轮会撞牌，论文怎么解决？正弦位置编码公式每个符号是什么意思？为什么它方便模型看相对位置？<br />
+讲解日期：2026-11-05 · 上一章：<a href="../lessons/15-sin-cos.html">第 15 章 sin 和 cos</a> · 下一章：<a href="../lessons/17-causal-mask.html">第 17 章 因果 mask</a><br />
+对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.5，L276–L299<br />
+本章缩写：<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；pos = position（位置，座位号）；PE = Positional Encoding（位置编码）；sin = sine（正弦）；cos = cosine（余弦）；BERT = Bidirectional Encoder Representations from Transformers（双向 Transformer 编码表示）；RoPE = Rotary Position Embedding（旋转位置编码）；RoFormer = Rotary Transformer（提出 RoPE 的模型）；PPL = perplexity（困惑度，越低越好）；BLEU = Bilingual Evaluation Understudy（翻译评分，越高越好）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="2026-11-05">第一步：一个轮子会撞牌，那就多加一个慢轮子（2026-11-05）</h3>
+<p><strong>接上一章</strong>：只用一个摩天轮、每个座位多转 1/4 圈，5 号座和 1 号座撞牌了（每 4 个座位重复一次）。</p>
+<p><strong>类比：钟表的秒针和分针。</strong> 只看秒针，每 60 秒就回到同一个位置，分不清是 10:00:05 还是 10:01:05。但再看一眼<strong>分针</strong>，分针走得慢，这两个时刻它指的位置不一样，就分清了。</p>
+<p><strong>做法</strong>：再加一个<strong>转得更慢</strong>的摩天轮，号码牌同时记下两个轮子上的位置。</p>
+<table>
+<thead>
+<tr>
+<th>轮子</th>
+<th>每个座位多转</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>快轮（上一章那个）</td>
+<td>1/4 圈</td>
+</tr>
+<tr>
+<td>慢轮（新加的）</td>
+<td>1/8 圈</td>
+</tr>
+</tbody>
+</table>
+<p>号码牌从 2 个数变成 <strong>4 个数</strong>：(快轮 cos, 快轮 sin, 慢轮 cos, 慢轮 sin)。</p>
+<p>看上一章撞牌的 1 号座和 5 号座：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>快轮转了几圈</th>
+<th>快轮位置</th>
+<th>慢轮转了几圈</th>
+<th>慢轮位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 号座</td>
+<td>1/4</td>
+<td>(0, 1) 最顶上</td>
+<td>1/8</td>
+<td>(0.71, 0.71) 右上方</td>
+</tr>
+<tr>
+<td>5 号座</td>
+<td>5/4 = 1¼</td>
+<td>(0, 1) 最顶上</td>
+<td>5/8</td>
+<td>(−0.71, −0.71) 左下方</td>
+</tr>
+</tbody>
+</table>
+<p>快轮上两个座位还是撞（都在最顶上），但慢轮上一个在右上、一个在左下，<strong>4 个数合起来就不一样了</strong>。</p>
+<p>（0.71 是 1/8 圈即 45° 时的 cos、sin，约等于 <span class="arithmatex">\(\sqrt{2}/2\)</span>。这里只需要看出"右上"和"左下"不同。）</p>
+<p><strong>一句话</strong>：快轮分得清相邻的座位，慢轮分得清隔得远的座位；几个轮子一起看，撞牌就晚得多。</p>
+<h3 id="256-2026-11-05">第二步：论文的做法：256 个快慢不同的轮子（2026-11-05）</h3>
+<p>题 1 说明：两个轮子一起用，要到 9 号座才和 1 号座撞牌，每 <strong>8</strong> 个座位才重复一次，比一个轮子的 4 个晚了一倍。想让撞牌来得更晚，就<strong>再加更慢的轮子</strong>。</p>
+<p><strong>类比：从秒针到年历。</strong> 秒针 → 分针 → 时针 → 日 → 月 → 年，一个比一个慢。全部看一遍，几十年里的每一秒都不会重复。</p>
+<p>论文就是这么做的，只是轮子多得多：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>论文的设置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>轮子个数</td>
+<td><strong>256 个</strong></td>
+</tr>
+<tr>
+<td>每个轮子记几个数</td>
+<td>2 个（sin 和 cos）</td>
+</tr>
+<tr>
+<td>号码牌一共几个数</td>
+<td>256 × 2 = <strong>512 个</strong></td>
+</tr>
+<tr>
+<td>最快的轮子</td>
+<td>每个座位走 1 弧度（约 0.16 圈），大约 6.28 个座位转一圈</td>
+</tr>
+<tr>
+<td>最慢的轮子</td>
+<td>大约 <strong>62832 个座位</strong>（10000 × 2π）才转一圈</td>
+</tr>
+<tr>
+<td>中间的轮子</td>
+<td>从快到慢，一个比一个慢一点</td>
+</tr>
+</tbody>
+</table>
+<p>论文原文（L291）：每一维都是一条正弦曲线，转一圈的长度（波长 wavelength）"从 2π 一路变到 10000 · 2π"。</p>
+<p><strong>一句话</strong>：号码牌 = 256 个快慢不同的摩天轮各自的 (sin, cos)，排成 512 个数。快轮管近处，慢轮管远处。</p>
+<h3 id="2026-11-05_1">第三步：读懂论文公式的样子（2026-11-05）</h3>
+<p>论文 L287–L288 的公式：</p>
+<div class="arithmatex">\[PE_{(pos,\,2i)} = \sin\!\left(pos / 10000^{2i/d_{model}}\right)$$
+$$PE_{(pos,\,2i+1)} = \cos\!\left(pos / 10000^{2i/d_{model}}\right)\]</div>
+<p>先不管 <span class="arithmatex">\(10000^{2i/d_{model}}\)</span> 那一块，把它看成"第 <span class="arithmatex">\(i\)</span> 个轮子的<strong>转速</strong>"（第四步讲；它其实是慢的倍数）。用摩天轮的话翻译每个符号：</p>
+<table>
+<thead>
+<tr>
+<th>符号</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(PE\)</span></td>
+<td>positional encoding，就是号码牌</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(pos\)</span></td>
+<td>座位号（这个词排第几）</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(i\)</span></td>
+<td>第几个轮子：0, 1, 2, …, 255</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(2i\)</span>、<span class="arithmatex">\(2i+1\)</span></td>
+<td>号码牌里的第几个数：第 <span class="arithmatex">\(i\)</span> 个轮子占两个相邻的位置，<strong>偶数位放 sin，奇数位放 cos</strong></td>
+</tr>
+<tr>
+<td>括号里整个</td>
+<td>这个轮子在这个座位上<strong>沿边走了多远</strong>（弧度）= 座位号 ÷ 转速那一块</td>
+</tr>
+</tbody>
+</table>
+<p>号码牌 512 个数的排法：</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>0</th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+<th>…</th>
+<th>510</th>
+<th>511</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>放什么</td>
+<td>轮 0 的 sin</td>
+<td>轮 0 的 cos</td>
+<td>轮 1 的 sin</td>
+<td>轮 1 的 cos</td>
+<td>…</td>
+<td>轮 255 的 sin</td>
+<td>轮 255 的 cos</td>
+</tr>
+</tbody>
+</table>
+<p><strong>一句话</strong>：号码牌第 <span class="arithmatex">\(2i\)</span> 位是第 <span class="arithmatex">\(i\)</span> 个轮子的 sin，第 <span class="arithmatex">\(2i+1\)</span> 位是它的 cos；括号里是"座位号几，这个轮子就走多远"。</p>
+<h3 id="2026-11-05_2">第四步：转速那一块：从快到慢（2026-11-05）</h3>
+<p><strong>先改个说法</strong>：第三步把 <span class="arithmatex">\(10000^{2i/d_{model}}\)</span> 叫"转速那一块"。它在<strong>分母</strong>上，所以其实是"<strong>慢的倍数</strong>"：它越大，一步越短，轮子越慢。</p>
+<div class="arithmatex">\[\text{一步多长（每个座位走几弧度）} = \frac{1}{10000^{2i/d_{model}}}\]</div>
+<div class="arithmatex">\[\text{括号里（一共走了多远）} = pos \times \text{一步多长}\]</div>
+<p><strong>类比：同一条路，有人迈大步，有人迈小碎步。</strong> 走同样多的步数，迈小碎步的人走得近。轮子越靠后，步子越小。</p>
+<p>代几个轮子看看（<span class="arithmatex">\(d_{model} = 512\)</span>）：</p>
+<table>
+<thead>
+<tr>
+<th>第几个轮子 <span class="arithmatex">\(i\)</span></th>
+<th>指数 <span class="arithmatex">\(2i/512\)</span></th>
+<th>慢的倍数 <span class="arithmatex">\(10000^{2i/512}\)</span></th>
+<th>一步多长（弧度）</th>
+<th>转一圈要几个座位</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0（最快）</td>
+<td>0</td>
+<td>1</td>
+<td>1</td>
+<td>≈ 6.28</td>
+</tr>
+<tr>
+<td>128（中间）</td>
+<td>0.5</td>
+<td><span class="arithmatex">\(10000^{0.5} = 100\)</span></td>
+<td>0.01</td>
+<td>≈ 628</td>
+</tr>
+<tr>
+<td>255（最慢）</td>
+<td>≈ 0.996</td>
+<td>≈ 9647</td>
+<td>≈ 0.0001</td>
+<td>≈ 60600</td>
+</tr>
+</tbody>
+</table>
+<p>规律：轮子编号 <span class="arithmatex">\(i\)</span> 从 0 涨到 255，指数从 0 慢慢涨到接近 1，慢的倍数就从 1 涨到接近 10000。</p>
+<p>（第二步说"最慢大约 62832 个座位一圈"，用的是论文 L291 的上限 10000 · 2π；第 255 个轮子的指数差一点到 1，实际约 60600，差不多。）</p>
+<p><strong>一句话</strong>：<span class="arithmatex">\(10000^{2i/d_{model}}\)</span> 是慢的倍数，越往后的轮子步子越小；第 0 个一步 1 弧度，第 255 个一步只有万分之一弧度。</p>
+<h3 id="2026-11-05_3">第五步：近处看快轮，远处看慢轮（2026-11-05）</h3>
+<p><strong>类比：用秒针和日历认时间。</strong> 两个相差 1 秒的时刻，日历上完全一样，只有秒针分得开；两个相差整整一周、秒数正好一样的时刻，秒针分不开，日历一眼就分开了。</p>
+<p>用"狗"在两个轮子上的号码牌来看（<span class="arithmatex">\((\sin, \cos)\)</span>，保留两位）：</p>
+<table>
+<thead>
+<tr>
+<th>座位</th>
+<th>第 0 个轮子（一步 1 弧度）</th>
+<th>第 128 个轮子（一步 0.01 弧度）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 号</td>
+<td>走 1 弧度 → (0.84, 0.54)</td>
+<td>走 0.01 弧度 → (0.01, 1.00)</td>
+</tr>
+<tr>
+<td>2 号</td>
+<td>走 2 弧度 → (0.91, −0.42)</td>
+<td>走 0.02 弧度 → (0.02, 1.00)</td>
+</tr>
+<tr>
+<td>45 号</td>
+<td>走 45 弧度（≈ 7.16 圈）→ (0.85, 0.53)</td>
+<td>走 0.45 弧度 → (0.43, 0.90)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>1 号和 2 号（近）</strong>：快轮上差很多（cos 从 0.54 变成 −0.42）；慢轮上几乎一样（都是 ≈ (0.0x, 1.00)）。→ <strong>快轮分近处</strong>。</li>
+<li><strong>1 号和 45 号（远）</strong>：快轮上转了 7 圈多又回到差不多的地方，(0.84, 0.54) 和 (0.85, 0.53) 几乎撞牌；慢轮上一个 0.01、一个 0.45，分得很开。→ <strong>慢轮分远处</strong>。</li>
+</ul>
+<p>256 个轮子从快到慢排开，不管两个座位隔 1 个还是隔几万个，总有几个轮子能把它们分开。</p>
+<p><strong>一句话</strong>：快轮管近处，慢轮管远处；号码牌把所有轮子拼在一起，远近都分得清。</p>
+<h3 id="2026-11-05_4">第六步：往后挪几个座位 = 每个轮子拧一个固定角度（2026-11-05）</h3>
+<p><strong>问题</strong>：attention 常常要找"往前数第 2 个词"这种<strong>相对位置</strong>，而不是"第 37 号座"这种绝对位置。正弦号码牌对这件事有什么好处？</p>
+<p><strong>类比：拧旋钮。</strong> 每个轮子像一个旋钮。"狗"往后挪 <span class="arithmatex">\(k\)</span> 个座位，每个旋钮就多拧"<span class="arithmatex">\(k\)</span> × 它的步长"那么多。<strong>拧多少只看挪了几个座位 <span class="arithmatex">\(k\)</span>，不看你原来坐在几号。</strong></p>
+<p>第 0 个轮子（一步 1 弧度）上挪 2 个座位：</p>
+<table>
+<thead>
+<tr>
+<th>从</th>
+<th>到</th>
+<th>多转了</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3 号座（3 弧度）</td>
+<td>5 号座（5 弧度）</td>
+<td>2 弧度</td>
+</tr>
+<tr>
+<td>10 号座（10 弧度）</td>
+<td>12 号座（12 弧度）</td>
+<td>2 弧度</td>
+</tr>
+</tbody>
+</table>
+<p>起点不同，多转的都是 2 弧度。所以"往后挪 2 个座位"对每个轮子来说是<strong>同一个固定动作</strong>：把圆上的点再转一个固定角度。</p>
+<p>模型只要学会这一个"转"的动作，不管句子在哪个位置，都能用它找到"往前第 2 个词"。论文原文 L292–L294 的意思就是这个：作者认为这样模型容易学会按相对位置做 attention，因为对任意固定的挪动 <span class="arithmatex">\(k\)</span>，<span class="arithmatex">\(PE_{pos+k}\)</span> 都能写成 <span class="arithmatex">\(PE_{pos}\)</span> 的<strong>线性函数</strong>（"转一个固定角度"正是一种线性函数，具体怎么写要用第 15 章附录的和角公式，阶段 B 讲 RoPE 时再推）。</p>
+<p><strong>一句话</strong>：挪几个座位，每个轮子就拧一个固定的角度，和起点无关；这让"相对位置"变成一个固定动作。</p>
+<h3 id="_2">动画演示：三个快慢不同的轮子</h3>
+<p><img alt="多档时钟" src="../animations/16-multi-clock.gif" /></p>
+<p>可交互版：<a href="../animations/16-multi-clock.html">animations/16-multi-clock.html</a>（用浏览器打开，可播放、单步，还能拖滑块让"狗"坐到 0～300 号任意座位）。</p>
+<p>论文有 256 个轮子，动画挑了 3 个：第 0 个（一步 1 弧度）、第 64 个（一步 0.1）、第 128 个（一步 0.01）。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>第一段：座位号从 0 加到 45。快轮转一大截（浅色小点是走过的座位），慢轮几乎不动；每个轮子下面写着括号里的数和 (sin, cos)；</li>
+<li>第二段：比较两个座位。1、2 号座（挨着）只有快轮分得开；1、45 号座（隔得远）在快轮上几乎撞牌，靠慢轮分开；</li>
+<li>第三段：往后挪 2 个座位。从 3 号挪到 5 号、从 10 号挪到 12 号，每个轮子多转的角度（紫色弧）都一样。</li>
+</ol>
+<h2 id="_3">练习与作答记录</h2>
+<p><strong>题 1</strong>：还是快轮 1/4 圈、慢轮 1/8 圈。9 号座在快轮、慢轮上各转了几圈？它的号码牌会和哪个座位撞？</p>
+<p><strong>作答</strong>（2026-11-05）："2.25，1.125"。✓（圈数都对，撞哪个座位没说）</p>
+<p><strong>点评</strong>：圈数对。快轮 2.25 圈 = 转两整圈再加 1/4 圈，和 1 号座一样在最顶上；慢轮 1.125 圈 = 一整圈再加 1/8 圈，也和 1 号座一样在右上方。两个轮子都对上了，所以 9 号座<strong>和 1 号座撞牌</strong>。已加入卡片 R33。</p>
+<p><strong>题 2</strong>：论文的号码牌正好是 512 个数。为什么是 512，不是 2 个或 1000 个？（提示：第 14 章的 <span class="arithmatex">\(x_i' = x_i + p_i\)</span>，词向量是几个数？）</p>
+<p><strong>作答</strong>（2026-11-05）："因为 256 个轮子，sin cos 2 个正好 2 组，加一起就是 512 个"。✗（因果反了）</p>
+<p><strong>点评</strong>：256 × 2 = 512 这个算术没错，但它说的是"512 是怎么凑出来的"，不是"为什么要 512"。顺序其实反过来：</p>
+<ol>
+<li>词向量 <span class="arithmatex">\(x_i\)</span> 有 <strong>512 个数</strong>（<span class="arithmatex">\(d_{model} = 512\)</span>，第 1 章、第 10 章）；</li>
+<li>号码牌要和词向量<strong>对位相加</strong>（<span class="arithmatex">\(x_i + p_i\)</span>），两个向量必须一样长，所以号码牌也必须是 512 个数；</li>
+<li>每个轮子出 2 个数，于是轮子个数 = 512 ÷ 2 = <strong>256</strong>。</li>
+</ol>
+<p>先定 512，再定 256 个轮子，不是反过来。论文原文 L281–L282："位置编码和词向量的维度都是 <span class="arithmatex">\(d_{model}\)</span>，这样两者才能相加"。如果号码牌是 1000 个数，就没法和 512 个数的词向量对位相加。已加入卡片 R34。</p>
+<p><strong>题 2 追问</strong>：如果词向量是 768 个数（BERT-base 就是这么大），号码牌要几个数？需要几个轮子？</p>
+<p><strong>作答</strong>（2026-11-05）："号码牌需要 768 个，有 384 个轮子"。✓</p>
+<p><strong>点评</strong>：对，顺序也对了：先看词向量多长（768），号码牌跟着一样长，再除以 2 得到轮子数（384）。</p>
+<p><strong>题 3</strong>：第 0 个轮子的转速那一块正好是 1（<span class="arithmatex">\(10000^{0} = 1\)</span>）。"狗"坐在 3 号座（<span class="arithmatex">\(pos = 3\)</span>），它的号码牌第 0 位和第 1 位分别是什么？用 sin(?)、cos(?) 的样子写出来就行，不用算数。</p>
+<p><strong>作答</strong>（2026-11-05）："你算下给我看下"（要求演示，未作答）。</p>
+<p><strong>演示</strong>：</p>
+<ol>
+<li>第 0 个轮子：<span class="arithmatex">\(i = 0\)</span>，所以第 <span class="arithmatex">\(2i = 0\)</span> 位放 sin，第 <span class="arithmatex">\(2i+1 = 1\)</span> 位放 cos；</li>
+<li>转速那一块：<span class="arithmatex">\(10000^{2 \times 0 / 512} = 10000^{0} = 1\)</span>；</li>
+<li>括号里：<span class="arithmatex">\(pos / 1 = 3 / 1 = 3\)</span>，也就是沿边走了 3 弧度；</li>
+<li>代进去：第 0 位 = <span class="arithmatex">\(\sin(3)\)</span>，第 1 位 = <span class="arithmatex">\(\cos(3)\)</span>。</li>
+</ol>
+<p>用摩天轮检查数值：一圈是 6.28 弧度，3 ÷ 6.28 ≈ <strong>0.48 圈</strong>（约 172°），差一点就到半圈（正左边）。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>摩天轮上的意思</th>
+<th>数值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>第 0 位 <span class="arithmatex">\(\sin(3)\)</span></td>
+<td>高度：快到正左边，只比中心轴高一点</td>
+<td>≈ <strong>0.14</strong></td>
+</tr>
+<tr>
+<td>第 1 位 <span class="arithmatex">\(\cos(3)\)</span></td>
+<td>左右：几乎在最左边</td>
+<td>≈ <strong>−0.99</strong></td>
+</tr>
+</tbody>
+</table>
+<p>所以 3 号座号码牌的前两个数是 [0.14, −0.99, …]，后面 510 个数来自其他 255 个更慢的轮子。已加入卡片 R35。</p>
+<p><strong>题 3 再练</strong>："狗"坐 1 号座（<span class="arithmatex">\(pos = 1\)</span>），号码牌第 0 位和第 1 位分别是 sin(?)、cos(?)？sin 那个的数值第 15 章第五步算过，还记得是多少吗？</p>
+<p><strong>作答</strong>（2026-11-05）："1.57，0"。✗（把论文的第 0 个轮子当成了上一章"每座转 1/4 圈"的玩具轮子）</p>
+<p><strong>点评</strong>：1.57 和 0 正是第 15 章那个玩具轮子在 1 号座的结果：转 1/4 圈 = 沿边走 π/2 ≈ 1.57 弧度，走到最顶上，cos = 0。但论文的第 0 个轮子<strong>不是每座转 1/4 圈</strong>：</p>
+<ol>
+<li>转速那一块 <span class="arithmatex">\(= 10000^{0} = 1\)</span>，括号里 = <span class="arithmatex">\(pos / 1 = 1 / 1 =\)</span> <strong>1</strong>，所以每个座位只沿边走 <strong>1 弧度</strong>（≈ 0.16 圈，约 57°），比 1/4 圈（1.57 弧度）少；</li>
+<li>第 0 位 = <span class="arithmatex">\(\sin(1)\)</span> ≈ <strong>0.84</strong>（第 15 章第五步算过：还没到最顶上，高度约 0.84）；</li>
+<li>第 1 位 = <span class="arithmatex">\(\cos(1)\)</span> ≈ <strong>0.54</strong>（在右半边，离中心轴往右一半多一点）。</li>
+</ol>
+<p>另外 1.57 是<strong>括号里的数</strong>（走了多远），不是 sin 的值。sin 的值是高度，永远在 −1 到 1 之间，1.57 不可能是 sin 算出来的。</p>
+<table>
+<thead>
+<tr>
+<th>轮子</th>
+<th>每个座位沿边走</th>
+<th>1 号座的号码牌 (sin, cos)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>第 15 章玩具轮子</td>
+<td>1/4 圈 = π/2 ≈ 1.57 弧度</td>
+<td>(1, 0) 最顶上</td>
+</tr>
+<tr>
+<td>论文第 0 个轮子</td>
+<td>1 弧度 ≈ 0.16 圈</td>
+<td>(0.84, 0.54) 右上方，还没到顶</td>
+</tr>
+</tbody>
+</table>
+<p>所以 1 号座号码牌的前两个数是 [0.84, 0.54, …]。已加入卡片 R36。</p>
+<p><strong>题 3 再练 2</strong>：论文第 0 个轮子，2 号座（<span class="arithmatex">\(pos = 2\)</span>）括号里是几？大约转了几圈？</p>
+<p><strong>作答</strong>（2026-11-05）："1.x，大约走了 0.3–0.4"。半对（圈数对，括号里的数不对）</p>
+<p><strong>点评</strong>：圈数 0.3–0.4 对了，准确是 2 ÷ 6.28 ≈ <strong>0.32 圈</strong>（约 115°，刚过最顶上一点）。但括号里不是 1.x，就是 <strong>2</strong>：</p>
+<div class="arithmatex">\[\frac{pos}{10000^{0}} = \frac{2}{1} = 2\]</div>
+<p>第 0 个轮子的转速那一块是 1，除以 1 等于没除，所以<strong>括号里就是座位号本身</strong>：1 号座走 1 弧度，2 号座走 2 弧度，3 号座走 3 弧度。</p>
+<table>
+<thead>
+<tr>
+<th>座位</th>
+<th>括号里（弧度）</th>
+<th>约几圈</th>
+<th>号码牌前两位 (sin, cos)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 号</td>
+<td>1</td>
+<td>0.16</td>
+<td>(0.84, 0.54)</td>
+</tr>
+<tr>
+<td>2 号</td>
+<td>2</td>
+<td>0.32</td>
+<td>(0.91, −0.42) 刚过最顶上，到了左半边</td>
+</tr>
+<tr>
+<td>3 号</td>
+<td>3</td>
+<td>0.48</td>
+<td>(0.14, −0.99) 快到正左边</td>
+</tr>
+</tbody>
+</table>
+<p>（你说的 0.3–0.4 圈是对的，倒推回去 0.32 × 6.28 ≈ 2，括号里就是 2。）已记入卡片 R36 的复习记录。</p>
+<p><strong>题 3 再练 3</strong>：一句话：论文第 0 个轮子，括号里永远等于什么？</p>
+<p><strong>作答</strong>（2026-11-05）："1"。✗（把"一步多长"当成了"一共走了多远"）</p>
+<p><strong>点评</strong>：1 不是括号里的数，是第 0 个轮子<strong>每个座位走一步的长度</strong>（1 弧度）。括号里问的是<strong>一共走了多远</strong>，等于<strong>座位号 pos</strong> 本身。</p>
+<p><strong>类比：走路。</strong> 每一步长 1 米，走了 3 步，一共走了 3 × 1 = 3 米。</p>
+<table>
+<thead>
+<tr>
+<th>走路</th>
+<th>第 0 个轮子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一步多长：1 米</td>
+<td>每个座位走 1 弧度（<span class="arithmatex">\(1 / 10000^{0} = 1\)</span>）</td>
+</tr>
+<tr>
+<td>走了几步</td>
+<td>座位号 <span class="arithmatex">\(pos\)</span></td>
+</tr>
+<tr>
+<td>一共走了多远</td>
+<td><strong>括号里</strong> <span class="arithmatex">\(= pos \times 1 = pos\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>所以 1 号座括号里 = 1，2 号座 = 2，3 号座 = 3，100 号座 = 100。只有 1 号座的括号里碰巧也是 1。已加入卡片 R37。</p>
+<p><strong>题 3 再练 4</strong>：还是第 0 个轮子，"狗"坐 10 号座，括号里是几？</p>
+<p><strong>作答</strong>（2026-11-05）："10"。✓</p>
+<p><strong>点评</strong>：对。一步 1 弧度，走 10 步，一共 10 弧度（约 1.6 圈）。</p>
+<p><strong>题 4</strong>：第 128 个轮子一步只走 0.01 弧度。"狗"坐 100 号座，这个轮子的括号里是几？</p>
+<p><strong>作答</strong>（2026-11-05）："256 × 0.01"。✗（把轮子的个数 256 当成了走了几步）</p>
+<p><strong>第二次作答</strong>（2026-11-05，看到点评前改答）："1.28"。✗（这次用了轮子编号 128 当步数：128 × 0.01。和 256 一样，轮子的编号也只管步长，不管步数）</p>
+<p><strong>点评</strong>：乘法的样子对（步数 × 一步多长），但<strong>走了几步看座位号 pos</strong>，不看轮子有几个。应该是：</p>
+<div class="arithmatex">\[100 \times 0.01 = 1\]</div>
+<p>公式里有两个不同的数，分工不一样：</p>
+<table>
+<thead>
+<tr>
+<th>数</th>
+<th>是什么</th>
+<th>管什么</th>
+<th>这题里</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(pos\)</span></td>
+<td>座位号</td>
+<td><strong>走了几步</strong></td>
+<td>100</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(i\)</span></td>
+<td>第几个轮子</td>
+<td><strong>一步多长</strong>（<span class="arithmatex">\(1/10000^{2i/512}\)</span>）</td>
+<td>128 → 一步 0.01</td>
+</tr>
+<tr>
+<td>256</td>
+<td>轮子一共几个</td>
+<td>号码牌有几组数，不进括号</td>
+<td>不用</td>
+</tr>
+</tbody>
+</table>
+<p><strong>类比：256 个人排成一排一起走。</strong> 每个人走的<strong>步数一样多</strong>（都等于座位号），但<strong>步子大小不一样</strong>（第 0 个人一步 1 米，第 128 个人一步 1 厘米）。括号里问的是"某一个人走了多远" = 座位号 × 这个人的步长。256 只是说一共有几个人。</p>
+<p>所以 100 号座在第 128 个轮子上只走了 1 弧度（约 0.16 圈），而在第 0 个轮子上走了 100 弧度（约 16 圈）。已加入卡片 R38。</p>
+<p><strong>题 4 再练</strong>："狗"坐 300 号座。第 0 个轮子和第 128 个轮子的括号里各是几？（100 号座的答案点评里已算出，改问 300 号座）</p>
+<p><strong>作答</strong>（2026-11-05）："都是 3"。半对（第 128 个轮子 3 ✓；第 0 个轮子应为 300 ✗）</p>
+<p><strong>点评</strong>：第 128 个轮子对了：300 × 0.01 = <strong>3</strong>。第 0 个轮子一步是 <strong>1</strong> 弧度（不是 0.01），所以是 300 × 1 = <strong>300</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>轮子</th>
+<th>走几步（座位号）</th>
+<th>一步多长</th>
+<th>括号里</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>第 0 个</td>
+<td>300</td>
+<td>1</td>
+<td><strong>300</strong>（约 48 圈）</td>
+</tr>
+<tr>
+<td>第 128 个</td>
+<td>300</td>
+<td>0.01</td>
+<td><strong>3</strong>（约 0.48 圈）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>步数一样，步子不一样，走的距离就不一样。</strong> 这正是要多个轮子的原因：如果每个轮子的括号里都一样，256 个轮子就等于同一个轮子抄了 256 遍，还是会撞牌。</p>
+<p><strong>题 4 再练 2</strong>：第 0 个轮子一步多长？所以"狗"坐 300 号座时，它在第 0 个轮子上走了多远？</p>
+<p><strong>作答</strong>（2026-11-05）：先答"第 0 个轮子步长是 2，狗走了 150 圈"，随即改成"0 个轮子步长是 1"。步长改对后 ✓；走了多远没有重新算（150 圈是按步长 2 算的）</p>
+<p><strong>点评</strong>：步长 1 对。走了多远 = 300 × 1 = <strong>300 弧度</strong>。换成圈：300 ÷ 6.28 ≈ <strong>48 圈</strong>。注意"弧度"和"圈"是两个单位，括号里的数是弧度，要换成圈得除以 6.28。</p>
+<p><strong>学生追问</strong>："为什么第 128 个轮子，一步是 100？"</p>
+<p><strong>解答</strong>：一步不是 100，是 <strong>0.01</strong>。100 是"慢的倍数"，一步多长 = 1 ÷ 慢的倍数。分三步算：</p>
+<ol>
+<li>指数：<span class="arithmatex">\(2i / d_{model} = 2 \times 128 / 512 = 256 / 512 =\)</span> <strong>0.5</strong></li>
+<li>慢的倍数：<span class="arithmatex">\(10000^{0.5} = \sqrt{10000} =\)</span> <strong>100</strong>（0.5 次方就是开平方，100 × 100 = 10000）</li>
+<li>一步多长：<span class="arithmatex">\(1 / 100 =\)</span> <strong>0.01</strong></li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>第 128 个轮子</th>
+<th>数值</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>慢的倍数 <span class="arithmatex">\(10000^{2i/d_{model}}\)</span></td>
+<td>100</td>
+<td>比第 0 个轮子慢 100 倍</td>
+</tr>
+<tr>
+<td>一步多长 <span class="arithmatex">\(1 / 10000^{2i/d_{model}}\)</span></td>
+<td>0.01</td>
+<td>每个座位只走 0.01 弧度</td>
+</tr>
+</tbody>
+</table>
+<p>类比：第 0 个人一步 1 米，第 128 个人比他慢 100 倍，一步就只有 1 ÷ 100 = 0.01 米（1 厘米）。"慢 100 倍"说的是倍数，不是步长。已加入卡片 R39。</p>
+<p><strong>题 4 再练 3</strong>：第 0 个轮子的慢的倍数是几？一步多长？（提示：<span class="arithmatex">\(10000^{0}\)</span>）</p>
+<p><strong>作答</strong>（2026-11-05）："1，1"。✓</p>
+<p><strong>点评</strong>：对。<span class="arithmatex">\(10000^{0} = 1\)</span>，一步 = 1 ÷ 1 = 1 弧度。倍数和步长在第 0 个轮子上碰巧都是 1，到第 128 个轮子就分开了（100 和 0.01）。</p>
+<p><strong>题 5</strong>：2 号座和 3 号座挨着。第 0 个轮子（一步 1 弧度）和第 255 个轮子（一步约 0.0001 弧度），哪个更容易把这两个座位分开？为什么？</p>
+<p><strong>作答</strong>（2026-11-05）："用 0 个，用第 255 个几乎是一样的"。✓</p>
+<p><strong>点评</strong>：对。第 0 个轮子上 2 号座走 2 弧度、3 号座走 3 弧度，差 1 弧度（约 57°），号码牌 (0.91, −0.42) 和 (0.14, −0.99) 差得很明显；第 255 个轮子上两个座位只差 0.0001 弧度，几乎在同一个点。近处靠快轮。已加入卡片 R40。</p>
+<p><strong>题 6</strong>：第 128 个轮子一步 0.01 弧度。"狗"从 50 号座挪到 53 号座，这个轮子多转了多少弧度？从 200 号座挪到 203 号座呢？</p>
+<p><strong>作答</strong>（2026-11-05）："0.03，一样"。✓</p>
+<p><strong>点评</strong>：对。挪 3 个座位 × 一步 0.01 = 0.03 弧度，从 50 号还是从 200 号出发都一样。每个轮子都是这样，只是拧的角度不同（第 0 个轮子拧 3 弧度，第 128 个拧 0.03 弧度）。所以"往后挪 3 个座位"是一个固定动作，和起点无关。已加入卡片 R41。</p>
+<h2 id="_4">口诀</h2>
+<blockquote>
+<p>一个轮子会撞牌，快慢轮子排一排；<br />
+括号里 = 座位号 × 步长：pos 管几步，i 管多长；<br />
+快轮管近，慢轮管远；挪几个座位，每轮转个固定角。</p>
+</blockquote>
+<h2 id="_5">本章复习卡片</h2>
+<ul>
+<li>R33（为什么要多个快慢不同的轮子：秒针分针；两个轮子 8 个座位才撞）</li>
+<li>R34（号码牌为什么是 512 个数：要和词向量对位相加；先定 512 再定 256 个轮子）</li>
+<li>R35（把 pos、i 代进正弦公式：3 号座第 0、1 位 = sin(3)、cos(3)）</li>
+<li>R36（论文第 0 个轮子每座走 1 弧度，不是 1/4 圈；1 号座 = sin(1) ≈ 0.84、cos(1) ≈ 0.54）</li>
+<li>R37（括号里 = 一共走了多远 = pos；1 是第 0 个轮子一步的长度，不是括号里）</li>
+<li>R38（pos 管走几步，i 管一步多长，256 不进括号；100 号座在第 128 个轮子上 = 100 × 0.01 = 1）</li>
+<li>R39（慢的倍数 vs 一步多长：第 128 个轮子 10000^0.5 = 100 是倍数，一步 = 1/100 = 0.01）</li>
+<li>R40（快轮管近处、慢轮管远处：2、3 号座靠第 0 个轮子分，1、45 号座靠慢轮分）</li>
+<li>R41（相对位置：挪 k 个座位，每个轮子多转 k × 步长，和起点无关；PE(pos+k) 是 PE(pos) 的线性函数）</li>
+</ul>
+<h2 id="_6">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_7">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>§3.5 全节，L276–L298</td>
+<td>本章逐句对应：L281–L282 维度要和词向量一样才能相加（题 2）；L287–L288 公式（第三步）；L291 波长从 2π 到 10000 · 2π（第二步）；L292–L294 相对位置是线性函数（第六步）；L295–L298 为什么选正弦而不选学出来的</td>
+</tr>
+<tr>
+<td>★ Kazemnejad, Transformer Architecture: The Positional Encoding（博客）</td>
+<td>全文，尤其是 512 维号码牌的热力图</td>
+<td>把 256 个轮子画成一张图：左边几列（快轮）颜色变得快，右边（慢轮）几乎不变</td>
+</tr>
+<tr>
+<td>Attention Is All You Need</td>
+<td>Table 3 row (E)，L475</td>
+<td>用学出来的位置向量代替正弦，效果几乎一样（PPL 都是 4.92，BLEU 25.7 vs base 25.8，base 在 L453）</td>
+</tr>
+<tr>
+<td>Formal Algorithms for Transformers</td>
+<td>Algorithm 2 Positional embedding（L248，说明在 L258）</td>
+<td>对照：这里写的是<strong>学出来的</strong>位置向量 <span class="arithmatex">\(W_p[:, t]\)</span>，不是正弦公式；两种做法放进模型的方式一样（都是加到词向量上）</td>
+</tr>
+<tr>
+<td>RoFormer（RoPE 论文）</td>
+<td>§3.2.1 A 2D case（L231）</td>
+<td>阶段 B 再读：把第六步"挪几个座位 = 转一个固定角度"直接用在 q、k 上，就是 RoPE</td>
+</tr>
+<tr>
+<td>CS336 assignment 1 handout</td>
+<td>§3.5.3 Relative Positional Embeddings（L1076 起）</td>
+<td>动手时要实现的是 RoPE，不是本章的正弦加法；读之前先回看第六步</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_8">数学原理</h3>
+<ul>
+<li><strong>等比数列</strong>：慢的倍数 <span class="arithmatex">\(10000^{2i/d_{model}} = \left(10000^{2/d_{model}}\right)^i\)</span>。<span class="arithmatex">\(d_{model} = 512\)</span> 时 <span class="arithmatex">\(10000^{2/512} \approx 1.0366\)</span>，每往后一个轮子就慢约 3.7%。所以论文 L291 说波长成"geometric progression"（等比数列）。</li>
+<li><strong>波长</strong>：第 <span class="arithmatex">\(i\)</span> 个轮子转一圈要走 <span class="arithmatex">\(2\pi\)</span> 弧度，一步 <span class="arithmatex">\(1/10000^{2i/d_{model}}\)</span>，所以一圈要 <span class="arithmatex">\(\lambda_i = 2\pi \cdot 10000^{2i/d_{model}}\)</span> 个座位；<span class="arithmatex">\(i = 0\)</span> 时 <span class="arithmatex">\(2\pi\)</span>，<span class="arithmatex">\(i \to d_{model}/2\)</span> 时接近 <span class="arithmatex">\(10000 \cdot 2\pi\)</span>。</li>
+<li><strong>分数次方</strong>：<span class="arithmatex">\(10000^{0.5} = \sqrt{10000} = 100\)</span>，<span class="arithmatex">\(10000^{0.25} = \sqrt{\sqrt{10000}} = 10\)</span>。指数从 0 到 1 均匀变，结果从 1 到 10000 按倍数变。</li>
+<li><strong>相对位置是线性函数</strong>（第六步的数学版）：设某个轮子一步为 <span class="arithmatex">\(\omega\)</span>，<span class="arithmatex">\(a = pos \cdot \omega\)</span>，<span class="arithmatex">\(b = k \cdot \omega\)</span>。由第 15 章附录的和角公式：</li>
+</ul>
+<div class="arithmatex">\[\begin{pmatrix}\sin(a+b)\\ \cos(a+b)\end{pmatrix} = \begin{pmatrix}\cos b &amp; \sin b\\ -\sin b &amp; \cos b\end{pmatrix}\begin{pmatrix}\sin a\\ \cos a\end{pmatrix}\]</div>
+<p>中间的矩阵只含 <span class="arithmatex">\(b = k\omega\)</span>，和 <span class="arithmatex">\(pos\)</span> 无关。每个轮子各用一个这样的 2×2 矩阵，拼起来就是"<span class="arithmatex">\(PE_{pos+k}\)</span> = 一个只看 <span class="arithmatex">\(k\)</span> 的矩阵 × <span class="arithmatex">\(PE_{pos}\)</span>"。</p>
+<h3 id="_9">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(PE_{(pos,2i)} = \sin(pos / 10000^{2i/d_{model}})\)</span></td>
+<td>偶数位放第 <span class="arithmatex">\(i\)</span> 个轮子的 sin</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(PE_{(pos,2i+1)} = \cos(pos / 10000^{2i/d_{model}})\)</span></td>
+<td>奇数位放它的 cos</td>
+</tr>
+<tr>
+<td>轮子个数 <span class="arithmatex">\(= d_{model} / 2\)</span></td>
+<td>先定号码牌长度 = 词向量长度，再除以 2</td>
+</tr>
+<tr>
+<td>一步多长 <span class="arithmatex">\(= 1 / 10000^{2i/d_{model}}\)</span></td>
+<td><span class="arithmatex">\(i = 0\)</span>：1；<span class="arithmatex">\(i = 128\)</span>：0.01；<span class="arithmatex">\(i = 255\)</span>：≈ 0.0001</td>
+</tr>
+<tr>
+<td>括号里 <span class="arithmatex">\(= pos \times\)</span> 一步多长</td>
+<td>一共沿边走了多远（弧度），换成圈要除以 <span class="arithmatex">\(2\pi\)</span></td>
+</tr>
+<tr>
+<td>波长 <span class="arithmatex">\(\lambda_i = 2\pi \cdot 10000^{2i/d_{model}}\)</span></td>
+<td>从 <span class="arithmatex">\(2\pi\)</span> 到接近 <span class="arithmatex">\(10000 \cdot 2\pi\)</span></td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(PE_{pos+k} = M_k \cdot PE_{pos}\)</span></td>
+<td>挪 <span class="arithmatex">\(k\)</span> 个座位 = 每个轮子转固定角度 <span class="arithmatex">\(k\omega_i\)</span>，<span class="arithmatex">\(M_k\)</span> 和 <span class="arithmatex">\(pos\)</span> 无关</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="15-sin-cos.html">← 第 15 章 · sin 和 cos：圆上转圈</a><a href="17-causal-mask.html">第 17 章 · 因果 mask：不许偷看后面的词 →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

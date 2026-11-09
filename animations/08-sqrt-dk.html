@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>为什么除以根号 dk</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:12px}</style></head>
+<body><main>
+<h1>第 8 章 · 为什么除以 √d_k：向量越长，点积越大</h1>
+<p class="sub">配套讲义：<a href="../lessons/08-sqrt-dk.html">第 8 章 · 为什么除以 √d_k</a>。d_k：k = key，每个 key 向量有几个数（论文 64）。每一项相乘的结果像抛硬币：+1 或 −1。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="c">自己拖：分数 [8, −8, 3] 除以几</label><input type="range" id="c" min="1" max="64" step="1" value="8"><span id="cv">8</span></div>
+<p class="note">看点：① 抛 4、64、512 次硬币，总分离 0 的距离通常约 √d：±2、±8、±22（每次重放硬币都不一样）；② d_k = 64 时分数通常 ±8，比如 [8, −8, 3]，softmax 后第一个占 99.3%，接近饱和；③ 除以 8 = √64：回到 ±1，有重点也有余地；④ 除以 64：差距太小，变成平均分配。滑块：拖除数，1 = 只看一个，8 = 正好，64 = 谁都一样。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const fmt=(v,d=3)=>{const r=Math.round(v*10**d)/10**d;return (Object.is(r,-0)?'0':String(r)).replace('-','−')};
+const soft=S=>{const m=Math.max(...S),E=S.map(v=>Math.exp(v-m)),t=E.reduce((a,b)=>a+b,0);return E.map(v=>v/t)};
+const ST=[{cap:'抛 4 次：每次 +1 或 −1，加起来',d:4},{cap:'抛 64 次：正负抵消一部分，但离 0 更远了',d:64},{cap:'抛 512 次：离 0 更远',d:512},
+  {cap:'规律：抛 d 次，总分通常离 0 约 √d',law:true},{cap:'d_k = 64：分数通常 ±8，比如 [8, −8, 3]',c:1},
+  {cap:'除以 8（= √64）：[1, −1, 0.375]，有重点，也有余地',c:8},{cap:'除以 64（= d_k）：差距太小，变成平均分配',c:64}];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null,flips={};
+function newFlips(){flips={};[4,64,512].forEach(d=>flips[d]=Array.from({length:d},()=>rnd()<0.5?1:-1))}
+function coins(d){const F=flips[d],cols=d===4?4:d===64?16:32,cw=d===4?60:d===64?30:18,r=d===4?24:d===64?12:5;
+  const x0=340-cols*cw/2+cw/2,y0=90;
+  F.forEach((v,i)=>{const cx=x0+(i%cols)*cw,cy=y0+Math.floor(i/cols)*(d===512?11:cw*0.85);
+    el('circle',{cx,cy,r,fill:v>0?'var(--teal)':'var(--warm)'},sv);if(d<=64)txt(v>0?'+':'−',{x:cx,y:cy+4,'text-anchor':'middle',class:'v'},sv).style.fill='#fff'});
+  const S=F.reduce((a,b)=>a+b,0);numberLine(S,Math.sqrt(d),d)}
+function numberLine(S,sd,d){const y=330,M=32,X=v=>340+v/M*280;
+  el('line',{x1:X(-M),y1:y,x2:X(M),y2:y,stroke:'var(--muted)'},sv);
+  el('rect',{x:X(-sd),y:y-14,width:X(sd)-X(-sd),height:28,fill:'var(--accent-bg)'},sv);
+  [-32,-16,0,16,32].forEach(t=>txt(String(t).replace('-','−'),{x:X(t),y:y+30,'text-anchor':'middle',class:'m'},sv));
+  el('circle',{cx:X(S),cy:y,r:7,fill:'var(--purple)'},sv);
+  txt(`总分 = ${fmt(S)}（蓝底 = 通常范围 ±√${d} ≈ ±${fmt(sd,1)}）`,{x:340,y:y-24,'text-anchor':'middle',class:'big'},sv)}
+function law(){const D=[4,64,512],base=320;
+  D.forEach((d,i)=>{const x=140+i*170,h=Math.sqrt(d)*9;el('rect',{x,y:base-h,width:70,height:h,rx:4,fill:'var(--purple)'},sv);
+    txt(`d = ${d}`,{x:x+35,y:base+20,'text-anchor':'middle',class:'big'},sv);txt(`±${fmt(Math.sqrt(d),1)}`,{x:x+35,y:base-h-8,'text-anchor':'middle',class:'big'},sv)});
+  txt('d 变成 16 倍（4 → 64），离 0 的距离只变成 4 倍（2 → 8）：√16 = 4',{x:340,y:375,'text-anchor':'middle',class:'m'},sv)}
+function divide(c){const S=[8,-8,3].map(v=>v/c),P=soft(S),COL=['var(--teal)','var(--amber)','var(--purple)'];
+  txt(`分数 [8, −8, 3] ÷ ${c} = [${S.map(v=>fmt(v)).join(', ')}]`,{x:340,y:70,'text-anchor':'middle',class:'big'},sv);
+  const base=300;el('line',{x1:120,y1:base,x2:560,y2:base,stroke:'var(--muted)'},sv);
+  P.forEach((p,i)=>{const x=160+i*130;el('rect',{x,y:base-p*190,width:80,height:Math.max(p*190,1),rx:4,fill:COL[i]},sv);
+    txt(fmt(p),{x:x+40,y:base-p*190-8,'text-anchor':'middle',class:'big'},sv);txt(`第 ${i+1} 个词`,{x:x+40,y:base+18,'text-anchor':'middle',class:'m'},sv)});
+  const st=P[0]>0.95?['接近饱和：只看一个词，学不动','var(--bad)']:Math.max(...P)<0.42?['差距太小：谁都一样，抓不住重点','var(--bad)']:['有重点，也有余地：正好','var(--good)'];
+  txt('softmax 比例',{x:340,y:base+40,'text-anchor':'middle',class:'m'},sv);
+  const t=txt(st[0],{x:340,y:base+66,'text-anchor':'middle',class:'big'},sv);t.style.fill=st[1]}
+function draw(){
+  clear(sv);
+  if(custom!==null){txt(`除以 ${custom}`+(custom===8?'（= √d_k）':custom===64?'（= d_k）':''),{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);divide(custom);return}
+  const f=ST[FR[k]];txt(f.cap,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+  if(f.d)coins(f.d);else if(f.law)law();else divide(f.c);
+}
+function reset(s){seed(s);newFlips();k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('c').oninput=e=>{ANIM.stop();custom=+e.target.value;$('cv').textContent=custom;draw()};
+setupPlayer({captureSeed:5,reset,next},1600);
+</script></body></html>

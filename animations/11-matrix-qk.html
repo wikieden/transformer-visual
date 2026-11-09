@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>分数表 QKᵀ</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:12px}</style></head>
+<body><main>
+<h1>第 11 章 · 大写的 Q、K：一次算出所有分数</h1>
+<p class="sub">配套讲义：<a href="../lessons/11-matrix-qk.html">第 11 章 · 大写的 Q、K、V：一次算出所有分数</a>。3 个词，每个 q、k 有 2 个数。q：小明 [1, 0]、小红 [0, 1]、她 [0, 2]；k：小明 [1, 0]、小红 [0, 2]、她 [1, 1]。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="c">自己拖：看第几格是怎么算的</label><input type="range" id="c" min="1" max="9" step="1" value="9"><span id="cv">第 3 行第 3 列</span></div>
+<p class="note">看点：① 大写 Q：所有词的 q 排在一起，每一行是一个词（3 行 × 2 列）；② 分数表第 i 行第 j 列 = 第 i 个词的 q · 第 j 个词的 k；③ 一行一行填满，就是 QKᵀ 算出来的 3 × 3 分数表（行 = 谁去找，列 = 被找的是谁）。滑块：选一格，看它是哪个 q 和哪个 k 做的点积。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const NM=['小明','小红','她'],Q=[[1,0],[0,1],[0,2]],K=[[1,0],[0,2],[1,1]];
+const S=Q.map(q=>K.map(kk=>q[0]*kk[0]+q[1]*kk[1]));
+const ST=[{cap:'大写 Q：每一行是一个词的 q（3 行 × 2 列）；K 也一样',rows:0},{cap:'小明那一行：[1,0]·[1,0] = 1，[1,0]·[0,2] = 0，[1,0]·[1,1] = 1',rows:1},
+  {cap:'小红那一行：q = [0, 1]',rows:2},{cap:'她那一行：q = [0, 2]',rows:3},{cap:'3 × 3 分数表：QKᵀ 一次算出所有词对所有词的分数',rows:3,done:true}];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+const COL=['var(--teal)','var(--purple)','var(--warm)'];
+function mat(x0,y0,M,title,hiRow){txt(title,{x:x0+50,y:y0-14,'text-anchor':'middle',class:'m'},sv);
+  M.forEach((r,i)=>{const on=hiRow===i;txt(NM[i],{x:x0-10,y:y0+i*44+24,'text-anchor':'end',class:'m'},sv);
+    r.forEach((v,j)=>{el('rect',{x:x0+j*50,y:y0+i*44,width:46,height:38,rx:5,fill:on?COL[i]:'none',opacity:on?.2:1,stroke:on?COL[i]:'var(--line)','stroke-width':on?2:1},sv);
+      txt(String(v),{x:x0+j*50+23,y:y0+i*44+24,'text-anchor':'middle',class:'big'},sv)})})}
+function table(rows,hi){const x0=420,y0=110,cw=66;
+  txt('分数表（行：谁去找 q；列：被找的 k）',{x:x0+cw*1.5,y:y0-40,'text-anchor':'middle',class:'m'},sv);
+  NM.forEach((n,j)=>txt(n,{x:x0+j*cw+cw/2,y:y0-14,'text-anchor':'middle',class:'m'},sv).style.fill=COL[j]);
+  for(let i=0;i<3;i++){txt(NM[i],{x:x0-10,y:y0+i*50+28,'text-anchor':'end',class:'m'},sv).style.fill=COL[i];
+    for(let j=0;j<3;j++){const on=hi&&hi[0]===i&&hi[1]===j;el('rect',{x:x0+j*cw,y:y0+i*50,width:cw-6,height:44,rx:5,fill:on?'var(--accent-bg)':'none',stroke:on?'var(--accent)':'var(--line)','stroke-width':on?2.5:1},sv);
+      if(i<rows)txt(String(S[i][j]),{x:x0+j*cw+cw/2-3,y:y0+i*50+28,'text-anchor':'middle',class:'big'},sv)}}}
+function calc(i,j,y){const q=Q[i],kk=K[j];
+  txt(`第 ${i+1} 行第 ${j+1} 列 = ${NM[i]}的 q · ${NM[j]}的 k = [${q}]·[${kk}] = ${q[0]}×${kk[0]} + ${q[1]}×${kk[1]} = ${S[i][j]}`,{x:340,y,'text-anchor':'middle',class:'big'},sv)}
+function draw(){
+  clear(sv);
+  if(custom!==null){const i=Math.floor((custom-1)/3),j=(custom-1)%3;
+    txt(`${NM[i]}去找${NM[j]}：分数 ${S[i][j]}`,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+    mat(90,110,Q,'Q（每行一个 q）',i);mat(250,110,K,'K（每行一个 k）',j);table(3,[i,j]);calc(i,j,320);return}
+  const f=ST[FR[k]];txt(f.cap,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+  const r=f.done?null:f.rows-1;
+  mat(90,110,Q,'Q（每行一个 q）',r===null||r<0?undefined:r);mat(250,110,K,'K（每行一个 k）');table(f.rows);
+  if(r!==null&&r>=0)[0,1,2].forEach(j=>txt(`[${Q[r]}]·[${K[j]}] = ${S[r][j]}`,{x:110+j*200,y:310,'text-anchor':'middle',class:'big'},sv).style.fill=COL[r]);
+  if(f.done){txt('一个一个词算太慢；排成矩阵，一次矩阵乘法算完所有词（GPU 最擅长）',{x:340,y:310,'text-anchor':'middle',class:'m'},sv);
+    txt('她那一行 [0, 4, 2]：她最该看小红',{x:340,y:336,'text-anchor':'middle',class:'big'},sv)}
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('c').oninput=e=>{ANIM.stop();custom=+e.target.value;$('cv').textContent=`第 ${Math.floor((custom-1)/3)+1} 行第 ${(custom-1)%3+1} 列`;draw()};
+setupPlayer({captureSeed:1,reset,next},1600);
+</script></body></html>

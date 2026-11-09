@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Q K V</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:12px}</style></head>
+<body><main>
+<h1>第 9 章 · Q、K、V：图书馆找书</h1>
+<p class="sub">配套讲义：<a href="../lessons/09-qkv.html">第 9 章 · Q、K、V 分别是什么</a>。Q = Query（查询，想找什么）、K = Key（键，书脊上的标签）、V = Value（值，书里的内容）。向量的数字是编的，只有 2 个数，方便画在平面上。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="a">自己拖：Q 的方向（想找的东西）</label><input type="range" id="a" min="0" max="180" step="5" value="15"><span id="av">15°</span></div>
+<p class="note">看点：① 每本书有标签 K 和内容 V，两样不是同一个东西；② 拿 Q 和每个 K 做点积：方向越接近，分数越高；③ softmax 分比例；④ 真正带走的是内容 V，不是标签。⑤ 换成句子：她的 Q 找"一个女性的人"，小红的 K 最对得上，她就取走小红的 V。滑块：转动 Q 的方向，比例跟着变，带走的内容也跟着变。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const B=[{n:'家常菜谱',k:[2,0.4],v:'红烧肉做法',c:'var(--warm)'},{n:'世界历史',k:[0.2,2],v:'秦朝统一',c:'var(--teal)'},{n:'编程入门',k:[-1.6,1.2],v:'写循环',c:'var(--purple)'}];
+const fmt=(v,d=2)=>{const r=Math.round(v*10**d)/10**d;return (Object.is(r,-0)?'0':String(r)).replace('-','−')};
+const soft=S=>{const m=Math.max(...S),E=S.map(v=>Math.exp(v-m)),t=E.reduce((a,b)=>a+b,0);return E.map(v=>v/t)};
+const qOf=deg=>{const r=deg*Math.PI/180;return[2*Math.cos(r),2*Math.sin(r)]};
+const ST=[{cap:'每本书：书脊上贴标签（K），书里是内容（V）',s:0},{cap:'Q = "我想找讲做红烧肉的书"：拿 Q 和每个 K 比对（点积）',s:1},
+  {cap:'对得上的多看，对不上的少看：softmax 分比例',s:2},{cap:'真正带走的是内容 V，不是标签 K',s:3},{cap:'回到句子：她的 Q 找"一个女性的人"，小红的 K 最对得上',s:4}];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+function defs(){const d=el('defs',{},sv);['var(--accent)','var(--warm)','var(--teal)','var(--purple)'].forEach((c,i)=>{const m=el('marker',{id:'m'+i,viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:6,markerHeight:6,orient:'auto'},d);el('path',{d:'M0,0 L10,5 L0,10 z',fill:c},m)})}
+function books(y,showV,P){B.forEach((b,i)=>{const x=60+i*120;
+  el('rect',{x,y,width:96,height:130,rx:6,fill:'none',stroke:b.c,'stroke-width':2},sv);
+  el('rect',{x,y,width:96,height:30,rx:6,fill:b.c},sv);txt('K：'+b.n,{x:x+48,y:y+20,'text-anchor':'middle',class:'v'},sv).style.fill='#fff';
+  const t=txt(showV?'V：'+b.v:'V：（内容）',{x:x+48,y:y+75,'text-anchor':'middle',class:'v'},sv);if(!showV)t.style.fill='var(--muted)';
+  if(P){el('rect',{x,y:y+140,width:96*P[i],height:14,rx:3,fill:b.c},sv);txt(fmt(P[i]),{x:x+48,y:y+172,'text-anchor':'middle',class:'big'},sv)}})}
+function compass(q){const cx=530,cy=200,U=46;
+  el('circle',{cx,cy,r:2.2*U,fill:'none',stroke:'var(--line)'},sv);
+  B.forEach((b,i)=>{el('line',{x1:cx,y1:cy,x2:cx+b.k[0]*U,y2:cy-b.k[1]*U,stroke:b.c,'stroke-width':2.5,'marker-end':`url(#m${i+1})`},sv);
+    txt('K '+b.n,{x:cx+b.k[0]*U*1.08+(b.k[0]<0?-4:4)-(b.k[0]>1?40:0),y:cy-b.k[1]*U*1.12+(b.k[0]>1?22:0),'text-anchor':b.k[0]<0?'end':'start',class:'v'},sv).style.fill=b.c});
+  if(q){el('line',{x1:cx,y1:cy,x2:cx+q[0]*U,y2:cy-q[1]*U,stroke:'var(--accent)','stroke-width':3.5,'marker-end':'url(#m0)'},sv);
+    txt('Q',{x:cx+q[0]*U*1.05,y:cy-q[1]*U*1.05-12,'text-anchor':'middle',class:'big'},sv).style.fill='var(--accent)'}
+  txt('方向越接近，点积越大',{x:cx,y:cy+2.2*U+22,'text-anchor':'middle',class:'m'},sv)}
+function scene(q,s){
+  const S=B.map(b=>b.k[0]*q[0]+b.k[1]*q[1]),P=soft(S);
+  books(70,s>=3,s>=2?P:null);compass(s>=1?q:null);
+  if(s>=1&&s<2)B.forEach((b,i)=>txt('Q·K = '+fmt(S[i]),{x:108+i*120,y:225,'text-anchor':'middle',class:'big'},sv));
+  if(s>=3){const top=P.indexOf(Math.max(...P));
+    txt(`带走：${B.map((b,i)=>fmt(P[i])+' × '+b.v).join(' + ')}`,{x:240,y:290,'text-anchor':'middle',class:'m'},sv);
+    txt(`→ 主要拿走"${B[top].v}"`,{x:240,y:315,'text-anchor':'middle',class:'big'},sv).style.fill=B[top].c}
+}
+function sentence(){
+  const R=[['','Q（找什么）','K（我是什么）','V（带的信息）'],['她','找"一个女性的人"','—','—'],['小明','—','"一个男性的名字"','小明的信息'],['苹果','—','"一种水果"','苹果的信息'],['小红','—','"一个女性的名字" ✓','小红的信息 ← 取走']];
+  R.forEach((r,i)=>r.forEach((c,j)=>{const x=70+[0,90,250,430][j],y=90+i*42;
+    if(i===4&&j>=2)el('rect',{x:x-6,y:y-22,width:j===2?170:180,height:32,rx:4,fill:'var(--accent-bg)'},sv);
+    const t=txt(c,{x,y,class:i===0?'m':'big'},sv);if(i===1&&j===1)t.style.fill='var(--accent)'}));
+  txt('每个词都同时有 Q、K、V：既会去找别人（Q），也会被别人找（K、V）',{x:340,y:330,'text-anchor':'middle',class:'m'},sv);
+  txt('第 2 章"她"和各个词做点积，其实就是她的 Q 和每个词的 K 做点积',{x:340,y:355,'text-anchor':'middle',class:'m'},sv)}
+function draw(){
+  clear(sv);defs();
+  if(custom!==null){txt(`Q 的方向 ${custom}°：比例和带走的内容跟着变`,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);scene(qOf(custom),3);return}
+  const f=ST[FR[k]];txt(f.cap,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+  if(f.s===4)sentence();else scene(qOf(15),f.s);
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('a').oninput=e=>{ANIM.stop();custom=+e.target.value;$('av').textContent=custom+'°';draw()};
+setupPlayer({captureSeed:1,reset,next},1600);
+</script></body></html>

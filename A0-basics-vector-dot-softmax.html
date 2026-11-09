@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A0 · 读 attention 之前的四个基础概念 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="index.html">从零读懂 Transformer</a>
+<a href="lessons/index.html">讲义目录</a>
+<a href="animations/index.html">动画</a>
+<a href="review.html">复习卡片</a>
+<a href="lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="a0-attention">A0 · 读 attention 之前的四个基础概念</h1>
+<p>来源：对话讲解（2026-10-25），配合 A2-attention-is-all-you-need.md 使用。
+一句话：attention = <strong>词变向量 → 点积打分 → softmax 分比例 → 按比例取信息</strong>。</p>
+<h2 id="_1">速记口诀</h2>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>口诀</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>向量</td>
+<td>一串数字描一物，位置含义不能乱</td>
+</tr>
+<tr>
+<td>点积</td>
+<td>对位相乘再相加，数字越大越像它</td>
+</tr>
+<tr>
+<td>softmax</td>
+<td>分数变比例，加起来等于一</td>
+</tr>
+<tr>
+<td>区分</td>
+<td>softmax 分注意，LayerNorm 稳数值</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_2">符号约定</h2>
+<table>
+<thead>
+<tr>
+<th>写法</th>
+<th>读法</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(\mathbf a\)</span>（粗体）</td>
+<td>向量 a</td>
+<td>一整串数字</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(a_i\)</span>（右下角小字）</td>
+<td>a 下标 i</td>
+<td>向量 a 的第 i 个数</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(d\)</span></td>
+<td>维数</td>
+<td>一个向量里有几个数</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\sum_{i=1}^{d}\)</span></td>
+<td>求和，i 从 1 到 d</td>
+<td>把 i = 1, 2, …, d 的每一项都加起来</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-vector">1 向量 vector</h2>
+<div class="arithmatex">\[\mathbf a = [a_1, a_2, \dots, a_d]\]</div>
+<ul>
+<li><span class="arithmatex">\(a_1\)</span> 是第 1 个数，<span class="arithmatex">\(a_2\)</span> 是第 2 个数……一共 <span class="arithmatex">\(d\)</span> 个。</li>
+<li>每个位置的含义固定。</li>
+</ul>
+<p>例：用 [甜, 大, 红] 描述水果，<span class="arithmatex">\(d=3\)</span>。</p>
+<table>
+<thead>
+<tr>
+<th>水果</th>
+<th>向量</th>
+<th>第 1 个数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>苹果</td>
+<td><span class="arithmatex">\([7, 5, 8]\)</span></td>
+<td><span class="arithmatex">\(a_1=7\)</span>（甜度）</td>
+</tr>
+<tr>
+<td>香蕉</td>
+<td><span class="arithmatex">\([8, 3, 0]\)</span></td>
+<td><span class="arithmatex">\(a_1=8\)</span></td>
+</tr>
+<tr>
+<td>柠檬</td>
+<td><span class="arithmatex">\([1, 3, 0]\)</span></td>
+<td><span class="arithmatex">\(a_1=1\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>论文里每个词是 <span class="arithmatex">\(d_{model}=512\)</span> 维向量，每个位置的含义由模型自己学出来。</p>
+<h2 id="2-dot-product">2 点积 dot product</h2>
+<div class="arithmatex">\[\mathbf a\cdot\mathbf b = a_1b_1 + a_2b_2 + \dots + a_db_d = \sum_{i=1}^{d} a_ib_i\]</div>
+<ul>
+<li>中间那串是"展开写法"，最右边是"简写"，两者完全一样。</li>
+<li><span class="arithmatex">\(\sum_{i=1}^{d} a_ib_i\)</span> 读作：把 i 从 1 到 d，每个位置的 <span class="arithmatex">\(a_i \times b_i\)</span> 都加起来。</li>
+</ul>
+<p>例：香蕉 · 柠檬 <span class="arithmatex">\(= 8\times1 + 3\times3 + 0\times0 = 17\)</span></p>
+<p>例：苹果 · 西瓜 <span class="arithmatex">\(= 7\times8 + 5\times10 + 8\times6 = 154\)</span>；苹果 · 柠檬 <span class="arithmatex">\(= 22\)</span>。154 &gt; 22，所以苹果更像西瓜。</p>
+<p>在 attention 里：拿"她"的向量和句子里每个词的向量各做一次点积，得到每个词的分数 <span class="arithmatex">\(s_1, s_2, \dots\)</span></p>
+<h2 id="3-softmax">3 softmax：分数变比例</h2>
+<h3 id="31">3.1 朴素版：除以总分（先理解这个）</h3>
+<div class="arithmatex">\[p_j = \frac{s_j}{\sum_{k} s_k}\]</div>
+<ul>
+<li><span class="arithmatex">\(s_j\)</span>：第 j 个词的分数</li>
+<li><span class="arithmatex">\(\sum_k s_k\)</span>：所有分数的总和</li>
+<li><span class="arithmatex">\(p_j\)</span>：第 j 个词分到的比例；所有 <span class="arithmatex">\(p_j\)</span> 加起来等于 1</li>
+</ul>
+<p>例："她"对 [小明, 苹果, 小红] 的分数 <span class="arithmatex">\(s=[2, 1, 5]\)</span>，总分 8：</p>
+<div class="arithmatex">\[p = [2/8,\ 1/8,\ 5/8] = [0.25,\ 0.125,\ 0.625],\qquad 0.25+0.125+0.625=1\]</div>
+<h3 id="32-softmax-ex">3.2 真正的 softmax：先套一个 <span class="arithmatex">\(e^{x}\)</span>，再除以总和</h3>
+<div class="arithmatex">\[p_j = \frac{e^{s_j}}{\sum_{k} e^{s_k}}\]</div>
+<ul>
+<li><span class="arithmatex">\(e \approx 2.718\)</span> 是一个固定的数；<span class="arithmatex">\(e^{x}\)</span> 就是"e 的 x 次方"。</li>
+</ul>
+<p><strong>补：次方（幂）是什么</strong>
+- <span class="arithmatex">\(2^3\)</span> 读作"2 的 3 次方"，意思是 3 个 2 相乘：<span class="arithmatex">\(2\times2\times2=8\)</span>。右上角的小数字 = 自己乘自己几次。
+- 往下数的规律（每往下一行就除以 2）：</p>
+<table>
+<thead>
+<tr>
+<th>写法</th>
+<th><span class="arithmatex">\(2^3\)</span></th>
+<th><span class="arithmatex">\(2^2\)</span></th>
+<th><span class="arithmatex">\(2^1\)</span></th>
+<th><span class="arithmatex">\(2^0\)</span></th>
+<th><span class="arithmatex">\(2^{-1}\)</span></th>
+<th><span class="arithmatex">\(2^{-2}\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>值</td>
+<td>8</td>
+<td>4</td>
+<td>2</td>
+<td>1</td>
+<td>1/2</td>
+<td>1/4</td>
+</tr>
+</tbody>
+</table>
+<p>所以：任何数的 0 次方 = 1；负数次方 = 1 除以对应的正数次方，永远是正的小数。
+- <span class="arithmatex">\(e\)</span> 和 <span class="arithmatex">\(\pi\approx3.14\)</span> 一样，是数学里一个固定的特殊数，约 2.718。<span class="arithmatex">\(e^{x}\)</span> 就是把 2.718 套进上面的规则；x 是小数时用计算器或 Python <code>math.exp(x)</code> 算。
+- 和朴素版唯一的区别：每个分数先变成 <span class="arithmatex">\(e^{\text{分数}}\)</span>，再除以总和。
+- <span class="arithmatex">\(e^{x}\)</span> 的性质：x 为正、0、负时 <span class="arithmatex">\(e^{x}\)</span> <strong>永远是正数</strong>；x 越大 <span class="arithmatex">\(e^{x}\)</span> 越大。</p>
+<table>
+<thead>
+<tr>
+<th>x</th>
+<th>2</th>
+<th>1</th>
+<th>0</th>
+<th>−1</th>
+<th>−2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(e^{x}\)</span></td>
+<td>7.389</td>
+<td>2.718</td>
+<td>1</td>
+<td>0.368</td>
+<td>0.135</td>
+</tr>
+</tbody>
+</table>
+<p><strong>为什么要多这一步 · 原因 1：分数可能是负数。</strong> 点积可以算出负数。分数 <span class="arithmatex">\([2, -1, 5]\)</span> 用朴素版：总分 6，苹果 <span class="arithmatex">\(=-1/6\approx-0.167\)</span>，<strong>比例是负的，没有意义</strong>（注意力不可能"负分配"）。先套 <span class="arithmatex">\(e^{x}\)</span> 就都变成正数了：</p>
+<table>
+<thead>
+<tr>
+<th>词</th>
+<th>分数 <span class="arithmatex">\(s\)</span></th>
+<th><span class="arithmatex">\(e^{s}\)</span></th>
+<th>比例 <span class="arithmatex">\(e^{s}/156.17\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>小明</td>
+<td>2</td>
+<td>7.389</td>
+<td>0.047</td>
+</tr>
+<tr>
+<td>苹果</td>
+<td>−1</td>
+<td>0.368</td>
+<td>0.002</td>
+</tr>
+<tr>
+<td>小红</td>
+<td>5</td>
+<td>148.413</td>
+<td>0.950</td>
+</tr>
+<tr>
+<td>合计</td>
+<td></td>
+<td>156.170</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p>（附带：朴素版在分数总和为 0 时还会除以 0，<span class="arithmatex">\(e^{x}\)</span> 版本不会。）</p>
+<p><strong>原因 2：拉开差距，让注意力更集中。</strong> 分数每多 1，<span class="arithmatex">\(e^{x}\)</span> 就多乘一次 2.718。小红 5 分、小明 2 分：原始只差 2.5 倍，套上 <span class="arithmatex">\(e^{x}\)</span> 后 <span class="arithmatex">\(e^5/e^2=e^3\approx20\)</span> 倍。同一组分数 [2, 1, 5]：</p>
+<table>
+<thead>
+<tr>
+<th>词</th>
+<th>朴素版</th>
+<th>softmax</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>小明</td>
+<td>0.25</td>
+<td>0.047</td>
+</tr>
+<tr>
+<td>苹果</td>
+<td>0.125</td>
+<td>0.017</td>
+</tr>
+<tr>
+<td>小红</td>
+<td>0.625</td>
+<td>0.936</td>
+</tr>
+</tbody>
+</table>
+<p>代入第 4 步（信息向量同 §4）：朴素版得到 [6.25, 8.75]；softmax 得到 <span class="arithmatex">\([0.936\times10,\ 0.047\times10+0.936\times10]=[9.36,\ 9.83]\)</span>，几乎就是小红的 [10, 10]。有用的信息被放大，无关的（苹果）几乎不混进来。</p>
+<h3 id="33-softmax-saturation">3.3 放大过头：softmax 饱和（saturation）</h3>
+<p>分数差距太大时（如 [2, 1, 50]），softmax ≈ [0, 0, 1]，只看一个词。问题出在<strong>学习</strong>：模型靠"微调分数 → 看结果变没变"来学。</p>
+<table>
+<thead>
+<tr>
+<th>把小红的分数调高 1</th>
+<th>小红比例变化</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>[2, 1, 5] → [2, 1, 6]</td>
+<td>0.936 → 0.976，看得出</td>
+</tr>
+<tr>
+<td>[2, 1, 50] → [2, 1, 51]</td>
+<td>1.000 → 1.000，没变</td>
+</tr>
+</tbody>
+</table>
+<p>比例已经顶到 100%，再调分数结果不变，模型得不到"该往哪调"的信号，<strong>学不动</strong>（类比：音量旋钮拧到最大，再拧也听不出区别）。</p>
+<p>注意：饱和 ≠ 过拟合。饱和是"学不动"；过拟合是"学过头，只会背训练题"。解决饱和的办法见之后讲的 <span class="arithmatex">\(\sqrt{d_k}\)</span>。</p>
+<h2 id="4-weighted-average">4 按比例取信息：加权平均 weighted average</h2>
+<div class="arithmatex">\[\mathbf o = p_1\mathbf v_1 + p_2\mathbf v_2 + \dots + p_n\mathbf v_n = \sum_{j=1}^{n} p_j\,\mathbf v_j\]</div>
+<ul>
+<li><span class="arithmatex">\(\mathbf v_j\)</span>：第 j 个词携带的信息向量（value）</li>
+<li><span class="arithmatex">\(p_j\)</span>：第 j 个词分到的比例（上一步算的）</li>
+<li><span class="arithmatex">\(\mathbf o\)</span>：最终得到的新向量（output），是"她"读完整句之后的理解</li>
+<li>一个数 × 一个向量 = 向量的每个位置都乘这个数：<span class="arithmatex">\(0.625\times[10,10]=[6.25, 6.25]\)</span></li>
+</ul>
+<p>生活里的同款：总评 = 平时 × 0.3 + 期末 × 0.7。</p>
+<p>例：信息向量 [像女生的程度, 是人的程度]</p>
+<table>
+<thead>
+<tr>
+<th>词</th>
+<th><span class="arithmatex">\(\mathbf v_j\)</span></th>
+<th><span class="arithmatex">\(p_j\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>小明</td>
+<td><span class="arithmatex">\([0, 10]\)</span></td>
+<td>0.25</td>
+</tr>
+<tr>
+<td>苹果</td>
+<td><span class="arithmatex">\([0, 0]\)</span></td>
+<td>0.125</td>
+</tr>
+<tr>
+<td>小红</td>
+<td><span class="arithmatex">\([10, 10]\)</span></td>
+<td>0.625</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>第 1 个位置：<span class="arithmatex">\(0.25\times0 + 0.125\times0 + 0.625\times10 = 6.25\)</span></li>
+<li>第 2 个位置：<span class="arithmatex">\(0.25\times10 + 0.125\times0 + 0.625\times10 = 2.5 + 0 + 6.25 = 8.75\)</span></li>
+<li>结果 <span class="arithmatex">\(\mathbf o=[6.25,\ 8.75]\)</span>："她"比较像女生，并且很确定是人。信息大部分来自小红，小明也贡献了一点"是人"。</li>
+</ul>
+<h2 id="5-sqrtd_k">5 为什么除以 <span class="arithmatex">\(\sqrt{d_k}\)</span></h2>
+<ul>
+<li><strong>根号</strong>：<span class="arithmatex">\(\sqrt{64}\)</span> = "哪个数自己乘自己等于 64" = 8。平方根是次方反过来：<span class="arithmatex">\(8^2=64 \Leftrightarrow \sqrt{64}=8\)</span>。</li>
+<li><strong>分数为什么会大</strong>：点积是 <span class="arithmatex">\(d_k\)</span> 项相加。把每一项想成随机的 +1 / −1（抛硬币），加起来通常离 0 约 <span class="arithmatex">\(\sqrt{d_k}\)</span>。论文 <span class="arithmatex">\(d_k=64\)</span>，分数通常 ±8 左右。例 [8, −8, 3] → softmax 第一个占 99.3%，接近饱和。</li>
+<li><strong>解决</strong>：每个分数除以 <span class="arithmatex">\(\sqrt{d_k}=8\)</span>，回到 ±1 左右。[8, −8, 3] ÷ 8 = [1, −1, 0.375] → softmax [0.599, 0.081, 0.320]，不再饱和，调分数会有反应。</li>
+<li>这就是论文名字里的 "scaled"（缩放）：Scaled Dot-Product Attention = 缩放点积注意力。</li>
+</ul>
+<h2 id="6-1">6 论文公式 1 就是这几步合起来</h2>
+<div class="arithmatex">\[\text{Attention}(Q,K,V)=\text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V\]</div>
+<table>
+<thead>
+<tr>
+<th>公式里的部分</th>
+<th>对应哪一步</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(QK^\top\)</span></td>
+<td>第 2 步：一次性把所有点积都算出来</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{softmax}(\cdot)\)</span></td>
+<td>第 3 步：分数变比例</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\cdot\,V\)</span></td>
+<td>第 4 步：按比例取信息</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\sqrt{d_k}\)</span></td>
+<td>打分后先缩小，防止 softmax 饱和（§5）</td>
+</tr>
+</tbody>
+</table>
+<p><span class="arithmatex">\(Q\)</span>、<span class="arithmatex">\(K\)</span>、<span class="arithmatex">\(V\)</span>、矩阵这些还没讲。</p>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

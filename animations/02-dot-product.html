@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>点积 dot product</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:16px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:12px}</style></head>
+<body><main>
+<h1>第 2 章 · 点积 dot product：对位相乘，全部加起来</h1>
+<p class="sub">配套讲义：<a href="../lessons/02-dot-product.html">第 2 章 · 点积 dot product</a>。苹果 [7, 5, 8]、西瓜 [8, 10, 6]、柠檬 [1, 3, 0]，三个位置依次是甜、大、红。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="s">自己拖：让柠檬变甜（柠檬的"甜"打几分）</label><input type="range" id="s" min="0" max="10" step="1" value="1"><span id="sv2">1</span></div>
+<p class="note">看点：① 同一个位置的两个数相乘（甜 × 甜、大 × 大、红 × 红）；② 三个乘积全部加起来，就是点积；③ 苹果 · 西瓜 = 154，苹果 · 柠檬 = 22：同一位置上都是大数，乘出来就大，所以"更像"。滑块：柠檬越甜，和苹果的点积越大。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const DIM=['甜','大','红'],A=[7,5,8],W=[8,10,6],L=[1,3,0];
+const ST=[
+  {cap:'两个向量上下对齐：苹果和西瓜',b:W,bn:'西瓜',n:0},
+  {cap:'第 1 个位置（甜）：7 × 8 = 56',b:W,bn:'西瓜',n:1},
+  {cap:'第 2 个位置（大）：5 × 10 = 50，累计 106',b:W,bn:'西瓜',n:2},
+  {cap:'第 3 个位置（红）：8 × 6 = 48，累计 154',b:W,bn:'西瓜',n:3},
+  {cap:'换成柠檬：7×1 + 5×3 + 8×0 = 22',b:L,bn:'柠檬',n:3},
+  {cap:'154 远大于 22：苹果和西瓜更像',cmp:true}
+];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+function rowVec(y,name,v,col,n){
+  txt(name,{x:70,y:y+26,'text-anchor':'end',class:'big'},sv);
+  v.forEach((a,i)=>{const x=110+i*120;
+    el('rect',{x,y,width:90,height:40,rx:6,fill:'none',stroke:i<n?'var(--accent)':col,'stroke-width':i<n?2.5:1.5},sv);
+    txt(String(a),{x:x+45,y:y+27,'text-anchor':'middle',class:'big'},sv)});
+}
+function sumBar(y,prods,n,max,label){
+  let acc=0,x=110;const sc=420/max;
+  el('line',{x1:110,y1:y+34,x2:560,y2:y+34,stroke:'var(--line)'},sv);
+  prods.slice(0,n).forEach((p,i)=>{const w=p*sc;el('rect',{x,y,width:Math.max(w,1),height:30,fill:['var(--amber)','var(--teal)','var(--warm)'][i]},sv);
+    if(w>24)txt(String(p),{x:x+w/2,y:y+20,'text-anchor':'middle',class:'v'},sv).style.fill='#fff';x+=w;acc+=p});
+  txt((label||'加起来 = ')+acc,{x:x+10,y:y+21,class:'big'},sv);
+}
+function dotFrame(b,bn,n,maxBar){
+  rowVec(70,'苹果',A,'var(--line)',n);rowVec(150,bn,b,'var(--line)',n);
+  DIM.forEach((d,i)=>txt(d,{x:155+i*120,y:62,'text-anchor':'middle',class:'m'},sv));
+  const P=A.map((a,i)=>a*b[i]);
+  P.forEach((p,i)=>{const x=110+i*120;if(i<n){txt('×',{x:x+45,y:140,'text-anchor':'middle',class:'big'},sv).style.fill='var(--accent)';
+    txt(`${A[i]} × ${b[i]} = ${p}`,{x:x+45,y:222,'text-anchor':'middle',class:'big'},sv).style.fill='var(--accent)'}});
+  if(n>0)sumBar(260,P,n,maxBar||160);
+  return P.reduce((a,c)=>a+c,0);
+}
+function draw(){
+  clear(sv);
+  if(custom!==null){
+    const b=[custom,3,0];
+    txt(`柠檬变成 [${custom}, 3, 0]：苹果 · 柠檬 = 7×${custom} + 15 + 0 = ${7*custom+15}`,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+    dotFrame(b,'柠檬',3,160);
+    sumBar(330,[56,50,48],3,160,'对照：苹果 · 西瓜 = ');return}
+  const f=ST[FR[k]];
+  txt(f.cap,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+  if(f.cmp){
+    [['苹果 · 西瓜',154,'var(--teal)',120],['苹果 · 柠檬',22,'var(--warm)',220]].forEach(([l,v,c,y])=>{
+      txt(l,{x:150,y:y+26,'text-anchor':'end',class:'big'},sv);
+      el('rect',{x:170,y,width:v*2.8,height:40,rx:4,fill:c},sv);
+      txt(String(v),{x:178+v*2.8,y:y+27,class:'big'},sv)});
+    txt('都甜、都偏红：同一位置上都是大数 → 乘出来大 → 点积大 → 更像',{x:340,y:320,'text-anchor':'middle',class:'m'},sv);
+    txt('attention 就用点积给词打分：分数高的多看（第 3 章）',{x:340,y:345,'text-anchor':'middle',class:'m'},sv);return}
+  dotFrame(f.b,f.bn,f.n);
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('s').oninput=e=>{ANIM.stop();custom=+e.target.value;$('sv2').textContent=custom;draw()};
+setupPlayer({captureSeed:1,reset,next},1500);
+</script></body></html>

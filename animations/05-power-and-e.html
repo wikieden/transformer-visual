@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>次方与 e</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:12px}</style></head>
+<body><main>
+<h1>第 5 章 · 次方与 e：eˣ 永远是正数，x 越大涨得越快</h1>
+<p class="sub">配套讲义：<a href="../lessons/05-power-and-e.html">第 5 章 · 次方与 e</a>。e ≈ 2.71828；代码里写 exp(x)，exp = exponential（指数）。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="x">自己拖：x</label><input type="range" id="x" min="-30" max="25" step="1" value="0"><span id="xv">0</span></div>
+<p class="note">看点：① 2³ = 3 个 2 相乘；② 指数每少 1，值就除以 2：2⁰ = 1，负数次方是越来越小的正数，永远到不了 0；③ 利滚利：一年结息越勤钱越多，但有上限，上限就是 e ≈ 2.718；④ eˣ 曲线：左边贴着 0 但永远在 0 上面，右边越涨越快。滑块：拖 x，看 eˣ 的值，负的 x 也只会得到很小的正数。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const SUP={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','.':'·'};const sup=n=>String(n).split('').map(c=>SUP[c]||c).join('');
+const fmt=(v,d=3)=>{const r=Math.round(v*10**d)/10**d;return String(r).replace('-','−')};
+const ST=[{cap:'2³ 读作"2 的 3 次方"：3 个 2 相乘 = 8',s:0},{cap:'每往右一格就除以 2：2⁰ = 1，负数次方是越来越小的正数',s:1},
+  {cap:'e 的来历：存 1 元，年利率 100%，一年结息越勤，年底钱越多',s:2},{cap:'但有上限：结息无数次，年底是 e ≈ 2.71828 元',s:3},
+  {cap:'eˣ：把 2.718 套进次方规则',s:4},{cap:'eˣ 永远是正数；x 越大涨得越快',s:5}];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+function pow2(){['2','×','2','×','2','=','8'].forEach((t,i)=>{const x=150+i*62;
+  if(t==='2'||t==='8'){el('rect',{x:x-24,y:150,width:48,height:56,rx:8,fill:t==='8'?'var(--accent-bg)':'none',stroke:'var(--accent)'},sv)}
+  txt(t,{x,y:188,'text-anchor':'middle',class:'big'},sv).style.fontSize='26px'});
+  txt('右上角的小数字 3 = 自己乘自己几次',{x:340,y:250,'text-anchor':'middle',class:'m'},sv);
+  txt('10² = 10 × 10 = 100　　3² = 3 × 3 = 9',{x:340,y:280,'text-anchor':'middle',class:'big'},sv)}
+function halving(){const E=[3,2,1,0,-1,-2],base=320,U=26;
+  el('line',{x1:60,y1:base,x2:640,y2:base,stroke:'var(--muted)'},sv);
+  E.forEach((e,i)=>{const v=2**e,x=80+i*95;el('rect',{x,y:base-v*U,width:56,height:v*U,rx:4,fill:e===0?'var(--accent)':e<0?'var(--purple)':'var(--teal)'},sv);
+    txt('2'+sup(e),{x:x+28,y:base+20,'text-anchor':'middle',class:'big'},sv);
+    txt(e<0?`1/${2**-e}`:String(v),{x:x+28,y:base-v*U-8,'text-anchor':'middle',class:'big'},sv);
+    if(i)txt('÷2',{x:x-20,y:base-40,'text-anchor':'middle',class:'m'},sv)});
+  txt('0 次方 = 1；负数次方 = 正的小数，越来越小，但永远不会变成 0 或负数',{x:340,y:375,'text-anchor':'middle',class:'m'},sv)}
+function interest(all){const N=[1,2,4,12,365],base=320,U=100,ex=Math.E;
+  el('line',{x1:60,y1:base,x2:640,y2:base,stroke:'var(--muted)'},sv);
+  if(all){el('line',{x1:60,y1:base-ex*U,x2:640,y2:base-ex*U,stroke:'var(--warm)','stroke-dasharray':'6 4','stroke-width':2},sv);
+    const t=txt('上限 e ≈ 2.71828',{x:636,y:base-ex*U-8,'text-anchor':'end',class:'big'},sv);t.style.fill='var(--warm)'}
+  N.forEach((n,i)=>{const v=(1+1/n)**n,x=90+i*105;el('rect',{x,y:base-v*U,width:60,height:v*U,rx:4,fill:'var(--teal)'},sv);
+    txt(fmt(v,4),{x:x+30,y:base-v*U+18,'text-anchor':'middle',class:'v'},sv).style.fill='#fff';
+    txt(`结息 ${n} 次`,{x:x+30,y:base+20,'text-anchor':'middle',class:'big'},sv);
+    txt(n===1?'2¹':`(1+1/${n})`+sup(n),{x:x+30,y:base+40,'text-anchor':'middle',class:'m'},sv)})}
+const PX0=110,PX1=620,PY0=330;
+function curve(xmin,xmax,ymax){const X=x=>PX0+(x-xmin)/(xmax-xmin)*(PX1-PX0),Y=y=>PY0-y/ymax*250;
+  el('line',{x1:PX0,y1:PY0,x2:PX1,y2:PY0,stroke:'var(--muted)'},sv);el('line',{x1:X(0),y1:PY0+6,x2:X(0),y2:PY0-262,stroke:'var(--line)'},sv);
+  for(let t=Math.ceil(xmin);t<=xmax;t++)txt(String(t).replace('-','−'),{x:X(t),y:PY0+18,'text-anchor':'middle',class:'m'},sv);
+  txt('x',{x:PX1+10,y:PY0+4,class:'m'},sv);txt('eˣ',{x:X(0)+6,y:PY0-252,class:'m'},sv);
+  let d='';for(let x=xmin;x<=xmax+1e-9;x+=0.05){const y=Math.exp(x);if(y>ymax*1.02)break;d+=(d?'L':'M')+X(x).toFixed(1)+','+Y(y).toFixed(1)}
+  el('path',{d,fill:'none',stroke:'var(--purple)','stroke-width':3},sv);return{X,Y}}
+function dot(c,x,lab){const y=Math.exp(x);el('circle',{cx:c.X(x),cy:c.Y(y),r:6,fill:'var(--warm)'},sv);
+  txt(lab||`e${sup(Math.round(x*10)/10)} = ${fmt(y)}`,{x:c.X(x)+(x>0.5?-12:8),y:c.Y(y)-(x<0?14:10),'text-anchor':x>0.5?'end':'start',class:'big'},sv)}
+function draw(){
+  clear(sv);
+  if(custom!==null){txt(`x = ${fmt(custom,1)}　→　eˣ = ${fmt(Math.exp(custom),3)}`+(custom<-1?'（很小，但还是正数）':custom<0?'（比 1 小，但还是正数）':''),{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+    const c=curve(-3,2.5,12.5);dot(c,custom);return}
+  const f=ST[FR[k]];txt(f.cap,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+  if(f.s===0)pow2();else if(f.s===1)halving();else if(f.s<=3)interest(f.s===3);
+  else{const c=f.s===4?curve(-2,2,8):curve(-4,2.2,9.5);
+    (f.s===4?[-2,-1,0,1,2]:[-3,0,2]).forEach(x=>dot(c,x,`e${sup(x)} = ${fmt(Math.exp(x))}`));
+    if(f.s===5)txt('左边贴着 0，但永远在 0 上面',{x:200,y:255,class:'m'},sv)}
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('x').oninput=e=>{ANIM.stop();custom=+e.target.value/10;$('xv').textContent=fmt(custom,1);draw()};
+setupPlayer({captureSeed:1,reset,next},1500);
+</script></body></html>

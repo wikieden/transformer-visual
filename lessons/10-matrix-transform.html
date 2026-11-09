@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 10 章 · 转换与矩阵：Q、K、V 是怎么变出来的 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="10-qkv">第 10 章 · 转换与矩阵：Q、K、V 是怎么变出来的</h1><p><a class="btn" href="../animations/10-matrix-transform.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：每个词的 Q、K、V 三个向量，是从哪里来的？<br />
+讲解日期：2026-10-26 · 上一章：<a href="../lessons/09-qkv.html">第 9 章 Q、K、V</a> · 下一章：<a href="../lessons/11-matrix-qk.html">第 11 章 大写的 Q、K、V</a><br />
+对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.2.2，L205–L216（<span class="arithmatex">\(W_i^Q, W_i^K, W_i^V\)</span>）<br />
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="_2">第一步：用一组"权重"做点积，得到一个新的数</h3>
+<p>苹果的向量是 [甜 7, 大 5, 红 8]。如果想得到一个新特征"适合榨果汁的程度"，可以这样规定：</p>
+<blockquote>
+<p>适合榨汁 = 0.5 × 甜 + 0 × 大 + 0.2 × 红</p>
+</blockquote>
+<p>这就是拿苹果向量和一组<strong>权重</strong> [0.5, 0, 0.2] 做<strong>点积</strong>（第 2 章）：</p>
+<div class="arithmatex">\[0.5\times7 + 0\times5 + 0.2\times8 = 3.5 + 0 + 1.6 = 5.1\]</div>
+<p>权重决定"每个原始特征占多少分量"：甜很重要（0.5），大小无所谓（0），红有一点关系（0.2）。</p>
+<p><strong>准备好几组权重，各做一次点积，就得到几个新数，拼起来就是一个新向量。</strong> 这就叫一次"转换"。Q、K、V 就是用<strong>三套不同的权重</strong>，从同一个词向量转换出来的三个新向量。权重不是人定的，是模型训练时学出来的。</p>
+<h3 id="_3">第二步：几组权重排成一张表 = 矩阵</h3>
+<p>两组权重：适合榨汁 [0.5, 0, 0.2]，好不好拿 [0.1, 0.5, 0]。苹果各做一次点积 → 新向量 <strong>[5.1, 3.2]</strong>。原来 3 个数（甜、大、红），变成了 2 个新数（榨汁、好拿）。</p>
+<p>把两组权重竖着排成一张表，<strong>每一列是一组权重</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>原特征 ↓ / 新特征 →</th>
+<th>榨汁</th>
+<th>好拿</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>甜</td>
+<td>0.5</td>
+<td>0.1</td>
+</tr>
+<tr>
+<td>大</td>
+<td>0</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>红</td>
+<td>0.2</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>这张数字表就叫<strong>矩阵（matrix）</strong>，记作 <span class="arithmatex">\(W\)</span>（W = weight，权重）。它有 3 行 × 2 列：行数 = 原向量的长度，列数 = 新向量的长度。</p>
+<p><strong>向量乘矩阵 = 向量和矩阵的每一列各做一次点积</strong>，结果排成新向量：</p>
+<div class="arithmatex">\[\mathbf x W = [\ \mathbf x\cdot\text{第 1 列},\ \ \mathbf x\cdot\text{第 2 列}\ ]\]</div>
+<h3 id="wqwkwv">第三步：论文里的 <span class="arithmatex">\(W^Q\)</span>、<span class="arithmatex">\(W^K\)</span>、<span class="arithmatex">\(W^V\)</span></h3>
+<ul>
+<li>每个词向量 <span class="arithmatex">\(\mathbf x\)</span> 有 512 个数；</li>
+<li><span class="arithmatex">\(W^Q\)</span> 是 <strong>512 行 × 64 列</strong>的矩阵，所以 <span class="arithmatex">\(\mathbf q = \mathbf x W^Q\)</span> 有 <strong>64 个数</strong>。这就是第 8 章 <span class="arithmatex">\(d_k = 64\)</span> 的来源（为什么偏偏是 64，讲多头时再说）；</li>
+<li>同一个 <span class="arithmatex">\(\mathbf x\)</span> 乘三个<strong>不同的</strong>矩阵，得到三个不同的向量：</li>
+</ul>
+<div class="arithmatex">\[\mathbf q = \mathbf x W^Q,\qquad \mathbf k = \mathbf x W^K,\qquad \mathbf v = \mathbf x W^V\]</div>
+<p>矩阵里的数（权重）一开始是随机的，模型在训练中自己调。</p>
+<h2 id="x">动画演示：和每一列做点积；同一个 x 乘三个矩阵</h2>
+<p><img alt="向量乘矩阵" src="../animations/10-matrix-transform.gif" /></p>
+<p>可交互版：<a href="../animations/10-matrix-transform.html">animations/10-matrix-transform.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"）。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>苹果 [7, 5, 8] 和第 1 列权重 [0.5, 0, 0.2] 做点积 → 榨汁 5.1；</li>
+<li>和第 2 列 [0.1, 0.5, 0] 做点积 → 好拿 3.2；</li>
+<li>两列排成矩阵 W（3 × 2）：向量乘矩阵 = 和每一列各做一次点积，3 个数变成 2 个数；</li>
+<li>同一个 x 乘 <span class="arithmatex">\(W^Q\)</span>、<span class="arithmatex">\(W^K\)</span>、<span class="arithmatex">\(W^V\)</span>（512 × 64），得到 q、k、v 各 64 个数；滑块：改一个权重，只有它那一列的结果变。</li>
+</ol>
+<h2 id="_4">练习与作答记录</h2>
+<p><strong>题 1</strong>：用另一组权重 [0.1, 0.5, 0] 算苹果的新特征"好不好拿"。</p>
+<p><strong>第 1 次作答</strong>："这就是大小引起的。"</p>
+<p><strong>点评</strong>：读懂了权重的含义 ✓：大小的权重 0.5 最大，所以"好不好拿"主要由大小决定。但没算数，追问后补算。</p>
+<p><strong>第 2 次作答</strong>：<strong>3.2</strong> ✓（<span class="arithmatex">\(0.1\times7+0.5\times5+0\times8=0.7+2.5+0=3.2\)</span>）</p>
+<p><strong>题 2</strong>：香蕉 [8, 3, 0] 乘上面的矩阵 <span class="arithmatex">\(W\)</span>，新向量是多少？</p>
+<p><strong>第 1 次作答</strong>：[5.6, 2.3]。第 2 个 ✓；第 1 个 ✗。5.6 = 0.5×8 + 0.2×8，"红"的权重 0.2 乘到了 8 上，但香蕉的"红"是 0。<strong>对位错了</strong>：权重的第 3 个必须乘向量的第 3 个。</p>
+<p><strong>第 2 次作答</strong>（对位表格提示后）：<strong>[4, 2.3]</strong> ✓（<span class="arithmatex">\(0.5\times8+0\times3+0.2\times0=4\)</span>）</p>
+<h2 id="_5">公式小结</h2>
+<div class="arithmatex">\[\mathbf x W = [\ \mathbf x\cdot\text{第 1 列},\ \mathbf x\cdot\text{第 2 列},\ \dots\ ]\]</div>
+<div class="arithmatex">\[\mathbf q = \mathbf x W^Q,\qquad \mathbf k = \mathbf x W^K,\qquad \mathbf v = \mathbf x W^V\qquad(W^Q:\ 512\times64)\]</div>
+<h2 id="_6">本章复习卡片</h2>
+<p>R17 矩阵与"向量乘矩阵" · R18 Q、K、V 怎么变出来（见 <a href="../review.html">../review.md</a>）</p>
+<h2 id="_7">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_8">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ 3Blue1Brown《线性代数的本质》</td>
+<td>第 3 集 Linear transformations and matrices、第 4 集 Matrix multiplication as composition</td>
+<td>矩阵 = 一种"变换"；看懂"向量乘矩阵"的几何意义</td>
+</tr>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>§3.2.2，L205–L216</td>
+<td><span class="arithmatex">\(W^Q, W^K, W^V\)</span> 的形状：<span class="arithmatex">\(d_{model} \times d_k\)</span></td>
+</tr>
+<tr>
+<td>Goodfellow《Deep Learning》</td>
+<td>§2.2 Multiplying Matrices and Vectors</td>
+<td>矩阵乘法的正式定义</td>
+</tr>
+<tr>
+<td>CS336 a1 handout</td>
+<td>§3.4.2 Linear Module、§3.3 Batching, Einsum</td>
+<td>作业里自己写 Linear 层；用 einsum 写矩阵乘法</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_9">数学原理</h3>
+<ul>
+<li><strong>线性变换</strong>：满足"先加后变 = 先变后加"、"先放大后变 = 先变后放大"的变换。所有线性变换都能写成乘一个矩阵。</li>
+<li><strong>列的含义</strong>：向量乘矩阵时，结果的第 j 个数 = 向量和矩阵第 j 列的点积。每一列就是一个"新特征的配方"。</li>
+<li><strong>形状规则</strong>：(1 × d) 乘 (d × k) 得 (1 × k)。中间的 d 必须相等，结果取两头。</li>
+<li><strong>参数量</strong>：一个 <span class="arithmatex">\(d_{model} \times d_k\)</span> 的矩阵有 <span class="arithmatex">\(d_{model} \cdot d_k\)</span> 个可学习的数（论文里是 512 × 64 = 32768）。</li>
+</ul>
+<h3 id="_10">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\((\mathbf x W)_j = \sum_i x_i W_{ij}\)</span></td>
+<td>结果的第 j 个数 = x 和第 j 列的点积</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\mathbf q = \mathbf x W^Q,\ W^Q \in \mathbb{R}^{d_{model} \times d_k}\)</span></td>
+<td>512 维变成 64 维</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\((1 \times d)(d \times k) = (1 \times k)\)</span></td>
+<td>形状规则</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(f(a\mathbf x + b\mathbf y) = a f(\mathbf x) + b f(\mathbf y)\)</span></td>
+<td>线性的定义</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="09-qkv.html">← 第 9 章 · Q、K、V 分别是什么</a><a href="11-matrix-qk.html">第 11 章 · 大写的 Q、K、V：一次算出所有分数 →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

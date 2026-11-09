@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>多档时钟位置编码</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}</style></head>
+<body><main>
+<h1>第 16 章 · 位置编码（下）：多档时钟</h1>
+<p class="sub">配套讲义：<a href="../lessons/16-multi-clock.html">第 16 章 · 位置编码（下）：多档时钟</a>。论文有 256 个轮子，这里挑 3 个：第 0、64、128 个。括号里 = 座位号 × 一步多长。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 380"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="pos">自己拖："狗"坐几号座</label><input type="range" id="pos" min="0" max="300" value="0"><span id="posv">0</span></div>
+<p class="note">看点：① 座位号每加 1，快轮转一大截，慢轮几乎不动；② 挨着的 1、2 号座靠快轮分开，隔得远的 1、45 号座在快轮上几乎撞牌，靠慢轮分开；③ 往后挪 2 个座位，不管从几号出发，每个轮子多转的角度都一样。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const WH=[{i:0,step:1,x:115},{i:64,step:0.1,x:340},{i:128,step:0.01,x:565}];
+const CY=200,R=78;
+const f2=v=>{const r=Math.round(v*100)/100;return (Object.is(r,-0)?0:r).toFixed(2).replace('-','−')};
+const fa=v=>(Math.round(v*100)/100).toString();
+const pt=(w,a)=>[w.x+R*Math.cos(a),CY-R*Math.sin(a)];
+// 帧表：A 段逐个座位走；B 段比较近 / 远；C 段往后挪 2 个座位
+const FR=[];
+for(let p=0;p<=12;p++)FR.push({t:'A',p});
+[20,30,45].forEach(p=>FR.push({t:'A',p}));
+for(let r=0;r<4;r++)FR.push({t:'B',pair:[1,2]});
+for(let r=0;r<4;r++)FR.push({t:'B',pair:[1,45]});
+for(let r=0;r<4;r++)FR.push({t:'C',from:3});
+for(let r=0;r<4;r++)FR.push({t:'C',from:10});
+let k=0,custom=null;
+function cap(s){txt(s,{x:340,y:26,'text-anchor':'middle',class:'cap'},sv)}
+function frame(w){
+  txt(`第 ${w.i} 个轮子`,{x:w.x,y:78,'text-anchor':'middle',class:'big'},sv);
+  txt(`一步 ${w.step} 弧度`,{x:w.x,y:98,'text-anchor':'middle',class:'m'},sv);
+  el('circle',{cx:w.x,cy:CY,r:R,fill:'none',stroke:'var(--line)','stroke-width':2},sv);
+  el('line',{x1:w.x-R-8,y1:CY,x2:w.x+R+8,y2:CY,stroke:'var(--line)','stroke-dasharray':'3 4'},sv);
+  el('line',{x1:w.x,y1:CY-R-8,x2:w.x,y2:CY+R+8,stroke:'var(--line)','stroke-dasharray':'3 4'},sv);
+  el('circle',{cx:w.x,cy:CY,r:2.5,fill:'var(--muted)'},sv);
+}
+function dot(w,a,color,r=8){const [x,y]=pt(w,a);el('circle',{cx:x,cy:y,r,fill:color},sv);return [x,y]}
+function reading(w,p,y,color){
+  const a=p*w.step;
+  const t=txt(`${p} 号：走 ${fa(a)} → (${f2(Math.sin(a))}, ${f2(Math.cos(a))})`,{x:w.x,y,'text-anchor':'middle'},sv);
+  t.style.fill=color;
+}
+function arc(w,a1,a2,color){
+  const [x1,y1]=pt(w,a1),[x2,y2]=pt(w,a2);
+  let d=(a2-a1)%(2*Math.PI);const big=d>Math.PI?1:0;
+  el('path',{d:`M ${x1} ${y1} A ${R} ${R} 0 ${big} 0 ${x2} ${y2}`,fill:'none',stroke:color,'stroke-width':6,opacity:.55},sv);
+}
+function drawA(p,title){
+  cap(title||'座位号每加 1：快轮转一大截，慢轮几乎不动');
+  txt(`"狗"坐 ${p} 号座`,{x:340,y:52,'text-anchor':'middle',class:'big'},sv);
+  WH.forEach(w=>{
+    frame(w);
+    for(let q=0;q<p&&custom===null;q++){const [x,y]=pt(w,q*w.step);el('circle',{cx:x,cy:y,r:3,fill:'var(--accent)',opacity:.3},sv)}
+    dot(w,p*w.step,'var(--accent)');
+    reading(w,p,CY+R+34,'var(--text)');
+  });
+  txt('号码牌里每个轮子记 (sin, cos) 两个数；括号里 = 座位号 × 一步多长',{x:340,y:362,'text-anchor':'middle',class:'m'},sv);
+}
+function drawB([p1,p2]){
+  const near=p2-p1<5;
+  cap(near?'1、2 号座（挨着）：快轮分得开，慢轮几乎重合':'1、45 号座（隔得远）：快轮几乎撞牌，慢轮分得开');
+  WH.forEach(w=>{
+    frame(w);
+    const [x1,y1]=dot(w,p1*w.step,'var(--teal)',9),[x2,y2]=dot(w,p2*w.step,'var(--warm)',7);
+    reading(w,p1,CY+R+30,'var(--teal)');reading(w,p2,CY+R+50,'var(--warm)');
+    const far=Math.hypot(x1-x2,y1-y2)>R*0.35;
+    const t=txt(far?'分得开 ✓':'几乎一样',{x:w.x,y:CY+R+74,'text-anchor':'middle',class:'big'},sv);
+    t.style.fill=far?'var(--good)':'var(--bad)';
+  });
+  txt(near?'→ 近处靠快轮':'→ 远处靠慢轮；所有轮子拼在一起，远近都分得清',{x:340,y:52,'text-anchor':'middle',class:'big'},sv);
+}
+function drawC(from){
+  const to=from+2;
+  cap(`往后挪 2 个座位：${from} 号 → ${to} 号`);
+  txt(from===3?'每个轮子多转 2 × 一步多长':'起点换了，多转的角度一样 → "挪 2 个座位"是一个固定动作',{x:340,y:52,'text-anchor':'middle',class:'big'},sv);
+  WH.forEach(w=>{
+    frame(w);
+    const a1=from*w.step,a2=to*w.step;
+    arc(w,a1,a2,'var(--purple)');
+    dot(w,a1,'var(--muted)',7);dot(w,a2,'var(--accent)',8);
+    const t=txt(`多转 ${fa(2*w.step)} 弧度`,{x:w.x,y:CY+R+34,'text-anchor':'middle',class:'big'},sv);t.style.fill='var(--purple)';
+    txt(`${fa(a1)} → ${fa(a2)}`,{x:w.x,y:CY+R+56,'text-anchor':'middle',class:'m'},sv);
+  });
+}
+function draw(){
+  clear(sv);
+  if(custom!==null){drawA(custom,'自己拖：看三个轮子各走到哪');return}
+  const f=FR[k];
+  if(f.t==='A')drawA(f.p);else if(f.t==='B')drawB(f.pair);else drawC(f.from);
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('pos').oninput=e=>{ANIM.stop();custom=+e.target.value;$('posv').textContent=custom;draw()};
+setupPlayer({captureSeed:1,reset,next},800);
+</script></body></html>

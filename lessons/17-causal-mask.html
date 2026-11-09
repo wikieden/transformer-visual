@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 17 章 · 因果 mask：不许偷看后面的词 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="17-mask">第 17 章 · 因果 mask：不许偷看后面的词</h1><p><a class="btn" href="../animations/17-causal-mask.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：模型生成文字时为什么不能看后面的词？attention 里怎么"遮住"后面的词？<br />
+讲解日期：2026-11-05 · 上一章：<a href="../lessons/16-multi-clock.html">第 16 章 多档时钟</a> · 下一章：<a href="../lessons/18-residual.html">第 18 章 残差连接</a><br />
+对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3 开头 L113–L116；§3.1 L138–L143；§3.2.3 L232–L238<br />
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；exp = exponential（指数）：exp(x) = eˣ；GPT = Generative Pre-trained Transformer（生成式预训练 Transformer）；NoPE = No Positional Encoding（不加位置编码）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="2026-11-05">第一步：模型一次说一个词，训练时不能偷看答案（2026-11-05）</h3>
+<p><strong>模型怎么说话</strong>：一次只说一个词，说出来的词接到后面，再根据前面所有的词说下一个。</p>
+<blockquote>
+<p>狗 → 狗咬 → 狗咬人</p>
+</blockquote>
+<p>论文 L115–L116 把这叫 <strong>auto-regressive</strong>（自回归）：每一步都把"之前生成的词"当作输入，去生成下一个。</p>
+<p><strong>训练时怎么练</strong>：把整句"狗咬人"一次放进去，让<strong>每个座位都猜它的下一个词</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>座位</th>
+<th>坐着的词</th>
+<th>要猜的下一个词</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 号</td>
+<td>狗</td>
+<td>咬</td>
+</tr>
+<tr>
+<td>2 号</td>
+<td>咬</td>
+<td>人</td>
+</tr>
+</tbody>
+</table>
+<p><strong>问题</strong>：第 9–13 章的 attention 让每个词都能看到句子里<strong>所有</strong>的词。那 1 号座"狗"在猜下一个词时，一眼就看到 2 号座坐着"咬"，等于<strong>直接偷看了答案</strong>。这样训练出来的模型，到真正一个词一个词说话时，后面的词还没生成，根本没得看，就不会说了。</p>
+<p><strong>类比：听写。</strong> 老师念一个字你写一个字。如果练习时答案就印在本子的下一行，你抄着写当然全对，但真到考试没有答案，就写不出来。所以练习时要<strong>用纸把后面的答案遮住</strong>。</p>
+<p><strong>规则</strong>（论文 L142–L143、L235–L236）：每个座位只能看<strong>自己和前面</strong>的座位，<strong>不能看后面</strong>的。"后面的词"就是"未来"，未来不能影响现在，所以叫<strong>因果</strong>（causal）mask。</p>
+<p><strong>一句话</strong>：生成时后面的词还不存在，所以训练时也要把后面的词遮住，不许偷看答案。</p>
+<h3 id="2026-11-05_1">第二步：在分数表上遮住哪些格子（2026-11-05）</h3>
+<p><strong>回顾第 11 章</strong>：<span class="arithmatex">\(QK^\top\)</span> 是一张分数表，<strong>行 = 谁去找，列 = 被找的是谁</strong>。第 <span class="arithmatex">\(i\)</span> 行第 <span class="arithmatex">\(j\)</span> 列 = 第 <span class="arithmatex">\(i\)</span> 个词看第 <span class="arithmatex">\(j\)</span> 个词的分数。</p>
+<p>"遮住后面的词"落到这张表上就是：<strong>第 <span class="arithmatex">\(i\)</span> 行只保留第 1 到第 <span class="arithmatex">\(i\)</span> 列，右边的格子都遮掉</strong>。</p>
+<p>"狗咬人"的分数表（✓ 能看，✗ 遮住）：</p>
+<table>
+<thead>
+<tr>
+<th>谁去找 ↓ \ 被找的 →</th>
+<th>1 狗</th>
+<th>2 咬</th>
+<th>3 人</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 狗</td>
+<td>✓</td>
+<td>✗</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>2 咬</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>3 人</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+</tbody>
+</table>
+<p><strong>看形状</strong>：能看的格子是左下方一个<strong>三角形</strong>（包括对角线：自己看自己）；被遮的是右上方的三角形。所以这种 mask 也叫<strong>下三角 mask</strong>。</p>
+<p><strong>类比：电影院一排排往后坐，大家都面朝屏幕，只能看到前面的人。</strong> 第 1 排只看得到自己，第 3 排能看到前两排和自己。</p>
+<p><strong>一句话</strong>：因果 mask 就是把分数表右上方的三角形遮掉，每一行只留自己和左边。</p>
+<h3 id="softmax-ex2026-11-05">第三步前的复习：softmax 和 <span class="arithmatex">\(e^{x}\)</span>（2026-11-05，应要求复习）</h3>
+<p><strong>① softmax 是干什么的</strong>（<a href="../lessons/03-softmax-ratio.html">第 3 章</a>）：把一行分数变成<strong>比例</strong>，加起来等于 1，表示注意力分给每个词百分之几。最朴素的做法是每个分数除以总分：[2, 1, 5] → 总分 8 → 0.25、0.125、0.625。</p>
+<p><strong>② <span class="arithmatex">\(e^{x}\)</span> 是什么</strong>（<a href="../lessons/05-power-and-e.html">第 5 章</a>）：e ≈ 2.718，<span class="arithmatex">\(e^{x}\)</span> 就是"2.718 自己乘自己 x 次"，往左每一格就除以 2.718：</p>
+<table>
+<thead>
+<tr>
+<th>x</th>
+<th>2</th>
+<th>1</th>
+<th>0</th>
+<th>−1</th>
+<th>−2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(e^{x}\)</span></td>
+<td>7.39</td>
+<td>2.72</td>
+<td><strong>1</strong></td>
+<td>0.37</td>
+<td>0.14</td>
+</tr>
+</tbody>
+</table>
+<p>三条要记住的：<strong>永远是正数</strong>；<strong>0 次方等于 1</strong>；x 往负的方向走，<span class="arithmatex">\(e^{x}\)</span> 越来越小、越来越接近 0，但<strong>永远到不了 0</strong>。</p>
+<p><strong>③ 真正的 softmax</strong>（<a href="../lessons/06-softmax-exp.html">第 6 章</a>）：先把每个分数套上 <span class="arithmatex">\(e^{x}\)</span>，再除以总和：</p>
+<div class="arithmatex">\[\text{权重}_j = \frac{e^{\text{分数}_j}}{\sum_k e^{\text{分数}_k}}\]</div>
+<p>先套 <span class="arithmatex">\(e^{x}\)</span> 有两个好处：负分数也变成正的（注意力不会是负的）；分数差 1，<span class="arithmatex">\(e^{x}\)</span> 就差 2.718 倍，高分更突出。</p>
+<p><strong>一句话</strong>：softmax = 每个分数先变成 <span class="arithmatex">\(e^{\text{分数}}\)</span>（一定是正数），再除以总和变成比例。相关卡片：R04、R05、R06、R08、R11。</p>
+<h3 id="2026-11-05_2">第三步："遮住"到底要做到什么程度（2026-11-05）</h3>
+<p><strong>回顾第 3、5、6 章 softmax</strong>：一行分数先每个都套 <span class="arithmatex">\(e^{x}\)</span>，再除以总和，变成加起来等于 1 的权重：</p>
+<div class="arithmatex">\[\text{权重}_j = \frac{e^{\text{分数}_j}}{\sum_k e^{\text{分数}_k}}\]</div>
+<p><strong>例子</strong>：2 号座"咬"那一行，假设三个分数是 [2, 1, 3]（看狗、看咬、看人）：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>看 1 狗</th>
+<th>看 2 咬</th>
+<th>看 3 人</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>分数</td>
+<td>2</td>
+<td>1</td>
+<td>3</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(e^{\text{分数}}\)</span></td>
+<td>7.39</td>
+<td>2.72</td>
+<td>20.09</td>
+</tr>
+<tr>
+<td>权重（÷ 总和 30.19）</td>
+<td>0.24</td>
+<td>0.09</td>
+<td><strong>0.67</strong></td>
+</tr>
+</tbody>
+</table>
+<p>"咬"有 67% 的注意力放在了 3 号"人"身上，也就是那个它要猜的答案。偷看得很严重。</p>
+<p><strong>"遮住"的目标</strong>：让被遮的格子在 softmax 之后<strong>权重正好是 0</strong>，一点都分不到。看公式，权重是 <span class="arithmatex">\(e^{\text{分数}}\)</span> 除以总和，所以要让这一格的 <strong><span class="arithmatex">\(e^{\text{分数}}\)</span> 等于 0</strong>。</p>
+<p><strong>一句话</strong>：遮住不是"分数小一点"，而是要让这一格 softmax 后的权重变成 0，也就是让它的 <span class="arithmatex">\(e^{\text{分数}}\)</span> 变成 0。</p>
+<h3 id="2026-11-05_3">第四步：一直负到底：负无穷 −∞（2026-11-05）</h3>
+<p><strong>接题 3 再练</strong>：分数越负，<span class="arithmatex">\(e^{\text{分数}}\)</span> 越接近 0。但第 5 章说过，它<strong>永远到不了 0</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>分数</th>
+<th>−1</th>
+<th>−10</th>
+<th>−100</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(e^{\text{分数}}\)</span></td>
+<td>0.37</td>
+<td>0.000045</td>
+<td>0.000…（小数点后 43 个 0）37</td>
+</tr>
+</tbody>
+</table>
+<p>不管负多少，总还剩一丁点权重。论文的做法是<strong>一直负到底</strong>：把被遮的格子设成 <strong>−∞</strong>（读作"负无穷"）。</p>
+<p><strong>−∞ 是什么</strong>：不是某一个具体的数，而是"比任何负数都小"。−100、−10000、−1 亿都比它大。</p>
+<p><strong><span class="arithmatex">\(e^{-\infty} = 0\)</span></strong>：分数负得没有底，<span class="arithmatex">\(e^{\text{分数}}\)</span> 就小得没有底，最后正好是 0。</p>
+<p><strong>类比：音量旋钮。</strong> 调到 −10、−100，声音很小但还听得见；−∞ 就是直接按了静音键。</p>
+<p>代回"咬"那一行，3 号格设成 −∞：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>看 1 狗</th>
+<th>看 2 咬</th>
+<th>看 3 人</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>分数</td>
+<td>2</td>
+<td>1</td>
+<td><strong>−∞</strong></td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(e^{\text{分数}}\)</span></td>
+<td>7.39</td>
+<td>2.72</td>
+<td><strong>0</strong></td>
+</tr>
+<tr>
+<td>权重（÷ 总和 10.11）</td>
+<td>0.73</td>
+<td>0.27</td>
+<td><strong>0</strong></td>
+</tr>
+</tbody>
+</table>
+<p>"人"的权重正好是 0，一点都没偷看；剩下的 0.73 + 0.27 还是等于 1，<strong>在能看的词之间重新分比例</strong>。</p>
+<p>论文原文 L236–L238："在 scaled dot-product attention 里，把 softmax 输入中所有对应非法连接的值 mask 掉（设成 −∞）。"代码里写 <code>float('-inf')</code>。</p>
+<p><strong>一句话</strong>：被遮的格子设成 −∞，因为 <span class="arithmatex">\(e^{-\infty} = 0\)</span>，softmax 后权重正好是 0；其他格子自动重新分成加起来等于 1。</p>
+<h3 id="mask-2026-11-05">第五步：写成公式：给分数表加一张 mask 表（2026-11-05）</h3>
+<p><strong>做法</strong>：再准备一张和分数表一样大的表 <span class="arithmatex">\(M\)</span>，能看的格子填 <strong>0</strong>，要遮的格子填 <strong>−∞</strong>，然后<strong>两张表对位相加</strong>。</p>
+<p>"狗咬人"的 <span class="arithmatex">\(M\)</span>：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>1 狗</th>
+<th>2 咬</th>
+<th>3 人</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 狗</td>
+<td>0</td>
+<td>−∞</td>
+<td>−∞</td>
+</tr>
+<tr>
+<td>2 咬</td>
+<td>0</td>
+<td>0</td>
+<td>−∞</td>
+</tr>
+<tr>
+<td>3 人</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>和第二步那张 ✓ / ✗ 表一模一样，只是 ✓ 换成 0，✗ 换成 −∞。</p>
+<p>加上去之后：能看的格子"分数 + 0"，不变；要遮的格子"分数 + (−∞) = −∞"，softmax 后权重变 0。</p>
+<p><strong>完整公式</strong>（第 12 章公式 1 多了一个 <span class="arithmatex">\(+M\)</span>）：</p>
+<div class="arithmatex">\[\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}} + M\right) V\]</div>
+<p>顺序：打分（<span class="arithmatex">\(QK^\top\)</span>）→ 缩放（<span class="arithmatex">\(\div\sqrt{d_k}\)</span>，第 8 章）→ <strong>加 mask</strong> → softmax → 按比例取 <span class="arithmatex">\(V\)</span>。mask 一定要加在 <strong>softmax 之前</strong>。</p>
+<p>论文没把 <span class="arithmatex">\(M\)</span> 单独写进公式，只在 L236–L238 说"在 scaled dot-product attention 里把 softmax 的输入设成 −∞"，Figure 2 左图里画成一个可选的 Mask 方框（图只在 PDF 里，文本版 L157 只有图注）。CS336 handout §3.5.4（L1168–L1178）就是这么写的：在 softmax 之前的 <span class="arithmatex">\(QK^\top/\sqrt{d_k}\)</span> 上，把 mask 为 False 的格子加 −∞；§3.5.5（L1223–L1233）规定因果 mask：第 <span class="arithmatex">\(i\)</span> 个词只能看 <span class="arithmatex">\(j \le i\)</span> 的位置。</p>
+<p><strong>一句话</strong>：mask 是一张"能看填 0、要遮填 −∞"的表，在 softmax 之前加到分数表上。</p>
+<h3 id="mask">动画演示：给分数表加 mask</h3>
+<p><img alt="因果 mask" src="../animations/17-causal-mask.gif" /></p>
+<p>可交互版：<a href="../animations/17-causal-mask.html">animations/17-causal-mask.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"；滑块调 M 里要遮的格子填多少，拖到最左边是 −∞）。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>先是"狗咬人"的分数表；不加 mask 直接 softmax，"咬"那一行 67% 给了"人"（红框：偷看答案）；</li>
+<li>再出现 mask 表 <span class="arithmatex">\(M\)</span>（右上三角填 −∞），加到分数上，套 <span class="arithmatex">\(e^{x}\)</span>，除以每行总和：被遮的格子（紫色）权重正好是 0，每行仍加起来等于 1；</li>
+<li>最后把 <span class="arithmatex">\(M\)</span> 里要遮的格子从 0 往负数调（0、−2、−5、−10、−∞），只看"咬"那一行："人"的权重越来越小，−10 时还剩 0.00009，只有 −∞ 才正好是 0。</li>
+</ol>
+<h2 id="_2">练习与作答记录</h2>
+<p><strong>题 1</strong>："狗咬人"三个座位。2 号座"咬"做 attention 时，可以看哪几个座位？</p>
+<p><strong>作答</strong>（2026-11-05）："1，2"。✓</p>
+<p><strong>点评</strong>：对。能看自己（2 号）和前面的 1 号"狗"，不能看后面的 3 号"人"，因为"人"正是它要猜的答案。已加入卡片 R42。</p>
+<p><strong>题 2</strong>：3 个词的分数表一共 3 × 3 = 9 格，要遮住几格？</p>
+<p><strong>作答</strong>（2026-11-05）："3"。✓</p>
+<p><strong>点评</strong>：对。第 1 行遮 2 格，第 2 行遮 1 格，第 3 行遮 0 格，2 + 1 + 0 = 3。剩下能看的是 6 格（左下三角含对角线）。已加入卡片 R43。</p>
+<p><strong>题 3</strong>：如果把"咬"那一行被遮的 3 号格分数改成 0（分数变成 [2, 1, 0]），<span class="arithmatex">\(e^{0}\)</span> 是多少？"人"还分得到权重吗？</p>
+<p><strong>作答</strong>（2026-11-05，先应要求复习了 softmax 和 <span class="arithmatex">\(e^{x}\)</span>）："第一行没有，分不到"。✗（理解为：<span class="arithmatex">\(e^{0}\)</span> 是 0、没有值，所以"人"分不到权重）</p>
+<p><strong>点评</strong>：<span class="arithmatex">\(e^{0} = 1\)</span>，不是 0（复习表里 x = 0 那一格；第 5 章：<strong>0 次方等于 1</strong>）。所以"人"还是分得到：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>看 1 狗</th>
+<th>看 2 咬</th>
+<th>看 3 人</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>分数</td>
+<td>2</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(e^{\text{分数}}\)</span></td>
+<td>7.39</td>
+<td>2.72</td>
+<td><strong>1</strong></td>
+</tr>
+<tr>
+<td>权重（÷ 总和 11.11）</td>
+<td>0.67</td>
+<td>0.24</td>
+<td><strong>0.09</strong></td>
+</tr>
+</tbody>
+</table>
+<p>"人"还分到 9%，还在偷看。分数 0 不代表"没有"，套上 <span class="arithmatex">\(e^{x}\)</span> 之后是 1，照样参与分比例。所以<strong>把分数改成 0 遮不住</strong>。已加入卡片 R44。</p>
+<p><strong>题 3 再练</strong>：要让 <span class="arithmatex">\(e^{\text{分数}}\)</span> 接近 0，分数应该往大了改，还是往小（负）了改？（看复习表里 <span class="arithmatex">\(e^{x}\)</span> 往哪边越来越接近 0）</p>
+<p><strong>作答</strong>（2026-11-05）："负数"。✓</p>
+<p><strong>点评</strong>：对。<span class="arithmatex">\(e^{-1} = 0.37\)</span>，<span class="arithmatex">\(e^{-2} = 0.14\)</span>，越往负的方向越接近 0。第四步接着讲：负到什么程度才够。</p>
+<p><strong>题 4</strong>：1 号座"狗"那一行分数是 [3, −∞, −∞]（后两格被遮）。softmax 之后三个权重各是多少？</p>
+<p><strong>作答</strong>（2026-11-05）："0.9998，0.001，0.001"。✗（把 −∞ 当成了"很负的数"，以为还剩一丁点）</p>
+<p><strong>点评</strong>：应该是 <strong>[1, 0, 0]</strong>，被遮的两格<strong>正好是 0</strong>，不是 0.001。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>看 1 狗</th>
+<th>看 2 咬</th>
+<th>看 3 人</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>分数</td>
+<td>3</td>
+<td>−∞</td>
+<td>−∞</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(e^{\text{分数}}\)</span></td>
+<td>20.09</td>
+<td><strong>0</strong></td>
+<td><strong>0</strong></td>
+</tr>
+<tr>
+<td>权重（÷ 总和 20.09）</td>
+<td>20.09 ÷ 20.09 = <strong>1</strong></td>
+<td><strong>0</strong></td>
+<td><strong>0</strong></td>
+</tr>
+</tbody>
+</table>
+<p>要分清两件事：</p>
+<ul>
+<li><strong>很负的数</strong>（−10、−100）：<span class="arithmatex">\(e^{\text{分数}}\)</span> 很小但不是 0，还剩一丁点（调小音量）；</li>
+<li><strong>−∞</strong>：<span class="arithmatex">\(e^{-\infty}\)</span> <strong>正好是 0</strong>，一点都不剩（按静音键）。这就是论文用 −∞ 而不是 −100 的原因。</li>
+</ul>
+<p>另外 0.9998 + 0.001 + 0.001 = 1.0018，超过了 1；softmax 的权重加起来一定正好是 1，可以用来自查。</p>
+<p>1 号座只能看自己，所以注意力 100% 给自己。已加入卡片 R45。</p>
+<p><strong>题 4 再练</strong>：4 个词的句子，2 号座那一行分数是 [1, 1, −∞, −∞]。softmax 之后四个权重各是多少？</p>
+<p><strong>作答</strong>（2026-11-05）："你说的对，0.5，0.5，0，0"。✓</p>
+<p><strong>点评</strong>：对。<span class="arithmatex">\(e^{1} = 2.72\)</span> 两个一样，后两格 <span class="arithmatex">\(e^{-\infty} = 0\)</span>，总和 5.44，所以 0.5、0.5、0、0，加起来正好是 1。被遮的格子正好是 0，剩下的在能看的词之间平分。</p>
+<p><strong>题 5</strong>：mask 矩阵 <span class="arithmatex">\(M\)</span> 里，能看的格子为什么填 <strong>0</strong>，而不是填 1？</p>
+<p><strong>作答</strong>（2026-11-05）："需要 e x 再取数值"。半对（说到了"加完还要套 <span class="arithmatex">\(e^{x}\)</span>"，没说出填 0 的原因）</p>
+<p><strong>点评</strong>：顺序对：<span class="arithmatex">\(M\)</span> 先加到分数上，然后才套 <span class="arithmatex">\(e^{x}\)</span>、算权重。但填 0 的原因在<strong>加法</strong>这一步：<strong>任何分数 + 0 = 原来的分数</strong>，加了等于没加，能看的格子原样进 softmax。</p>
+<p>容易和第三步混：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>第三步（题 3）</th>
+<th>第五步（mask 表）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>做法</td>
+<td>把分数<strong>换成</strong> 0</td>
+<td>给分数<strong>加上</strong> 0</td>
+</tr>
+<tr>
+<td>结果</td>
+<td>2、1、3 → 2、1、<strong>0</strong>，分数被改了</td>
+<td>2 + 0 = 2，1 + 0 = 1，分数没变</td>
+</tr>
+<tr>
+<td>作用</td>
+<td>想遮住，但 <span class="arithmatex">\(e^{0} = 1\)</span> 遮不住</td>
+<td>不遮，保持原样</td>
+</tr>
+</tbody>
+</table>
+<p>（补充：如果同一行能看的格子都填 1，每个分数都 +1，softmax 只看分数之间的差距，权重其实不变；但填 0 最直接："不动它"，不用多想一步。）已加入卡片 R46。</p>
+<p><strong>题 5 再练</strong>："咬"那一行分数是 [2, 1, 3]，<span class="arithmatex">\(M\)</span> 的那一行是 [0, 0, −∞]。加起来是什么？</p>
+<p><strong>作答</strong>（2026-11-05）："2，1，−∞"。✓</p>
+<p><strong>点评</strong>：对。2 + 0 = 2，1 + 0 = 1，3 + (−∞) = −∞。这正是第四步那张表的第一行，softmax 后是 0.73、0.27、0：能看的两格原样保留，"人"被遮掉。</p>
+<h2 id="_3">口诀</h2>
+<blockquote>
+<p>一次说一个，后面是答案，要遮住；<br />
+分数表遮右上角，能看填 0，要遮填 −∞；<br />
+e 的 −∞ 次方是 0，剩下的重新分成一。</p>
+</blockquote>
+<h2 id="_4">本章复习卡片</h2>
+<ul>
+<li>R42（为什么要因果 mask：生成时一次说一个词，训练时不能偷看后面的答案；每个座位只看自己和前面）</li>
+<li>R43（下三角 mask：分数表右上三角遮掉；3 个词遮 3 格，n 个词遮 n(n−1)/2 格）</li>
+<li>R44（把被遮的分数改成 0 遮不住：<span class="arithmatex">\(e^0 = 1\)</span>，[2, 1, 0] 里"人"还分到 9%）</li>
+<li>R45（−∞ 遮住后权重正好是 0：[3, −∞, −∞] → [1, 0, 0]；−100 还剩一丁点，−∞ 一点不剩）</li>
+<li>R46（mask 表能看填 0：分数 + 0 不变；和第三步"把分数换成 0"不是一回事）</li>
+</ul>
+<h2 id="_5">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_6">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>L113–L116（auto-regressive）；§3.1 L138–L143；§3.2.3 L232–L238</td>
+<td>本章三处原文：一次生成一个词（第一步）；decoder 不许看后面的位置（第一、二步）；在 softmax 输入里设 −∞（第四、五步）</td>
+</tr>
+<tr>
+<td>★ CS336 assignment 1 handout</td>
+<td>§3.5.4 Masking（L1168–L1178）；§3.5.5 Causal masking（L1223–L1233）</td>
+<td>动手时要照着实现的写法：布尔 mask，True 能看、False 加 −∞；因果 mask 让第 <span class="arithmatex">\(i\)</span> 个词只看 <span class="arithmatex">\(j \le i\)</span>，可用 <code>torch.triu</code> 造</td>
+</tr>
+<tr>
+<td>Formal Algorithms for Transformers</td>
+<td>Algorithm 4 Attention（L327），第 5 行（L356）；Mask 定义 L316–L325；双向 vs 单向 L364、L380–L384</td>
+<td>伪代码版：<code>if ¬Mask[t_z, t_x] then S ← −∞</code>，和第五步一样；对照"不加 mask（encoder）"和"加因果 mask（decoder / GPT）"</td>
+</tr>
+<tr>
+<td>Kazemnejad et al. 2023，NoPE</td>
+<td>L151、L617</td>
+<td>第 14 章附录提过：带因果 mask 的 decoder 不加位置编码也能分出顺序。学完本章再读就能看懂为什么：每个位置能看的词数不一样</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_7">数学原理</h3>
+<ul>
+<li><strong><span class="arithmatex">\(e^{-\infty} = 0\)</span> 是极限</strong>：<span class="arithmatex">\(x\)</span> 越负，<span class="arithmatex">\(e^{x}\)</span> 越接近 0，记作 <span class="arithmatex">\(\lim_{x\to-\infty} e^{x} = 0\)</span>。任何具体的负数都到不了 0（第四步表格），只有"负到底"才正好是 0。</li>
+<li><strong>softmax 只看差距</strong>：同一行每个分数都加同一个数 <span class="arithmatex">\(c\)</span>，<span class="arithmatex">\(e^{s_j + c} = e^{s_j} e^{c}\)</span>，分子分母都乘 <span class="arithmatex">\(e^{c}\)</span>，约掉，权重不变。所以 mask 能看的格子填 0 还是填 1 结果一样，填 0 最直接（题 5 点评）。</li>
+<li><strong>遮掉的格子数</strong>：<span class="arithmatex">\(n\)</span> 个词的分数表 <span class="arithmatex">\(n^2\)</span> 格，第 <span class="arithmatex">\(i\)</span> 行遮 <span class="arithmatex">\(n - i\)</span> 格，合计 <span class="arithmatex">\(0 + 1 + \dots + (n-1) = n(n-1)/2\)</span>；能看的是 <span class="arithmatex">\(n(n+1)/2\)</span> 格。</li>
+<li><strong>工程细节</strong>：代码里用 <code>float('-inf')</code>。有些实现改用一个很负的有限数（如 −1e9 或该数据类型的最小值），因为 −∞ 碰上整行全被遮时会算出 0/0；因果 mask 下每行至少能看自己，不会全遮。</li>
+</ul>
+<h3 id="_8">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}} + M\right) V\)</span></td>
+<td>带 mask 的 attention：先打分、缩放、加 mask，再 softmax、取 <span class="arithmatex">\(V\)</span></td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(M_{ij} = 0\ (j \le i)\)</span>，<span class="arithmatex">\(M_{ij} = -\infty\ (j &gt; i)\)</span></td>
+<td>因果 mask：自己和前面能看，后面遮掉（下三角）</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(e^{-\infty} = 0\)</span></td>
+<td>被遮的格子权重正好为 0</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(e^{0} = 1\)</span></td>
+<td>把分数换成 0 遮不住（题 3）</td>
+</tr>
+<tr>
+<td>遮掉 <span class="arithmatex">\(n(n-1)/2\)</span> 格</td>
+<td>3 个词遮 3 格</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="16-multi-clock.html">← 第 16 章 · 位置编码（下）：多档时钟</a><a href="18-residual.html">第 18 章 · 残差连接：输出 = 输入 + 子层(输入) →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

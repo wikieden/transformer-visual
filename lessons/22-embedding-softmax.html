@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 22 章 · 输入 embedding 与输出 softmax：词怎么变成向量，向量怎么变回词 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="22-embedding-softmax">第 22 章 · 输入 embedding 与输出 softmax：词怎么变成向量，向量怎么变回词</h1><p><a class="btn" href="../animations/22-embedding-softmax.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：前面 21 章一直说"每个词是 512 个数"，这 512 个数从哪来？decoder 最后一行的 512 个数，又怎么变成"下一个词是 bites"？<br />
+讲解日期：2026-11-08 起 · 上一章：<a href="../lessons/21-transformer-layer.html">第 21 章 拼装 Transformer</a> · 下一章：<a href="../lessons/23-complexity.html">第 23 章 复杂度</a><br />
+对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.4 L253–L259；词表大小见 §5.1 L347–L351；生成时的 beam search 见 §6.1 L429–L431<br />
+本章缩写：embedding（嵌入：把词"嵌"进一串数里，也就是把词换成一个向量）；token（词元：模型眼里的一个"词"，可能是整词，也可能是词的一块）；tokenizer（分词器：token + -izer"做……的工具"，把句子切成 token 并编号）；V = Vocabulary size（词表大小：一共有多少个不同的 token）；ID = identifier（编号）；BPE = Byte-Pair Encoding（字节对编码：一种切词、编号的方法，CS336 a1 要写）；logits（分数：softmax 之前每个词的原始分，log + -its，"还没变成概率的对数几率"，这里当"原始分数"理解即可）；greedy（贪心：每轮直接挑概率最大的词）；beam search（束搜索：同时保留几条最好的候选句子往下走）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="embedding-2026-11-08">第一步：输入 embedding = 查表（2026-11-08）</h3>
+<p><strong>类比：一本按编号排好的字典。</strong> 每个词有一个页码。翻到第 i 页，页上印着 512 个数，把它们抄下来，就是这个词的向量。</p>
+<p>分两小步：</p>
+<p><strong>① 词 → 编号。</strong> 先把所有可能出现的词排好号，这张名单叫<strong>词表</strong>（vocabulary），大小记作 V。把句子切成 token 并换成编号，是 tokenizer 的活。论文用 BPE 切词，英德翻译的词表大约 37000 个 token（L348–L349："a shared source-target vocabulary of about 37000 tokens"）。编号具体怎么分，CS336 a1 写 BPE 时再学；这里只要知道：<strong>每个 token 有一个固定的编号</strong>。</p>
+<p><strong>② 编号 → 向量。</strong> 准备一张表 E：<strong>V 行 × <span class="arithmatex">\(d_{model}\)</span> 列</strong>，每个编号占一行。编号 i 的向量就是表 E 的<strong>第 i 行</strong>：</p>
+<div class="arithmatex">\[\mathbf{x} = E[i]\]</div>
+<p><strong>例子</strong>：一个只有 5 个词的小词表，每个词 4 个数（论文是 512 个）。表里的数是编的：</p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>词</th>
+<th>表 E 的这一行</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>&lt;开始&gt;</td>
+<td>[0.1, 0.0, −0.2, 0.3]</td>
+</tr>
+<tr>
+<td>1</td>
+<td>狗</td>
+<td>[0.9, −0.3, 0.4, 0.1]</td>
+</tr>
+<tr>
+<td>2</td>
+<td>咬</td>
+<td>[−0.5, 0.8, 0.2, −0.1]</td>
+</tr>
+<tr>
+<td>3</td>
+<td>人</td>
+<td>[0.7, −0.2, 0.5, 0.0]</td>
+</tr>
+<tr>
+<td>4</td>
+<td>&lt;结束&gt;</td>
+<td>[0.0, 0.2, −0.4, 0.6]</td>
+</tr>
+</tbody>
+</table>
+<p>"狗 咬 人" → 编号 [1, 2, 3] → 依次取第 1、2、3 行 → 得到 3 行 × 4 列的表。换成论文的尺寸，就是第 21 章 encoder 一开始"进来的 3 × 512"（之后再加上位置编码，第 14–16 章）。</p>
+<ul>
+<li><strong>查表不用算</strong>：没有乘法、没有加法，只是"取第 i 行"。</li>
+<li><strong>两边都要查</strong>：encoder 的原文（狗 咬 人）、decoder 的译文（&lt;开始&gt; dog bites）都先查表变成向量（L255–L256："convert the input tokens and output tokens to vectors of dimension <span class="arithmatex">\(d_{model}\)</span>"）。</li>
+</ul>
+<p><strong>表里的数从哪来：学出来的。</strong> 论文 L255 说 "learned embeddings"：一开始随便填（随机数），训练时和 <span class="arithmatex">\(W^Q\)</span>、<span class="arithmatex">\(W^K\)</span>、FFN 那些矩阵一起，一点点调。调好以后，<strong>意思相近的词，那一行的数也往往相近</strong>。上面例子里故意把"狗"和"人"编得比较像（都是名词），和"咬"差得远。用第 2 章的点积量一量，像的两行点积大。</p>
+<p><strong>一句话</strong>：embedding 就是一张 V × 512 的表，词先换成编号，再取表里的那一行；表里的数是训练学出来的。</p>
+<h3 id="512-softmax-2026-11-08">第二步：输出：最后一行 512 个数 → 每个词一个分数 → softmax → 概率（2026-11-08）</h3>
+<p>第 21 章第四步说过：decoder 每一轮只取输出的<strong>最后一行</strong>（最新那个词的 512 个数），记作 h，用它来选下一个词。这一步讲"怎么选"。</p>
+<p><strong>类比：给词表里每个词打分，再按分数分比例。</strong> 这两件事我们都学过：打分是点积（第 2 章），分比例是 softmax（第 3、6 章）。只是这回被打分的不是"句子里的几个词"，而是<strong>词表里的全部 V 个词</strong>。</p>
+<p>论文 L256–L257："the usual learned linear transformation and softmax function to convert the decoder output to predicted next-token probabilities"。分三小步：</p>
+<ol>
+<li><strong>线性层打分</strong>：h（1 × 512）乘一个矩阵 <span class="arithmatex">\(W_{out}\)</span>（512 × V），得到 1 × V：<strong>每个词一个分数</strong>，叫 logits。<span class="arithmatex">\(W_{out}\)</span> 的每一列对应一个词，那个词的分数 = h 和这一列的点积。</li>
+<li><strong>softmax 分比例</strong>：把 V 个分数变成 V 个概率，都在 0～1 之间，加起来等于 1。</li>
+<li><strong>选词</strong>：最简单的做法是挑概率最大的（greedy，贪心）。</li>
+</ol>
+<div class="arithmatex">\[\text{logits} = h\,W_{out},\qquad p = \text{softmax}(\text{logits})\]</div>
+<p><strong>例子</strong>：论文的原文和译文<strong>共用一张词表</strong>（L348："shared source-target vocabulary"）。把第一步的小词表扩成 8 个词，后面加上 dog、bites、man：</p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>0</th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+<th>4</th>
+<th>5</th>
+<th>6</th>
+<th>7</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>词</td>
+<td>&lt;开始&gt;</td>
+<td>狗</td>
+<td>咬</td>
+<td>人</td>
+<td>&lt;结束&gt;</td>
+<td>dog</td>
+<td>bites</td>
+<td>man</td>
+</tr>
+<tr>
+<td>分数 logits</td>
+<td>0.7</td>
+<td>−1.7</td>
+<td>1.7</td>
+<td>−1.6</td>
+<td>2.0</td>
+<td>−1.5</td>
+<td><strong>2.9</strong></td>
+<td>−1.6</td>
+</tr>
+<tr>
+<td>概率（softmax）</td>
+<td>0.059</td>
+<td>0.005</td>
+<td>0.162</td>
+<td>0.006</td>
+<td>0.218</td>
+<td>0.007</td>
+<td><strong>0.537</strong></td>
+<td>0.006</td>
+</tr>
+</tbody>
+</table>
+<p>这是第 21 章第 2 轮的情形：输入"&lt;开始&gt; dog"，最后一行 h = [−1, 2, −1, 2]（编的，d = 4）。8 个分数里 bites 最高，softmax 后占 54%，greedy 就选 bites。8 个概率加起来正好是 1。</p>
+<ul>
+<li><strong>形状</strong>：h 是 1 × <span class="arithmatex">\(d_{model}\)</span>，<span class="arithmatex">\(W_{out}\)</span> 是 <span class="arithmatex">\(d_{model}\)</span> × V，出来 1 × V。论文 V 大约 37000，所以每一轮都要给三万七千个词各打一个分。</li>
+<li><strong>为什么只取最后一行</strong>：前面几行是"已经写出的词"的位置，它们的下一个词早就知道了；只有最后一行在问"接下来写什么"。（训练时每一行都会用上，每一行都去猜它的下一个词，这是第 17 章因果 mask 存在的原因。）</li>
+<li><strong>不一定只挑最大</strong>：论文翻译时用的是 beam search（束搜索），同时留 4 条最好的候选句子往下走，最后挑整句最好的（L429："beam search with a beam size of 4"）。原理还是这张概率表，只是挑法更讲究。</li>
+</ul>
+<p><strong>一句话</strong>：最后一行 h 乘 <span class="arithmatex">\(W_{out}\)</span>，给词表里每个词打一个分；softmax 把分数变成概率；挑概率最大的（或用 beam search）作为下一个词。</p>
+<h3 id="embedding-2026-11-08_1">第三步：同一张表用两次：输出层的权重就是 embedding 表（2026-11-08）</h3>
+<p><strong>原文</strong>（L257–L258）："we share the same weight matrix between the two embedding layers and the pre-softmax linear transformation"。三处用到"V × <span class="arithmatex">\(d_{model}\)</span> 的表"，论文让它们<strong>共用同一张</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>用在哪</th>
+<th>形状</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>encoder 的 embedding</td>
+<td>V × <span class="arithmatex">\(d_{model}\)</span></td>
+<td>原文的词 → 向量（第一步）</td>
+</tr>
+<tr>
+<td>decoder 的 embedding</td>
+<td>V × <span class="arithmatex">\(d_{model}\)</span></td>
+<td>译文的词 → 向量（第一步）</td>
+</tr>
+<tr>
+<td>softmax 前的线性层 <span class="arithmatex">\(W_{out}\)</span></td>
+<td><span class="arithmatex">\(d_{model}\)</span> × V</td>
+<td>向量 → 每个词的分数（第二步）</td>
+</tr>
+</tbody>
+</table>
+<p>第三个的形状正好是前两个<strong>翻过来</strong>（第 12 章的转置）：<span class="arithmatex">\(W_{out} = E^\top\)</span>。所以三个其实是同一张表 E。</p>
+<p><strong>类比：同一本字典，正着查、反着查。</strong></p>
+<ul>
+<li>正着查（输入）：知道编号 i，翻到第 i 行，抄下这个词的向量；</li>
+<li>反着查（输出）：手里有一个向量 h，拿它和字典里<strong>每一行</strong>比一比像不像（点积），越像分数越高。</li>
+</ul>
+<div class="arithmatex">\[\text{logit}_i = h \cdot E[i]\]</div>
+<p><strong>用第二步的例子验证</strong>：8 个词的表 E（前 5 行和第一步一样，后 3 行是新加的，都是编的）：</p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>词</th>
+<th>E 的这一行</th>
+<th>和 h = [−1, 2, −1, 2] 的点积</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>&lt;开始&gt;</td>
+<td>[0.1, 0.0, −0.2, 0.3]</td>
+<td>−0.1 + 0 + 0.2 + 0.6 = 0.7</td>
+</tr>
+<tr>
+<td>1</td>
+<td>狗</td>
+<td>[0.9, −0.3, 0.4, 0.1]</td>
+<td>−1.7</td>
+</tr>
+<tr>
+<td>2</td>
+<td>咬</td>
+<td>[−0.5, 0.8, 0.2, −0.1]</td>
+<td>1.7</td>
+</tr>
+<tr>
+<td>3</td>
+<td>人</td>
+<td>[0.7, −0.2, 0.5, 0.0]</td>
+<td>−1.6</td>
+</tr>
+<tr>
+<td>4</td>
+<td>&lt;结束&gt;</td>
+<td>[0.0, 0.2, −0.4, 0.6]</td>
+<td>2.0</td>
+</tr>
+<tr>
+<td>5</td>
+<td>dog</td>
+<td>[0.8, −0.4, 0.3, 0.2]</td>
+<td>−1.5</td>
+</tr>
+<tr>
+<td>6</td>
+<td>bites</td>
+<td>[−0.3, 0.7, −0.2, 0.5]</td>
+<td>−(−0.3) + 1.4 + 0.2 + 1.0 = <strong>2.9</strong></td>
+</tr>
+<tr>
+<td>7</td>
+<td>man</td>
+<td>[0.6, −0.1, 0.6, −0.1]</td>
+<td>−1.6</td>
+</tr>
+</tbody>
+</table>
+<p>正是第二步那一行分数：<strong>h 和哪个词的向量最像，哪个词分最高</strong>。h 和 bites 那一行方向最接近，所以选中 bites。注意"咬"也有 1.7 分：它和 bites 意思相同，向量本来就相近。训练好的翻译模型会让 h 更偏向英文这一边。</p>
+<p><strong>为什么要共用</strong>（论文只说"similar to [30]"，[30] 是 Press &amp; Wolf 的论文 <em>Using the output embedding to improve language models</em>，L629）：</p>
+<ul>
+<li><strong>省参数</strong>：一张 V × 512 的表很大（题 1（b）你会算到它有多大），三张变一张；</li>
+<li><strong>意思一致</strong>：一个词"进来时的样子"和"被选中时要像的样子"是同一个向量，训练时两头都在调同一行，学得更快。</li>
+</ul>
+<p>现在的大模型有的共用（如 GPT-2），有的分开（如 LLaMA），都是取舍。</p>
+<p><strong>一句话</strong>：输入查表和输出打分用的是同一张表 E；输出时，h 和每个词的那一行做点积，越像分越高。</p>
+<h3 id="sqrtd_model2026-11-08">第四步：查表后乘 <span class="arithmatex">\(\sqrt{d_{model}}\)</span>（2026-11-08）</h3>
+<p><strong>原文</strong>（L259）："In the embedding layers, we multiply those weights by <span class="arithmatex">\(\sqrt{d_{model}}\)</span>"。也就是查表取出的那一行，每个数都乘 <span class="arithmatex">\(\sqrt{512} \approx 22.6\)</span>，然后才加位置编码：</p>
+<div class="arithmatex">\[\mathbf{x}_{\text{进第 1 层}} = \sqrt{d_{model}}\cdot E[i] + PE_{pos}\]</div>
+<p><strong>例子</strong>：小表 d = 4，<span class="arithmatex">\(\sqrt{4} = 2\)</span>。"狗"那一行 [0.9, −0.3, 0.4, 0.1] 先乘 2，变成 [1.8, −0.6, 0.8, 0.2]，再加上它那个座位的位置编码。</p>
+<p><strong>为什么要乘：论文没写原因</strong>（A2 精读笔记"未解决的问题"里也记着这一条）。常见的解释是"让两样东西音量差不多"：</p>
+<ul>
+<li><strong>位置编码的数在 −1 到 1 之间</strong>（第 15、16 章：sin、cos 的值不会超过 1）；</li>
+<li><strong>共享的表 E 里的数通常很小</strong>：E 同时要当输出层，h 和它点积出的分数不能太大（太大 softmax 会饱和，第 7 章），所以一般用很小的随机数初始化，比如每个数大约在 <span class="arithmatex">\(\pm 1/\sqrt{d_{model}}\)</span> 的量级（512 维时约 ±0.04）；</li>
+<li>如果直接相加，<strong>词的信息就被位置编码盖住了</strong>，像小声说话旁边有人大声报座位号。乘 <span class="arithmatex">\(\sqrt{d_{model}}\)</span> 后，词向量的每个数大约回到 ±1 的量级，和位置编码差不多响。</li>
+</ul>
+<p>这是常见理解，不是论文原话；第 24 章通读原文时还会再看一眼这句。</p>
+<p><strong>一句话</strong>：查完表先乘 <span class="arithmatex">\(\sqrt{d_{model}}\)</span>（论文 ≈ 22.6），让词的数和位置编码一样"响"，再相加；论文没解释原因，这是常见解释。</p>
+<h3 id="_2">动画演示：一本字典，正着查、反着查</h3>
+<p><img alt="Embedding 与 softmax" src="../animations/22-embedding-softmax.gif" /></p>
+<p>可交互版：<a href="../animations/22-embedding-softmax.html">animations/22-embedding-softmax.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"；两个滑块：h 的方向从"像 dog"转到"像 bites"；h 的长度放大几倍）。</p>
+<p>8 个词的小词表，每个词 4 个数（论文 V ≈ 37000、512 个数）；表里的数和讲解里的一样，都是编的。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>embedding 表 E：每个编号一行，意思相近的词那一行也相近（第一步）；</li>
+<li>查表："狗 咬 人" → 编号 [1, 2, 3] → 取出这三行，再乘 √4 = 2（第一、四步）；</li>
+<li>输出：h = [−1, 2, −1, 2] 和每一行做点积，得到 8 个分数（第二、三步）；</li>
+<li>softmax：bites 0.537 最高，8 个概率加起来是 1（第二步）；</li>
+<li>同一张表用三次：两个 embedding + 输出层 Eᵀ（第三步）；</li>
+<li>滑块：h 从像 dog 转到像 bites，概率最高的词跟着变；h 越长，分数差距越大，softmax 越尖。</li>
+</ol>
+<h2 id="_3">练习与作答记录</h2>
+<p><strong>题 1</strong>（第一步 查表）：
+（a）用上面 5 个词的小词表，"人 咬 狗"查表后得到几行几列？第 1 行是表 E 里编号几的那一行？
+（b）论文词表大约 37000 个 token，<span class="arithmatex">\(d_{model}\)</span> = 512。表 E 是几行几列？一共大约多少个数（估到"多少万"就行）？</p>
+<p><strong>题 2</strong>（第二步 输出打分）：论文词表大约 37000 个 token，<span class="arithmatex">\(d_{model}\)</span> = 512。
+（a）输出线性层 <span class="arithmatex">\(W_{out}\)</span> 是几行几列？乘完以后得到几个分数？
+（b）softmax 之后，这些概率加起来等于几？
+（c）为什么每一轮只拿最后一行 h 去打分？</p>
+<p><strong>题 3</strong>（第三步 共享权重）：
+（a）共享以后，"bites" 的分数等于 h 和哪个向量做点积？
+（b）三处"V × 512 的表"共用成一张，比各用各的少了几张表？</p>
+<p><strong>题 4</strong>（第四步 乘 <span class="arithmatex">\(\sqrt{d_{model}}\)</span>）：
+（a）如果 <span class="arithmatex">\(d_{model}\)</span> = 16，查表取出的一行要乘几？
+（b）用自己的话说：不乘的话，会出什么问题？</p>
+<h2 id="_4">口诀</h2>
+<blockquote>
+<p>词先换编号，编号查一行；表是学出来的，原文译文都查它。<br />
+最后一行去打分，词表每个词一分；softmax 分比例，挑最大或束搜索。<br />
+一本字典两头用：正查取向量，反查比相像。<br />
+查完乘根号 d，词和座位一样响。</p>
+</blockquote>
+<h2 id="_5">本章复习卡片</h2>
+<p>（练习做完后，按答错、卡住的地方补上。）</p>
+<h2 id="_6">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_7">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>§3.4 L253–L259；§5.1 L347–L351；§6.1 L427–L431</td>
+<td>本章原文：learned embeddings、线性层 + softmax、三处共享权重、乘 <span class="arithmatex">\(\sqrt{d_{model}}\)</span>；共用词表约 37000（英德）、32000（英法）；生成时用 beam size 4、长度惩罚 α = 0.6</td>
+</tr>
+<tr>
+<td>★ Phuong &amp; Hutter 2022，Formal Algorithms for Transformers</td>
+<td><code>formal-algorithms-transformers-2207.09238.txt</code> Algorithm 1 Token embedding（L248）；Algorithm 7 Unembedding（L418）</td>
+<td>用伪代码看"查表"和"反查打分"两步，各只有一两行</td>
+</tr>
+<tr>
+<td>★ CS336 assignment 1 handout</td>
+<td>§3.2 L664–L671；§3.4.3 Embedding Module（L895 起）；§4.1 Cross-entropy loss（L1370 起）；§6 Generating text（L1792 起，温度 L1823）</td>
+<td>动手版：自己写 Embedding 模块和输出层；训练时用"正确词的概率"算交叉熵 loss；生成时的温度采样（temperature）和 top-p</td>
+</tr>
+<tr>
+<td>Press &amp; Wolf 2017，Using the Output Embedding to Improve Language Models</td>
+<td>全文（本地没有文本版；AIAYN 参考文献 [30]，L629）</td>
+<td>共享输入、输出 embedding 的出处</td>
+</tr>
+<tr>
+<td>AIAYN §5.4 Label Smoothing</td>
+<td>L409–L410</td>
+<td>训练时不让正确词的目标概率是 1，而是 0.9，剩下 0.1 分给别的词：模型会"没那么自信"，困惑度变差但翻译分数变好</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_8">数学原理</h3>
+<ul>
+<li><strong>查表 = one-hot 乘矩阵</strong>：编号 i 写成一个长度 V 的向量，只有第 i 位是 1（one-hot：独热，只有一个位置"热"），乘 E 正好取出第 i 行。实现时直接取行，不真的做乘法。</li>
+<li><strong>线性层 + softmax</strong>：<span class="arithmatex">\(p_i = \dfrac{e^{h \cdot E[i]}}{\sum_{j=1}^{V} e^{h \cdot E[j]}}\)</span>。共享权重时，分子就是 h 和第 i 个词向量的点积再取 e 的次方。</li>
+<li><strong>为什么是 <span class="arithmatex">\(\sqrt{d_{model}}\)</span></strong>：d 个独立的数，每个大小约 <span class="arithmatex">\(1/\sqrt{d}\)</span>，乘 <span class="arithmatex">\(\sqrt{d}\)</span> 后每个约为 1；这和第 8 章"除以 <span class="arithmatex">\(\sqrt{d_k}\)</span> 让点积不随维度变大"是同一类"按维度调音量"的想法，方向相反。</li>
+<li><strong>参数量</strong>：一张表 V × <span class="arithmatex">\(d_{model}\)</span> 个数；共享后整个模型只有一张。</li>
+</ul>
+<h3 id="_9">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(\mathbf{x} = E[i]\)</span>，<span class="arithmatex">\(E\)</span>：V × <span class="arithmatex">\(d_{model}\)</span></td>
+<td>输入 embedding：取第 i 行</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\mathbf{x}_{\text{进第 1 层}} = \sqrt{d_{model}}\, E[i] + PE_{pos}\)</span></td>
+<td>乘 <span class="arithmatex">\(\sqrt{d_{model}}\)</span> 再加位置编码</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{logits} = h\,W_{out}\)</span>，<span class="arithmatex">\(W_{out}\)</span>：<span class="arithmatex">\(d_{model}\)</span> × V</td>
+<td>最后一行给每个词打分</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(W_{out} = E^\top\)</span>，<span class="arithmatex">\(\text{logit}_i = h \cdot E[i]\)</span></td>
+<td>共享权重：反查，比谁最像</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(p = \text{softmax}(\text{logits})\)</span>，<span class="arithmatex">\(\sum_i p_i = 1\)</span></td>
+<td>分数变概率</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="21-transformer-layer.html">← 第 21 章 · 拼装：一个 Transformer 层；encoder / decoder 全图；三种 attention</a><a href="23-complexity.html">第 23 章 · 复杂度：为什么 attention 是 n²，长文本为什么难 →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

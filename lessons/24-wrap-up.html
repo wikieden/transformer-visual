@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 24 章 · 收尾：数参数、warmup 学习率、对照原文通读 §3 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="24-warmup-3">第 24 章 · 收尾：数参数、warmup 学习率、对照原文通读 §3</h1><p><a class="btn" href="../animations/24-wrap-up.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：一个 Transformer 一共有多少个要学的数（参数），都在哪？论文训练时学习率为什么先升后降？学完 24 章，怎么把 §3 原文从头到尾读一遍？<br />
+讲解日期：2026-11-08 起 · 上一章：<a href="../lessons/23-complexity.html">第 23 章 复杂度</a> · 下一章：无（§3 讲完，接 study-plan 阶段 A 和 CS336 a1）<br />
+对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3 全部 L110–L298；Table 3 base 一行 L451–L454；§5.3 Optimizer L363–L376<br />
+本章缩写：参数（parameter：模型里要靠训练学出来的数，比如 <span class="arithmatex">\(W^Q\)</span>、FFN 的 <span class="arithmatex">\(W_1\)</span>、embedding 表 E 里的每一个数）；bias（偏置：矩阵乘完以后再加上的那串数 b）；LN = LayerNorm（层归一化，参数是 γ、β）；M = million（百万：65M = 6500 万）；lr = learning rate（学习 / 率：每一步调参数时迈多大的步子）；step（训练的第几步）；warmup（热身：训练刚开始时学习率从小慢慢升上去）；Adam = Adaptive Moment Estimation（自适应 / 矩 / 估计：论文用的优化器，负责"每个参数往哪调、调多少"）；<span class="arithmatex">\(d_{model}\)</span>、<span class="arithmatex">\(d_{ff}\)</span>、<span class="arithmatex">\(d_k\)</span>、h、N：见第 13、20、21 章。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="attention-4d2ffn-2dd_ff-embedding-2026-11-08">第一步：数参数：每层 attention 4d²、FFN 2·d·d_ff，再加一张 embedding 表（2026-11-08）</h3>
+<p><strong>参数</strong>就是模型里所有"靠训练学出来"的数。数参数就像清点一套家具用了多少块木板：按零件分开数，最后加起来。</p>
+<p><strong>规则</strong>：忽略 bias 和 LayerNorm 的 γ、β（它们只有几百几千个，和动辄几十万的矩阵比可以不计）。位置编码用的是固定的 sin、cos（第 16 章），<strong>没有参数</strong>。</p>
+<p><strong>零件 ①：一个 attention 子层 = <span class="arithmatex">\(4 d_{model}^2\)</span>。</strong></p>
+<ul>
+<li>每个头有 <span class="arithmatex">\(W^Q_i, W^K_i, W^V_i\)</span> 三个矩阵，各 <span class="arithmatex">\(d_{model} \times d_k\)</span>；h 个头一共 <span class="arithmatex">\(3 \cdot h \cdot d_{model} \cdot d_k\)</span>。因为 <span class="arithmatex">\(h \cdot d_k = d_{model}\)</span>（L219），这就是 <span class="arithmatex">\(3 d_{model}^2\)</span>；</li>
+<li>再加最后合并用的 <span class="arithmatex">\(W^O\)</span>（<span class="arithmatex">\(h d_v \times d_{model}\)</span> = <span class="arithmatex">\(d_{model} \times d_{model}\)</span>，L217）：<span class="arithmatex">\(d_{model}^2\)</span>；</li>
+<li>合计 <span class="arithmatex">\(4 d_{model}^2\)</span>。第 13 章说过：多头和单头参数一样多，只是切成几份。</li>
+</ul>
+<p><strong>零件 ②：一个 FFN 子层 = <span class="arithmatex">\(2 \cdot d_{model} \cdot d_{ff}\)</span>。</strong> <span class="arithmatex">\(W_1\)</span> 是 <span class="arithmatex">\(d_{model} \times d_{ff}\)</span>，<span class="arithmatex">\(W_2\)</span> 是 <span class="arithmatex">\(d_{ff} \times d_{model}\)</span>（第 20 章）。</p>
+<p><strong>零件 ③：embedding 表 = <span class="arithmatex">\(V \cdot d_{model}\)</span>。</strong> 第 22 章：三处共用一张，只算一次。</p>
+<p><strong>拼起来</strong>（第 21 章：encoder 层有 1 个 attention + 1 个 FFN；decoder 层有 2 个 attention + 1 个 FFN）：</p>
+<table>
+<thead>
+<tr>
+<th>部件</th>
+<th>参数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一个 encoder 层</td>
+<td><span class="arithmatex">\(4d_{model}^2 + 2 d_{model} d_{ff}\)</span></td>
+</tr>
+<tr>
+<td>一个 decoder 层</td>
+<td><span class="arithmatex">\(2 \times 4d_{model}^2 + 2 d_{model} d_{ff}\)</span></td>
+</tr>
+<tr>
+<td>整个模型</td>
+<td><span class="arithmatex">\(N \times (\text{encoder 层}) + N \times (\text{decoder 层}) + V \cdot d_{model}\)</span></td>
+</tr>
+</tbody>
+</table>
+<p><strong>例子</strong>：一个玩具模型，<span class="arithmatex">\(d_{model} = 4\)</span>、h = 2（<span class="arithmatex">\(d_k = 2\)</span>）、<span class="arithmatex">\(d_{ff} = 16\)</span>、V = 8（第 22 章那张 8 个词的表）、N = 2。</p>
+<table>
+<thead>
+<tr>
+<th>部件</th>
+<th>怎么算</th>
+<th>参数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一个 attention 子层</td>
+<td>2 个头 × 3 个矩阵 × (4 × 2) = 48，加 <span class="arithmatex">\(W^O\)</span> 4 × 4 = 16</td>
+<td>64（= 4 × 4²）</td>
+</tr>
+<tr>
+<td>一个 FFN 子层</td>
+<td>4 × 16 + 16 × 4</td>
+<td>128</td>
+</tr>
+<tr>
+<td>一个 encoder 层</td>
+<td>64 + 128</td>
+<td>192</td>
+</tr>
+<tr>
+<td>一个 decoder 层</td>
+<td>64 × 2 + 128</td>
+<td>256</td>
+</tr>
+<tr>
+<td>embedding 表</td>
+<td>8 × 4</td>
+<td>32</td>
+</tr>
+<tr>
+<td><strong>整个模型</strong></td>
+<td>2 × 192 + 2 × 256 + 32</td>
+<td><strong>928</strong></td>
+</tr>
+</tbody>
+</table>
+<p>论文 base 模型（<span class="arithmatex">\(d_{model}\)</span> = 512、h = 8、<span class="arithmatex">\(d_{ff}\)</span> = 2048、N = 6，Table 3 L454）照这个方法数，结果应该接近表里最后一列 params：<strong>65</strong>（单位是 <span class="arithmatex">\(10^6\)</span>，即 6500 万）。具体怎么算留给题 1。</p>
+<p><strong>一句话</strong>：attention 子层 4d²，FFN 子层 2·d·d_ff，embedding 表 V·d 只算一张；encoder 层一个 attention、decoder 层两个，再乘层数相加。</p>
+<h3 id="warmup-2026-11-08">第二步：warmup 学习率：先慢慢升，再慢慢降（2026-11-08）</h3>
+<p><strong>先说训练在做什么</strong>（细节在 CS336 a1 §4 学）：每一步拿一批句子给模型猜，看它猜错了多少，然后把<strong>每个参数都往"猜得更对"的方向挪一小步</strong>。这一步挪多大，就是<strong>学习率</strong>。负责算"往哪挪、挪多少"的工具叫优化器，论文用的是 Adam（L365）。</p>
+<p><strong>类比：开车起步。</strong> 刚上车时（参数全是随机数），不能一脚油门踩到底，要慢慢加速（warmup）；开顺了以后，越接近目的地越要慢下来，免得冲过头。</p>
+<p><strong>论文的公式</strong>（L369–L372，Eq. 3）：</p>
+<div class="arithmatex">\[\text{lrate} = d_{model}^{-0.5} \cdot \min\big(\text{step}^{-0.5},\ \text{step} \cdot \text{warmup\_steps}^{-1.5}\big)\]</div>
+<p>论文用 warmup_steps = 4000（L376）。拆开看 min 里的两项：</p>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>随 step 怎么变</th>
+<th>管哪一段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(\text{step} \cdot \text{warmup\_steps}^{-1.5}\)</span></td>
+<td>一条直线，step 越大越大</td>
+<td>前 4000 步：线性往上升（L374）</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{step}^{-0.5} = 1/\sqrt{\text{step}}\)</span></td>
+<td>越来越小</td>
+<td>4000 步以后：按 <span class="arithmatex">\(1/\sqrt{\text{step}}\)</span> 往下降（L375）</td>
+</tr>
+</tbody>
+</table>
+<p>min 取两者中小的那个，所以是"先走上升的直线，再走下降的曲线"。两条线在 step = warmup_steps 时正好相等（把 4000 代进去，两项都是 <span class="arithmatex">\(4000^{-0.5}\)</span>），这里就是<strong>最高点</strong>。前面的 <span class="arithmatex">\(d_{model}^{-0.5}\)</span> 只是整体缩放：模型越宽，步子整体越小。</p>
+<p><strong>例子</strong>：<span class="arithmatex">\(d_{model}\)</span> = 512（<span class="arithmatex">\(512^{-0.5} \approx 0.0442\)</span>），warmup_steps = 4000：</p>
+<table>
+<thead>
+<tr>
+<th>step</th>
+<th>用哪一项</th>
+<th>学习率</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1000</td>
+<td>上升直线：<span class="arithmatex">\(1000 \times 4000^{-1.5}\)</span></td>
+<td>≈ 0.000175</td>
+</tr>
+<tr>
+<td>4000</td>
+<td>两项相等，最高点</td>
+<td>≈ 0.000699</td>
+</tr>
+<tr>
+<td>100000（训练结束，L359）</td>
+<td>下降曲线：<span class="arithmatex">\(100000^{-0.5}\)</span></td>
+<td>≈ 0.000140</td>
+</tr>
+</tbody>
+</table>
+<p><strong>为什么要热身</strong>：</p>
+<ul>
+<li>一开始参数是随机的，模型猜得乱七八糟，算出来的"往哪挪"也很不靠谱；步子大了容易一下子把参数推到很糟的地方，训练就崩了；</li>
+<li>第 19 章第五步讲过：原论文用的 post-LN，训练刚开始时靠近输出的几层"往哪挪"的信号特别大，<strong>必须先用很小的学习率热身</strong>，否则不稳（Pre-LN 论文的结论）；</li>
+<li>现在的大模型多用 Pre-LN，但 warmup 仍然保留；CS336 a1 要写的是"warmup + cosine 下降"（handout §4.4 L1610 起），形状类似：先直线升，再按余弦曲线降到一个最小值。</li>
+</ul>
+<p><strong>一句话</strong>：学习率是每步调参数的步子大小；论文前 4000 步线性升到最高，之后按 <span class="arithmatex">\(1/\sqrt{\text{step}}\)</span> 慢慢降；热身是为了开头不把随机参数推崩。</p>
+<h3 id="32026-11-08">第三步：对照原文通读 §3（2026-11-08）</h3>
+<p>24 章讲完，§3 原文（L110–L298）每一句都学过了。下面这张地图把原文按行号切开，对上讲过的章。建议打开 <code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code>，<strong>一段一段读原文，读完一段先用自己的话复述，再看对应的章核对</strong>；中英对照版见 A2-attention-is-all-you-need-bilingual.md。</p>
+<table>
+<thead>
+<tr>
+<th>原文</th>
+<th>行号</th>
+<th>讲的是什么</th>
+<th>对应的章</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>§3 开头 + Figure 1</td>
+<td>L110–L125</td>
+<td>encoder 把原文变成 z，decoder 一个一个生成（auto-regressive）</td>
+<td>21（第四步）</td>
+</tr>
+<tr>
+<td>§3.1 Encoder</td>
+<td>L127–L135</td>
+<td>6 层，每层两个子层；LayerNorm(x + Sublayer(x))；<span class="arithmatex">\(d_{model}\)</span> = 512</td>
+<td>18、19、20、21</td>
+</tr>
+<tr>
+<td>§3.1 Decoder</td>
+<td>L137–L143</td>
+<td>第三个子层查 encoder；mask 不许看后面；输出挪一格</td>
+<td>17、21</td>
+</tr>
+<tr>
+<td>§3.2 开头</td>
+<td>L145–L150</td>
+<td>attention = 拿 query 去和一组 key 比，按比例取 value</td>
+<td>4、9</td>
+</tr>
+<tr>
+<td>§3.2.1 Scaled Dot-Product</td>
+<td>L164–L176</td>
+<td>公式 (1)：<span class="arithmatex">\(\text{softmax}(QK^\top/\sqrt{d_k})V\)</span></td>
+<td>2、3、6、11、12</td>
+</tr>
+<tr>
+<td>§3.2.1 为什么除 <span class="arithmatex">\(\sqrt{d_k}\)</span></td>
+<td>L177–L187，脚注 4 L198–L201</td>
+<td>点积会变大，softmax 饱和；点积方差 = <span class="arithmatex">\(d_k\)</span></td>
+<td>7、8</td>
+</tr>
+<tr>
+<td>§3.2.2 Multi-Head</td>
+<td>L192–L220</td>
+<td>h = 8 个头，各 64 维，拼起来乘 <span class="arithmatex">\(W^O\)</span>；总计算量和单头差不多</td>
+<td>10、13</td>
+</tr>
+<tr>
+<td>§3.2.3 三种用法</td>
+<td>L222–L238</td>
+<td>encoder-decoder、encoder self、decoder masked self</td>
+<td>17、21（第三步）</td>
+</tr>
+<tr>
+<td>§3.3 FFN</td>
+<td>L240–L251</td>
+<td>每个位置分别、同样地过两层；512 → 2048 → 512</td>
+<td>20</td>
+</tr>
+<tr>
+<td>§3.4 Embeddings and Softmax</td>
+<td>L253–L259</td>
+<td>查表、线性层 + softmax、三处共享、乘 <span class="arithmatex">\(\sqrt{d_{model}}\)</span></td>
+<td>22</td>
+</tr>
+<tr>
+<td>Table 1</td>
+<td>L263–L272</td>
+<td>每层计算量、排队步数、最长路径</td>
+<td>23</td>
+</tr>
+<tr>
+<td>§3.5 Positional Encoding</td>
+<td>L276–L298</td>
+<td>sin、cos 公式；相对位置可线性表示；学出来的位置向量效果差不多</td>
+<td>14、15、16</td>
+</tr>
+</tbody>
+</table>
+<p><strong>读完 §3 以后去哪</strong>（第 21 章附录和 README 的全局路线）：</p>
+<ol>
+<li>A2 精读笔记里还有两道自测题没做：题 1 就是本章题 1（数参数），题 2 是位置编码的旋转矩阵推导（第 16 章打过基础，它直接引出 RoPE）；</li>
+<li>然后复制 CS336 a1 开始动手写：你要写的是 decoder-only 模型，相当于本课 decoder 去掉"回头查原文"那道工序，再把零件换成现代版（Pre-LN、RMSNorm、SwiGLU、RoPE）。</li>
+</ol>
+<p><strong>一句话</strong>：§3 按这张地图一段一段读，每段先复述再对照章节；读完做 A2 自测题，然后开工 CS336 a1。</p>
+<h3 id="warmup-3">动画演示：数参数、warmup 曲线、§3 地图</h3>
+<p><img alt="数参数与 warmup" src="../animations/24-wrap-up.gif" /></p>
+<p>可交互版：<a href="../animations/24-wrap-up.html">animations/24-wrap-up.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"；两个滑块：warmup_steps（500–16000）和 d_model（128–1024））。</p>
+<p>数参数用玩具模型：d_model = 4、h = 2、d_ff = 16、V = 8、N = 2，忽略 bias 和 LayerNorm；学习率用论文 Eq. 3。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>attention 子层：W^Q、W^K、W^V、W^O 各 4 × 4，共 4d² = 64（第一步）；</li>
+<li>FFN 子层：W₁、W₂，共 2·d·d_ff = 128（第一步）；</li>
+<li>encoder 层 192、decoder 层 256（多一个"查原文"）；整个模型 928，位置编码 0（第一步）；</li>
+<li>学习率：上升直线和下降曲线取小的那个，在第 4000 步最高 ≈ 0.000699（第二步）；</li>
+<li>§3 地图：原文每一段对应哪几章（第三步）；</li>
+<li>滑块：warmup 越长，最高点越靠后、越低；d_model 越大，整条曲线越低。</li>
+</ol>
+<h2 id="_2">练习与作答记录</h2>
+<p><strong>题 1</strong>（第一步 数参数，即 A2 自测题 1）：base 模型，<span class="arithmatex">\(d_{model}\)</span> = 512、h = 8、<span class="arithmatex">\(d_k = d_v\)</span> = 64、<span class="arithmatex">\(d_{ff}\)</span> = 2048、N = 6，忽略 bias 和 LayerNorm。
+（a）一层 encoder 有多少参数？其中 attention 和 FFN 各占多少比例？
+（b）一层 decoder 比一层 encoder 多出多少参数？
+（c）加上共享的 embedding 表（V ≈ 37000），整个模型大约多少参数？和 Table 3 的 65M（L454）对得上吗？</p>
+<p><strong>题 2</strong>（第二步 warmup）：<span class="arithmatex">\(d_{model}\)</span> = 512，warmup_steps = 4000。
+（a）第几步学习率最大？
+（b）第 2000 步的学习率是最高点的几分之几？
+（c）第 16000 步呢？</p>
+<p><strong>题 3</strong>（第三步 通读）：打开原文 L253–L259（§3.4），一句一句用自己的话复述，每句说出它对应第 22 章的哪一步。</p>
+<h2 id="_3">口诀</h2>
+<blockquote>
+<p>数参数，分零件：attention 四 d 方，FFN 二 d d_ff；<br />
+编码一个 attention，解码两个，乘层数再相加；embedding 一张表，位置编码不花钱。<br />
+学习率是步子：先直线升四千步，再按根号慢慢降；开头热身别踩崩。<br />
+通读 §3 按地图：一段原文一段复述，对上章节再往下。</p>
+</blockquote>
+<h2 id="_4">本章复习卡片</h2>
+<p>（练习做完后，按答错、卡住的地方补上。）</p>
+<h2 id="_5">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_6">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>§3 L110–L298（按第三步的地图）；Table 3 L446–L476；§5.3 L363–L376；§5.4 L378–L410</td>
+<td>通读原文；base / big 两套配置和参数量（65M、213M）；学习率公式；dropout 和 label smoothing</td>
+</tr>
+<tr>
+<td>★ A2 精读笔记</td>
+<td>A2-attention-is-all-you-need.md 自测题</td>
+<td>题 1 数参数、题 2 位置编码旋转矩阵（引出 RoPE）</td>
+</tr>
+<tr>
+<td>★ CS336 assignment 1 handout</td>
+<td>§4.4 Learning rate scheduling L1610–L1640</td>
+<td>动手版：warmup + cosine 下降，自己实现 Problem (learning_rate_schedule)</td>
+</tr>
+<tr>
+<td>Xiong et al. 2020，On Layer Normalization in the Transformer Architecture</td>
+<td><code>preln-on-layer-normalization-2002.04745.txt</code> 摘要 L15–L39</td>
+<td>为什么 post-LN 离不开 warmup，Pre-LN 可以去掉或缩短（第 19 章第五步）</td>
+</tr>
+<tr>
+<td>Kaplan et al. 2020，Scaling Laws for Neural Language Models</td>
+<td>本地没有文本版</td>
+<td>数参数的进阶：参数量、数据量、计算量和效果的关系；常用估算"训练计算量 ≈ 6 × 参数 × token 数"（阶段 A4）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_7">数学原理</h3>
+<ul>
+<li><strong>多头参数 = 单头</strong>：<span class="arithmatex">\(h \cdot (3 \cdot d_{model} \cdot d_k) + d_{model}^2 = 3 d_{model}^2 + d_{model}^2 = 4 d_{model}^2\)</span>（因为 <span class="arithmatex">\(h \cdot d_k = d_{model}\)</span>）。</li>
+<li><strong>FFN 的比重</strong>：<span class="arithmatex">\(d_{ff} = 4 d_{model}\)</span> 时 FFN 是 <span class="arithmatex">\(8 d_{model}^2\)</span>，是 attention（<span class="arithmatex">\(4 d_{model}^2\)</span>）的两倍。</li>
+<li><strong>warmup 最高点</strong>：<span class="arithmatex">\(\text{step}^{-0.5} = \text{step} \cdot w^{-1.5} \iff \text{step}^{1.5} = w^{1.5} \iff \text{step} = w\)</span>；最高学习率 <span class="arithmatex">\(= d_{model}^{-0.5} \cdot w^{-0.5}\)</span>。</li>
+<li><strong>两段的形状</strong>：前一段和 step 成正比（直线）；后一段和 <span class="arithmatex">\(1/\sqrt{\text{step}}\)</span> 成正比，step 变成 4 倍，学习率变成一半。</li>
+</ul>
+<h3 id="_8">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>attention 子层 <span class="arithmatex">\(4 d_{model}^2\)</span></td>
+<td><span class="arithmatex">\(W^Q, W^K, W^V, W^O\)</span> 各 <span class="arithmatex">\(d_{model}^2\)</span></td>
+</tr>
+<tr>
+<td>FFN 子层 <span class="arithmatex">\(2 \cdot d_{model} \cdot d_{ff}\)</span></td>
+<td><span class="arithmatex">\(W_1\)</span>、<span class="arithmatex">\(W_2\)</span></td>
+</tr>
+<tr>
+<td>encoder 层 <span class="arithmatex">\(4d^2 + 2 d\, d_{ff}\)</span>；decoder 层 <span class="arithmatex">\(8d^2 + 2 d\, d_{ff}\)</span></td>
+<td>忽略 bias、LayerNorm</td>
+</tr>
+<tr>
+<td>整个模型 <span class="arithmatex">\(N(\text{enc}) + N(\text{dec}) + V d_{model}\)</span></td>
+<td>embedding 共享只算一次；位置编码没有参数</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{lrate} = d_{model}^{-0.5} \min(\text{step}^{-0.5}, \text{step} \cdot \text{warmup}^{-1.5})\)</span></td>
+<td>Eq. 3：先线性升，再按 <span class="arithmatex">\(1/\sqrt{\text{step}}\)</span> 降</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="23-complexity.html">← 第 23 章 · 复杂度：为什么 attention 是 n²，长文本为什么难</a><span></span></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

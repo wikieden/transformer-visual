@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 13 章 · 多头注意力 multi-head attention · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="13-multi-head-attention">第 13 章 · 多头注意力 multi-head attention</h1><p><a class="btn" href="../animations/13-multi-head.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：为什么要同时做好几次 attention（多个"头"）？怎么做？<br />
+讲解日期：2026-10-26 · 上一章：<a href="../lessons/12-transpose-formula.html">第 12 章 转置与公式 1</a> · 下一章：<a href="../lessons/14-positional-encoding.html">第 14 章 位置编码</a><br />
+对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.2.2，L192–L220（为什么：L207–L208；成本：L218–L220）<br />
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；<span class="arithmatex">\(d_v\)</span>：v = value，每个 value 向量有几个数（64）；MQA / GQA = Multi-Query / Grouped-Query Attention（多查询 / 分组查询注意力）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="_2">第一步：为什么一个头不够</h3>
+<p>一个"头"= 我们第 12 章完整算过的那一套 attention：一组 <span class="arithmatex">\(W^Q, W^K, W^V\)</span>，算出<strong>一组</strong>比例，做<strong>一次</strong>加权平均。</p>
+<p>问题：一个词常常需要<strong>同时</strong>关注好几样东西。读到"她"时，模型可能既想知道：</p>
+<ul>
+<li><strong>"她"指的是谁</strong> → 应该看"小红"</li>
+<li><strong>"她"前面是什么连接词</strong> → 应该看"因为"（知道这里在讲原因）</li>
+</ul>
+<p>可一个头只有<strong>一组比例</strong>，只能把注意力<strong>分开</strong>：比如小红 0.5、因为 0.5。按比例取信息（加权平均）时，两边的信息会<strong>混在一起</strong>。</p>
+<p><strong>类比：电影评审。</strong> 一个评委要同时盯剧情、画面、配乐，每样都只能看个大概；请三个评委各盯一样，最后把三份意见合起来，每一样都看得清楚。多头注意力就是请好几个"评委"。</p>
+<h2 id="_3">练习与作答记录</h2>
+<p><strong>题 1</strong>：设 v（小红）= [10, 0]（第 1 位代表"是谁"），v（因为）= [0, 10]（第 2 位代表"在讲原因"）。一个头只能各给 0.5：<span class="arithmatex">\(0.5\times[10,0]+0.5\times[0,10]=\ ?\)</span> 从结果还能看出"她"是小红吗？</p>
+<p><strong>作答</strong>：<strong>[5, 5]</strong> ✓（"还能不能看出是小红"没有回答，由讲解补充）</p>
+<p><strong>补充</strong>：[5, 5] 里两种信息都<strong>只剩一半</strong>，"是谁"从 10 降到 5，"在讲原因"也从 10 降到 5。两样都看得不清楚，这就是论文说的"单头的加权平均会削弱这种能力"（L207–L208）。</p>
+<h3 id="_4">第二步：两个头各管一样，再拼起来</h3>
+<p>请两个头，各有<strong>自己的</strong> <span class="arithmatex">\(W^Q, W^K, W^V\)</span>（不同的"评委视角"）：</p>
+<table>
+<thead>
+<tr>
+<th>头</th>
+<th>专门找什么</th>
+<th>比例</th>
+<th>取到的信息</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>头 1</td>
+<td>"她"指谁</td>
+<td>小红 1.0</td>
+<td>[10, 0]</td>
+</tr>
+<tr>
+<td>头 2</td>
+<td>在讲什么关系</td>
+<td>因为 1.0</td>
+<td>[0, 10]</td>
+</tr>
+</tbody>
+</table>
+<p>两个头的结果<strong>首尾接起来</strong>（拼接，concatenate，论文写作 Concat），两样信息都完整保留。</p>
+<p><strong>题 2</strong>：把 [10, 0] 和 [0, 10] 首尾拼接，结果是什么？有几个数？</p>
+<p><strong>作答</strong>：<strong>[10, 0, 0, 10]</strong> ✓（4 个数；拼接不是相加，是接在后面）</p>
+<h3 id="wo">第三步：论文的数字，以及 <span class="arithmatex">\(W^O\)</span></h3>
+<p>论文用 <strong>h = 8 个头</strong>（L218）。每个头的 q、k、v 不再是 512 个数，而是更短：</p>
+<ul>
+<li>每个头分到的长度 <span class="arithmatex">\(d_k\)</span> = ?（见题 3）</li>
+<li>8 个头的输出拼接起来，长度又回到 512，和原来的词向量一样长，方便后面继续算；</li>
+<li>拼完再乘一个矩阵 <span class="arithmatex">\(W^O\)</span>（O = output），把 8 个头的"意见"混合成最终结果，像主评委汇总各评委的打分。</li>
+</ul>
+<div class="arithmatex">\[\text{MultiHead}(Q,K,V)=\text{Concat}(\text{head}_1,\dots,\text{head}_8)\,W^O\]</div>
+<p><strong>题 3</strong>：词向量有 512 个数，分给 8 个头，拼接后要正好回到 512。每个头的 q 应该有几个数？</p>
+<p><strong>作答</strong>：<strong>64</strong> ✓（512 ÷ 8 = 64）。这就是第 8 章 <span class="arithmatex">\(d_k=64\)</span> 的来源。</p>
+<h3 id="l218l220">第四步：多头不多花力气（L218–L220）</h3>
+<ul>
+<li>单头：<span class="arithmatex">\(W^Q\)</span> 是 512 × 512。</li>
+<li>8 头：每个头的 <span class="arithmatex">\(W_i^Q\)</span> 是 512 × 64，8 个横着拼起来正好也是 512 × 512。</li>
+</ul>
+<p>参数量和计算量与"一个 512 维的大头"几乎一样，只是把 softmax 分成 8 组各自做。<strong>白得 8 个视角。</strong></p>
+<h2 id="_5">动画演示：一个头分不清，两个头各管一样再拼接</h2>
+<p><img alt="多头注意力" src="../animations/13-multi-head.gif" /></p>
+<p>可交互版：<a href="../animations/13-multi-head.html">animations/13-multi-head.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"）。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>一个头：小红 0.5、因为 0.5，信息混成 [5, 5]；</li>
+<li>两个头：头 1 全看小红 [10, 0]，头 2 全看"因为" [0, 10]；</li>
+<li>拼接（Concat）：[10, 0, 0, 10]，不是相加；</li>
+<li>论文 8 个头 × 64 = 512，再乘 <span class="arithmatex">\(W^O\)</span>；8 个 512 × 64 横着拼正好是 512 × 512，参数不多花；滑块：改头数，每个头的长度跟着变，总参数不变。</li>
+</ol>
+<h2 id="_6">小结</h2>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>为什么要多头</td>
+<td>一个头只有一组比例，想同时关注几样东西就只能分着给，信息被稀释（[5, 5]）</td>
+</tr>
+<tr>
+<td>怎么做</td>
+<td>每个头有自己的 <span class="arithmatex">\(W^Q, W^K, W^V\)</span>，各算一遍 attention</td>
+</tr>
+<tr>
+<td>怎么合起来</td>
+<td>拼接（Concat）→ 乘 <span class="arithmatex">\(W^O\)</span> 汇总</td>
+</tr>
+<tr>
+<td>论文数字</td>
+<td>h = 8，每头 <span class="arithmatex">\(d_k = 512 / 8 = 64\)</span>，拼回 512</td>
+</tr>
+<tr>
+<td>代价</td>
+<td>和单头几乎一样</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_7">口诀</h2>
+<blockquote>
+<p>一头只有一组比，多头各看各的戏；拼回原长再汇总。</p>
+</blockquote>
+<h2 id="_8">本章复习卡片</h2>
+<p>R24 为什么要多头 · R25 多头怎么做、<span class="arithmatex">\(d_k=64\)</span> 的来源（见 <a href="../review.html">../review.md</a>）</p>
+<h2 id="_9">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_10">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>§3.2.2，L192–L220；Table 3 (A)（L482）</td>
+<td>原文的多头公式；头数从 1 变到 32 的实验结果</td>
+</tr>
+<tr>
+<td>★ Olsson et al. 2022, In-context Learning and Induction Heads</td>
+<td>前几节对 induction head 的定义</td>
+<td>头的分工最著名的例子："找上次出现的地方，复制下一个词"（里程碑 T-M2）</td>
+</tr>
+<tr>
+<td>Michel et al. 2019, Are Sixteen Heads Really Better than One?（arXiv 1905.10650）</td>
+<td>全文</td>
+<td>训练好后很多头可以去掉，效果几乎不变</td>
+</tr>
+<tr>
+<td>Voita et al. 2019, Analyzing Multi-Head Self-Attention（arXiv 1905.09418）</td>
+<td>全文</td>
+<td>不同的头确实学到了不同的分工（位置、语法、罕见词）</td>
+</tr>
+<tr>
+<td>MQA / GQA（本地 <code>llm-full-stack/materials/papers/inference/</code>）</td>
+<td>方法部分</td>
+<td>现代模型让多个头共用 K、V，省推理内存（阶段 C）</td>
+</tr>
+<tr>
+<td>CS336 a1 handout</td>
+<td>§3.5.5 Causal Multi-Head Self-Attention</td>
+<td>作业实现</td>
+</tr>
+<tr>
+<td>Formal Algorithms for Transformers</td>
+<td>Algorithm 5 MHAttention</td>
+<td>多头的伪代码</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_11">数学原理</h3>
+<ul>
+<li><strong>分块矩阵</strong>：把各头结果拼起来再乘 <span class="arithmatex">\(W^O\)</span>，等于每个头各自乘 <span class="arithmatex">\(W^O\)</span> 的对应一段，再加起来。所以"拼接 + 乘 <span class="arithmatex">\(W^O\)</span>"本质上是在把各头的结论加权汇总。</li>
+<li><strong>参数量与头数无关</strong>：<span class="arithmatex">\(W^Q, W^K, W^V, W^O\)</span> 合起来始终是 <span class="arithmatex">\(4 \cdot d_{model}^2\)</span> 个参数。头数只决定怎么切分，不增加参数。</li>
+</ul>
+<h3 id="_12">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(\text{head}_i = \text{Attention}(QW_i^Q, KW_i^K, VW_i^V)\)</span></td>
+<td>每个头用自己的三个矩阵</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{MultiHead}(Q,K,V)=\text{Concat}(\text{head}_1,\dots,\text{head}_h)W^O\)</span></td>
+<td>拼接后再乘 <span class="arithmatex">\(W^O\)</span></td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(d_k = d_v = d_{model} / h = 512 / 8 = 64\)</span></td>
+<td>每个头的维度</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(4 \cdot d_{model}^2\)</span></td>
+<td>一层 attention 的参数量（不算偏置）</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="12-transpose-formula.html">← 第 12 章 · 转置与公式 1 完整走一遍</a><a href="14-positional-encoding.html">第 14 章 · 位置编码 positional encoding →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

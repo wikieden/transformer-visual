@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>向量 vector</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:12px}</style></head>
+<body><main>
+<h1>第 1 章 · 向量 vector：用一串数字描述一个东西</h1>
+<p class="sub">配套讲义：<a href="../lessons/01-vector.html">第 1 章 · 向量 vector</a>。每个水果打三项分（0–10 分）：甜、大、红。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="r">自己拖：苹果的"红"打几分</label><input type="range" id="r" min="0" max="10" step="1" value="8"><span id="rv">8</span></div>
+<p class="note">看点：① 一个水果 = 一串数字 [甜, 大, 红]，这串数字就是向量；② 每个位置的含义固定：第 1 个永远是"甜"；③ 同样三个数换个顺序，描述的就是另一个东西；④ 论文里一个词 = 512 个数（d_model = 512，d = dimension 维度），每个位置的含义由模型自己学。滑块：改苹果的第 3 个数 a₃，只有"红"那根柱子跟着变。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const DIM=['甜','大','红'],COL=['var(--amber)','var(--teal)','var(--warm)'];
+const F={苹果:[7,5,8],西瓜:[8,10,6],柠檬:[1,3,0]};
+const ST=[
+  {cap:'苹果打三项分：甜 7、大 5、红 8 → 写成 [7, 5, 8]',show:['苹果']},
+  {cap:'西瓜 [8, 10, 6]：同样三个位置，同样的含义',show:['苹果','西瓜']},
+  {cap:'柠檬 [1, 3, 0]：三个数都是 3 维向量',show:['苹果','西瓜','柠檬']},
+  {cap:'顺序不能换：[7, 5, 8] 和 [8, 5, 7] 是两个不同的东西',swap:true},
+  {cap:'论文里一个词 = 512 个数（d_model = 512）',strip:true}
+];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+const base=320,U=20;
+function group(x0,name,v,hi){
+  v.forEach((a,i)=>{
+    const x=x0+i*46,h=a*U;
+    const r=el('rect',{x,y:base-h,width:38,height:Math.max(h,1),rx:4,fill:COL[i]},sv);
+    if(hi!==undefined&&hi!==i)r.setAttribute('opacity','.35');
+    txt(String(a),{x:x+19,y:base-h-6,'text-anchor':'middle',class:'v'},sv);
+    txt(DIM[i],{x:x+19,y:base+18,'text-anchor':'middle',class:'m'},sv);
+  });
+  txt(name,{x:x0+65,y:base+44,'text-anchor':'middle',class:'big'},sv);
+  txt('['+v.join(', ')+']',{x:x0+65,y:base+66,'text-anchor':'middle',class:'big'},sv);
+}
+function axis(){el('line',{x1:40,y1:base,x2:650,y2:base,stroke:'var(--muted)'},sv);
+  txt('10 分',{x:36,y:base-10*U+4,'text-anchor':'end',class:'m'},sv);
+  el('line',{x1:40,y1:base-10*U,x2:650,y2:base-10*U,stroke:'var(--line)','stroke-dasharray':'4 4'},sv)}
+function strip(){
+  seed(3);const cols=32,rows=16,cw=17,ch=12,x0=68,y0=80;
+  for(let i=0;i<512;i++){const v=gauss(),c=i%cols,r=Math.floor(i/cols);
+    el('rect',{x:x0+c*cw,y:y0+r*ch,width:cw-2,height:ch-2,rx:2,fill:v>=0?'var(--teal)':'var(--warm)',opacity:Math.min(1,.2+Math.abs(v)/2.2)},sv)}
+  txt('第 1 个数',{x:x0,y:y0-8,class:'m'},sv);txt('第 512 个数',{x:x0+cols*cw-2,y:y0+rows*ch+16,'text-anchor':'end',class:'m'},sv);
+  txt('32 × 16 = 512 个格子，一格一个数（颜色深浅 = 数的大小，绿正橙负）',{x:340,y:y0+rows*ch+44,'text-anchor':'middle',class:'m'},sv);
+  txt('水果向量的含义是人定的（甜、大、红）；词向量每个位置代表什么，是模型训练时自己学出来的',{x:340,y:y0+rows*ch+70,'text-anchor':'middle',class:'m'},sv);
+}
+function draw(){
+  clear(sv);
+  if(custom!==null){
+    txt(`苹果 a = [7, 5, ${custom}]：a₁ = 7（甜），a₂ = 5（大），a₃ = ${custom}（红），d = 3`,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+    axis();group(250,'苹果',[7,5,custom],2);
+    txt('下标 i 说的是"第几个位置"，位置的含义不变，只是这个位置上的数变了',{x:340,y:60,'text-anchor':'middle',class:'m'},sv);return}
+  const f=ST[FR[k]];
+  txt(f.cap,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+  if(f.strip){strip();return}
+  axis();
+  if(f.swap){group(110,'苹果',[7,5,8]);group(430,'另一个水果',[8,5,7]);
+    txt('更甜、红得少一点：数字一样，顺序不同，就是两个不同的东西',{x:340,y:60,'text-anchor':'middle',class:'m'},sv);return}
+  f.show.forEach((n,i)=>group(60+i*210,n,F[n]));
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('r').oninput=e=>{ANIM.stop();custom=+e.target.value;$('rv').textContent=custom;draw()};
+setupPlayer({captureSeed:1,reset,next},1500);
+</script></body></html>

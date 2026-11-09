@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>分数变比例</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:12px}</style></head>
+<body><main>
+<h1>第 3 章 · softmax（上）：把分数变成比例</h1>
+<p class="sub">配套讲义：<a href="../lessons/03-softmax-ratio.html">第 3 章 · softmax（上）：把分数变成比例</a>。"小明把苹果给了小红，因为她饿了。""她"和三个词的分数（编的）：小明 2、苹果 1、小红 5。这里用朴素版：每个分数除以总分。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="s">自己拖：小红的分数</label><input type="range" id="s" min="0" max="12" step="1" value="5"><span id="sv2">5</span></div>
+<p class="note">看点：① 三个分数先摞成一根，总分 8；② 每个分数 ÷ 总分，就是它分到的比例；③ 比例条总长永远是 1（100%），因为注意力一共就这么多。滑块：小红分数越高，她在比例条里占得越多，别人被挤小；但总长始终是 1。softmax 在"除以总分"之前还多一步 eˣ（第 6 章）。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const NM=['小明','苹果','小红'],COL=['var(--teal)','var(--amber)','var(--purple)'];
+const ST=[{cap:'"她"给三个词打的分：小明 2、苹果 1、小红 5',s:0},{cap:'摞起来：总分 = 2 + 1 + 5 = 8',s:1},{cap:'每个分数 ÷ 总分 8：小明 2 ÷ 8 = 0.25',s:2},{cap:'比例加起来正好是 1：注意力一共就这么多',s:3}];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+const pct=v=>(Math.round(v*1000)/10)+'%';
+function scene(S,s){
+  const tot=S.reduce((a,b)=>a+b,0)||1,P=S.map(v=>v/tot);
+  // 上：分数柱
+  const base=170,U=12;
+  el('line',{x1:60,y1:base,x2:330,y2:base,stroke:'var(--muted)'},sv);
+  S.forEach((v,i)=>{const x=80+i*85;el('rect',{x,y:base-v*U,width:54,height:Math.max(v*U,1),rx:4,fill:COL[i]},sv);
+    txt(String(v),{x:x+27,y:base-v*U-6,'text-anchor':'middle',class:'big'},sv);txt(NM[i],{x:x+27,y:base+18,'text-anchor':'middle',class:'m'},sv)});
+  txt('分数',{x:195,y:base+40,'text-anchor':'middle',class:'m'},sv);
+  if(s>=1){ // 摞起来
+    let y=base;const x=430;
+    S.forEach((v,i)=>{el('rect',{x,y:y-v*U,width:60,height:Math.max(v*U,0),fill:COL[i]},sv);y-=v*U});
+    txt(`总分 = ${S.join(' + ')} = ${tot}`,{x:500,y:y-8,class:'big'},sv);
+    txt('摞成一根',{x:460,y:base+18,'text-anchor':'middle',class:'m'},sv);
+  }
+  if(s>=2){ // 比例条
+    const x0=60,w=560,y=260;let x=x0;
+    P.forEach((p,i)=>{const ww=p*w;el('rect',{x,y,width:Math.max(ww,0),height:44,fill:COL[i]},sv);
+      if(ww>40){const t=txt(`${NM[i]} ${S[i]}÷${tot}`,{x:x+ww/2,y:y+19,'text-anchor':'middle',class:'v'},sv);t.style.fill='#fff';
+        const t2=txt(pct(p),{x:x+ww/2,y:y+36,'text-anchor':'middle',class:'v'},sv);t2.style.fill='#fff'}x+=ww});
+    txt('0',{x:x0,y:y+62,'text-anchor':'middle',class:'m'},sv);txt('1（100%）',{x:x0+w,y:y+62,'text-anchor':'middle',class:'m'},sv);
+    if(s>=3)txt(`${P.map(p=>(Math.round(p*1000)/1000)).join(' + ')} = 1`,{x:340,y:350,'text-anchor':'middle',class:'big'},sv);
+  }
+}
+function draw(){
+  clear(sv);
+  if(custom!==null){const S=[2,1,custom],tot=3+custom;
+    txt(`小红 ${custom} 分：总分 ${tot}，小红占 ${custom}÷${tot} = ${pct(custom/tot)}`,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);scene(S,3);return}
+  const f=ST[FR[k]];txt(f.cap,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);scene([2,1,5],f.s);
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('s').oninput=e=>{ANIM.stop();custom=+e.target.value;$('sv2').textContent=custom;draw()};
+setupPlayer({captureSeed:1,reset,next},1500);
+</script></body></html>

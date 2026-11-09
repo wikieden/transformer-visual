@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 1 章 · 向量 vector · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="1-vector">第 1 章 · 向量 vector</h1><p><a class="btn" href="../animations/01-vector.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：模型不认识文字，它怎么"看"一个词？<br />
+讲解日期：2026-10-25 · 上一章：— · 下一章：<a href="../lessons/02-dot-product.html">第 2 章 点积</a><br />
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；LayerNorm / LN = Layer Normalization（层归一化）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="_2">用一串数字描述一个东西</h3>
+<p>先不想数学，想想平时怎么描述水果。如果只关心三件事：有多甜、有多大、有多红（各 0–10 分）：</p>
+<table>
+<thead>
+<tr>
+<th>水果</th>
+<th>甜</th>
+<th>大</th>
+<th>红</th>
+<th>写成一串数字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>苹果</td>
+<td>7</td>
+<td>5</td>
+<td>8</td>
+<td>[7, 5, 8]</td>
+</tr>
+<tr>
+<td>西瓜</td>
+<td>8</td>
+<td>10</td>
+<td>6</td>
+<td>[8, 10, 6]</td>
+</tr>
+<tr>
+<td>柠檬</td>
+<td>1</td>
+<td>3</td>
+<td>0</td>
+<td>[1, 3, 0]</td>
+</tr>
+</tbody>
+</table>
+<p>最后一列这种用方括号括起来的一串数字，就叫<strong>向量</strong>。</p>
+<p>两点要记住：</p>
+<ol>
+<li><strong>每个位置有固定的含义。</strong> 第 1 个数永远是"甜"，第 2 个永远是"大"，第 3 个永远是"红"。[7, 5, 8] 和 [8, 5, 7] 描述的是两个不同的东西。</li>
+<li><strong>有几个数，就叫几"维"。</strong> 上面每个水果都是 3 维向量。</li>
+</ol>
+<h3 id="transformer">和 Transformer 的关系</h3>
+<p>模型不认识文字，只认识数字，所以它把每个词都变成一个向量。区别是：</p>
+<ul>
+<li>水果向量只有 3 个数，论文里每个词有 <strong>512 个数</strong>（论文记作 <span class="arithmatex">\(d_{model}=512\)</span>）；</li>
+<li>每个位置代表什么，不是人规定的，是模型在训练中自己学出来的。</li>
+</ul>
+<h2 id="_3">公式</h2>
+<div class="arithmatex">\[\mathbf a = [a_1, a_2, \dots, a_d]\]</div>
+<ul>
+<li>粗体 <span class="arithmatex">\(\mathbf a\)</span>：整个向量</li>
+<li><span class="arithmatex">\(a_i\)</span>（右下角的小字叫<strong>下标</strong>）：第 i 个数</li>
+<li><span class="arithmatex">\(d\)</span>：维数，也就是一共有几个数</li>
+</ul>
+<p>例：香蕉 [8, 3, 0]，<span class="arithmatex">\(a_1=8\)</span>（甜），<span class="arithmatex">\(a_2=3\)</span>（大），<span class="arithmatex">\(a_3=0\)</span>（红），<span class="arithmatex">\(d=3\)</span>。</p>
+<h2 id="_4">动画演示：一个水果 = 一串数字；位置的含义固定</h2>
+<p><img alt="向量 vector" src="../animations/01-vector.gif" /></p>
+<p>可交互版：<a href="../animations/01-vector.html">animations/01-vector.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"）。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>苹果 [7, 5, 8]、西瓜 [8, 10, 6]、柠檬 [1, 3, 0]：三根柱子依次是甜、大、红；</li>
+<li>[7, 5, 8] 和 [8, 5, 7]：数字一样、顺序不同，就是两个不同的东西；</li>
+<li>论文里一个词有 512 个数（<span class="arithmatex">\(d_{model}=512\)</span>），画成 32 × 16 的格子，每个位置的含义由模型自己学；</li>
+<li>滑块：改苹果的第 3 个数 <span class="arithmatex">\(a_3\)</span>，只有"红"那根柱子跟着变。</li>
+</ol>
+<h2 id="_5">练习与作答记录</h2>
+<p><strong>题</strong>：用"甜、大、红"给香蕉写一个向量。</p>
+<p><strong>作答</strong>：先写了 [8, 3, 9]，随后自己改成 <strong>[8, 3, 0]</strong>。✓</p>
+<p><strong>点评</strong>：改得对。第 3 个位置的含义是"红"，香蕉不红，所以填 0。这说明已经抓住了"每个位置有固定含义"。</p>
+<h2 id="_6">口诀</h2>
+<blockquote>
+<p>一串数字描一物，位置含义不能乱。</p>
+</blockquote>
+<h2 id="_7">本章复习卡片</h2>
+<p>R01 向量是什么（见 <a href="../review.html">review.md</a>）</p>
+<h2 id="_8">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_9">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>§3.4 Embeddings and Softmax（L253 起）</td>
+<td>论文里每个词怎么变成一个 512 维向量</td>
+</tr>
+<tr>
+<td>★ 3Blue1Brown《线性代数的本质》</td>
+<td>第 1 集 Vectors</td>
+<td>用图看懂"向量 = 空间里的一个箭头 / 一个点"</td>
+</tr>
+<tr>
+<td>Mikolov et al. 2013, Efficient Estimation of Word Representations in Vector Space（word2vec，arXiv 1301.3781）</td>
+<td>摘要和结果部分的类比例子</td>
+<td>词向量是学出来的；"king − man + woman ≈ queen"</td>
+</tr>
+<tr>
+<td>Goodfellow《Deep Learning》</td>
+<td>§2.1 标量、向量、矩阵和张量</td>
+<td>教科书里的正式定义和记号</td>
+</tr>
+<tr>
+<td>Formal Algorithms for Transformers</td>
+<td>Algorithm 1 Token embedding</td>
+<td>embedding 的伪代码：其实就是查表</td>
+</tr>
+<tr>
+<td>CS336 a1 handout</td>
+<td>§3.4.3 Embedding Module</td>
+<td>自己写 embedding 层时对照</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_10">数学原理</h3>
+<ul>
+<li><strong>向量空间 <span class="arithmatex">\(\mathbb{R}^d\)</span></strong>：所有"d 个实数排成一串"的集合。d 就是维度，第 i 个数叫第 i 个分量。</li>
+<li><strong>向量的长度（范数 norm）</strong>：所有分量的平方加起来再开根号。后面的点积、余弦相似度、LayerNorm 都会用到。</li>
+<li><strong>embedding = 查表</strong>：词表里有 V 个词，就有一张 V 行 d 列的表 E，第 i 个词的向量就是 E 的第 i 行。数学上等于"one-hot 向量乘矩阵 E"。</li>
+</ul>
+<h3 id="_11">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(\mathbf x = [x_1, x_2, \dots, x_d] \in \mathbb{R}^d\)</span></td>
+<td>一个 d 维向量</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\lVert \mathbf x \rVert = \sqrt{\sum_{i=1}^{d} x_i^2}\)</span></td>
+<td>向量的长度</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\mathbf x_{\text{词}} = E[i]\)</span>，<span class="arithmatex">\(E \in \mathbb{R}^{V \times d}\)</span></td>
+<td>embedding：取表的第 i 行</td>
+</tr>
+</tbody>
+</table><nav class="pager"><span></span><a href="02-dot-product.html">第 2 章 · 点积 dot product →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LayerNorm</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:12px}</style></head>
+<body><main>
+<h1>第 19 章 · LayerNorm：把每个词的数字调到统一范围</h1>
+<p class="sub">配套讲义：<a href="../lessons/19-layernorm.html">第 19 章 · LayerNorm：把每个词的数字调到统一范围</a>。两个词各有 4 个数（论文是 512 个）："狗" = [2, 4, 6, 8]，"咬" = [10, 30, 50, 70]。每个词只用自己的 4 个数算 μ 和 σ。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="shift">自己拖：给"咬"的每个数都加上 c</label><input type="range" id="shift" min="-80" max="40" step="1" value="0"><span id="shiftv">0</span></div>
+<p class="note">看点：① "咬"整体更大、散得更开；② 各自减掉自己的平均值，中心都到 0；③ 各自除以自己的 σ，两个词变得一模一样（平均 0、方差 1）；④ 再乘 γ、加 β，两个词用同一套；⑤ RMSNorm 不减平均值，结果还是正数，两个词也不一样。滑块：给"咬"整体加 c，LayerNorm 的结果不变，RMSNorm 的结果跟着变；c = −40 时"咬"的平均值正好是 0，两种结果一样。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const A0=[2,4,6,8],B0=[10,30,50,70];
+const G=[1,2,1,2],BE=[0,0,0.5,0.5];
+const mean=x=>x.reduce((a,b)=>a+b,0)/x.length;
+const sd=x=>{const m=mean(x);return Math.sqrt(mean(x.map(v=>(v-m)**2)))};
+const rms=x=>Math.sqrt(mean(x.map(v=>v*v)));
+const ln=x=>{const m=mean(x),s=sd(x);return x.map(v=>(v-m)/s)};
+const rn=x=>{const r=rms(x);return x.map(v=>v/r)};
+const fmt=v=>{const r=Math.abs(v)<0.005?0:v;const s=Number.isInteger(r)?String(r):r.toFixed(2);return s.replace('-','−')};
+const vec=x=>'['+x.map(fmt).join(', ')+']';
+const ST=[
+  {cap:'原始数字："咬"整体更大，也散得更开',A:A0,B:B0,mu:true,stat:'mu'},
+  {cap:'第一步：各自减掉自己的平均值 μ，中心都挪到 0',A:A0.map(v=>v-mean(A0)),B:B0.map(v=>v-mean(B0)),zero:true,stat:'sub'},
+  {cap:'第二步：量一量散得多开（阴影 = 中心 ± σ）',A:A0.map(v=>v-mean(A0)),B:B0.map(v=>v-mean(B0)),band:true,stat:'sd'},
+  {cap:'第三步：各自除以自己的 σ，两个词变得一模一样',A:ln(A0),B:ln(B0),stat:'unit'},
+  {cap:'第四步：乘 γ、加 β（所有词共用一套，训练学出来）',A:ln(A0).map((v,i)=>G[i]*v+BE[i]),B:ln(B0).map((v,i)=>G[i]*v+BE[i]),stat:'gb'},
+  {cap:'RMSNorm：不减 μ，只除以 RMS，结果还是正数，中心没挪',A:rn(A0),B:rn(B0),stat:'rms'}
+];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+const GX=i=>150+i*125;
+function chart(y0,half,A,B,top,o={}){
+  const Y=v=>y0-v/top*half;
+  el('line',{x1:80,y1:y0,x2:650,y2:y0,stroke:'var(--muted)'},sv);
+  txt('0',{x:70,y:y0+4,'text-anchor':'end',class:'m'},sv);
+  txt(fmt(+top.toPrecision(2)),{x:70,y:y0-half+4,'text-anchor':'end',class:'m'},sv);
+  el('line',{x1:76,y1:y0-half,x2:84,y2:y0-half,stroke:'var(--muted)'},sv);
+  if(o.band)[[A,'var(--teal)'],[B,'var(--amber)']].forEach(([x,c])=>{const s=sd(x);el('rect',{x:80,y:Y(s),width:570,height:Y(-s)-Y(s),fill:c,opacity:.12},sv)});
+  [[A,0,'var(--teal)'],[B,1,'var(--amber)']].forEach(([x,j,c])=>{
+    x.forEach((v,i)=>{
+      const bx=GX(i)-38+j*42,h=Y(v)-y0;
+      el('rect',{x:bx,y:h<0?Y(v):y0,width:34,height:Math.max(Math.abs(h),1),rx:3,fill:c},sv);
+      const t=txt(fmt(v),{x:bx+17,y:v>=0?Y(v)-5:Y(v)+14,'text-anchor':'middle',class:'v'},sv);t.style.fill=c;
+    });
+    if(o.mu){const m=mean(x);el('line',{x1:80,y1:Y(m),x2:650,y2:Y(m),stroke:c,'stroke-dasharray':'5 4','stroke-width':1.5},sv);
+      const t=txt(`μ = ${fmt(m)}`,{x:648,y:Y(m)-5,'text-anchor':'end',class:'m'},sv);t.style.fill=c}
+  });
+  if(o.dimsY)for(let i=0;i<4;i++)txt(`第 ${i+1} 个数`,{x:GX(i),y:o.dimsY,'text-anchor':'middle',class:'m'},sv);
+}
+function legend(A,B,y){
+  const t1=txt(`■ 狗 ${vec(A)}`,{x:90,y,class:'m'},sv);t1.style.fill='var(--teal)';
+  const t2=txt(`■ 咬 ${vec(B)}`,{x:370,y,class:'m'},sv);t2.style.fill='var(--amber)';
+}
+function stat(kind){
+  const S={sub:'狗：每个数减 5　　咬：每个数减 40',mu:`狗：μ = ${fmt(mean(A0))}　　咬：μ = ${fmt(mean(B0))}`,
+    sd:`狗：σ = √5 ≈ ${fmt(sd(A0))}　　咬：σ = √500 ≈ ${fmt(sd(B0))}`,
+    unit:'两个词：平均值 0、方差 1',
+    gb:`γ = ${vec(G)}，β = ${vec(BE)}，两个词结果还是一样`,
+    rms:`狗：RMS = √30 ≈ ${fmt(rms(A0))}　　咬：RMS = √2100 ≈ ${fmt(rms(B0))}`}[kind];
+  txt(S,{x:340,y:82,'text-anchor':'middle',class:'big'},sv);
+}
+function drawCustom(c){
+  const B=B0.map(v=>v+c),m=mean(B);
+  txt(Math.abs(m)<0.01?'"咬"的平均值正好是 0：这时 RMSNorm 和 LayerNorm 一样':`"咬"每个数加 ${fmt(c)}：LayerNorm 结果不变，RMSNorm 结果跟着变`,{x:340,y:26,'text-anchor':'middle',class:'cap'},sv);
+  legend(A0,B,54);
+  txt('LayerNorm（减 μ、除以 σ）',{x:90,y:92,class:'big'},sv);
+  chart(160,55,ln(A0),ln(B),2);
+  txt(`RMSNorm（只除以 RMS）　咬：μ = ${fmt(m)}`,{x:90,y:252,class:'big'},sv);
+  chart(320,55,rn(A0),rn(B),2,{dimsY:392});
+}
+function draw(){
+  clear(sv);
+  if(custom!==null){drawCustom(custom);return}
+  const f=ST[FR[k]];
+  txt(f.cap,{x:340,y:26,'text-anchor':'middle',class:'cap'},sv);
+  legend(f.A,f.B,54);stat(f.stat);
+  const top=Math.max(...f.A.map(Math.abs),...f.B.map(Math.abs))*1.08;
+  const pos=FR[k]===0||FR[k]===5;  // 全是正数：零线放低，柱子只往上
+  chart(pos?345:225,pos?225:110,f.A,f.B,top,{mu:f.mu,band:f.band,dimsY:pos?368:357});
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('shift').oninput=e=>{ANIM.stop();custom=+e.target.value;$('shiftv').textContent=fmt(custom);draw()};
+setupPlayer({captureSeed:1,reset,next},1600);
+</script></body></html>

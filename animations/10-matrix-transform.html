@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>向量乘矩阵</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:12px}</style></head>
+<body><main>
+<h1>第 10 章 · 转换与矩阵：Q、K、V 是怎么变出来的</h1>
+<p class="sub">配套讲义：<a href="../lessons/10-matrix-transform.html">第 10 章 · 转换与矩阵：Q、K、V 是怎么变出来的</a>。苹果 x = [甜 7, 大 5, 红 8]；两组权重：榨汁 [0.5, 0, 0.2]、好拿 [0.1, 0.5, 0]。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="w">自己拖："甜"在榨汁里占的权重</label><input type="range" id="w" min="0" max="10" step="1" value="5"><span id="wv">0.5</span></div>
+<p class="note">看点：① 拿 x 和一组权重做点积，得到一个新的数（榨汁 5.1）；② 再拿另一组权重做一次（好拿 3.2）；③ 几组权重竖着排成一张表 = 矩阵 W，每一列是一组权重：向量乘矩阵 = 和每一列各做一次点积，3 个数变成 2 个数；④ 同一个 x 乘三个不同的矩阵 W^Q、W^K、W^V，得到 q、k、v（论文：512 个数 → 64 个数）。滑块：改一个权重，只有它那一列的结果变。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const X=[7,5,8],DIM=['甜','大','红'];
+const fmt=(v,d=2)=>{const r=Math.round(v*10**d)/10**d;return String(r)};
+const ST=[{cap:'榨汁 = 0.5 × 甜 + 0 × 大 + 0.2 × 红：x 和第 1 列做点积',s:0},{cap:'好拿 = 0.1 × 甜 + 0.5 × 大 + 0 × 红：x 和第 2 列做点积',s:1},
+  {cap:'两组权重竖着排成一张表 = 矩阵 W（3 行 × 2 列）',s:2},{cap:'同一个 x 乘三个不同的矩阵：q = xW^Q，k = xW^K，v = xW^V',s:3}];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+function scene(W,s){
+  const C=['var(--warm)','var(--teal)'],cx=[330,420],y0=110,rh=48;
+  // x 竖着写，方便和列对齐
+  txt('x（苹果）',{x:150,y:y0-26,'text-anchor':'middle',class:'m'},sv);
+  X.forEach((v,i)=>{el('rect',{x:120,y:y0+i*rh-20,width:60,height:36,rx:6,fill:'none',stroke:'var(--accent)'},sv);
+    txt(String(v),{x:150,y:y0+i*rh+4,'text-anchor':'middle',class:'big'},sv);txt(DIM[i],{x:100,y:y0+i*rh+4,'text-anchor':'end',class:'m'},sv)});
+  txt('和每一列做点积 →',{x:250,y:y0-26,'text-anchor':'middle',class:'m'},sv);
+  if(s>=2)el('rect',{x:300,y:y0-30,width:180,height:3*rh+18,rx:8,fill:'none',stroke:'var(--muted)','stroke-dasharray':'5 4'},sv);
+  if(s>=2)txt('矩阵 W（3 × 2）',{x:390,y:y0+3*rh+6,'text-anchor':'middle',class:'m'},sv);
+  const out=[0,1].map(j=>X.reduce((a,v,i)=>a+v*W[i][j],0));
+  [0,1].forEach(j=>{if(s<2&&j>s)return;const on=s===j||s>=2;
+    txt(['榨汁','好拿'][j],{x:cx[j],y:y0-26,'text-anchor':'middle',class:'m'},sv).style.fill=C[j];
+    W.forEach((r,i)=>{el('rect',{x:cx[j]-30,y:y0+i*rh-20,width:60,height:36,rx:6,fill:on?C[j]:'none',opacity:on?.18:1,stroke:C[j]},sv);
+      txt(fmt(r[j]),{x:cx[j],y:y0+i*rh+4,'text-anchor':'middle',class:'big'},sv)});
+    if(s===j){const terms=X.map((v,i)=>`${fmt(W[i][j])}×${v}`).join(' + ');
+      txt(`${terms} = ${fmt(out[j])}`,{x:340,y:300,'text-anchor':'middle',class:'big'},sv).style.fill=C[j]}});
+  // 输出向量
+  txt('新向量',{x:590,y:y0-26,'text-anchor':'middle',class:'m'},sv);
+  [0,1].forEach(j=>{if(s<2&&j>s)return;el('rect',{x:560,y:y0+j*rh-20,width:60,height:36,rx:6,fill:'none',stroke:C[j],'stroke-width':2},sv);
+    txt(fmt(out[j]),{x:590,y:y0+j*rh+4,'text-anchor':'middle',class:'big'},sv);txt(['榨汁','好拿'][j],{x:630,y:y0+j*rh+4,class:'m'},sv)});
+  if(s>=2){txt(`xW = [x · 第 1 列, x · 第 2 列] = [${fmt(out[0])}, ${fmt(out[1])}]`,{x:340,y:300,'text-anchor':'middle',class:'big'},sv);
+    txt('行数 = 原向量长度（3），列数 = 新向量长度（2）：3 个数变成 2 个数',{x:340,y:330,'text-anchor':'middle',class:'m'},sv)}
+}
+function qkv(){
+  const M=[['W^Q','q','var(--accent)'],['W^K','k','var(--warm)'],['W^V','v','var(--teal)']];
+  el('rect',{x:60,y:90,width:44,height:220,rx:4,fill:'var(--purple)',opacity:.85},sv);
+  txt('x',{x:82,y:205,'text-anchor':'middle',class:'big'},sv).style.fill='#fff';txt('512 个数',{x:82,y:330,'text-anchor':'middle',class:'m'},sv);
+  M.forEach(([w,o,c],i)=>{const y=80+i*92;
+    el('line',{x1:110,y1:200,x2:220,y2:y+38,stroke:'var(--line)','stroke-width':1.5},sv);
+    el('rect',{x:230,y,width:120,height:76,rx:4,fill:c,opacity:.18,stroke:c},sv);
+    txt(w,{x:290,y:y+34,'text-anchor':'middle',class:'big'},sv);txt('512 × 64',{x:290,y:y+56,'text-anchor':'middle',class:'m'},sv);
+    el('line',{x1:355,y1:y+38,x2:440,y2:y+38,stroke:c,'stroke-width':2},sv);
+    el('rect',{x:450,y:y+20,width:110,height:36,rx:4,fill:c},sv);
+    txt(`${o} = x${w}`,{x:505,y:y+43,'text-anchor':'middle',class:'big'},sv).style.fill='#fff';txt('64 个数',{x:600,y:y+43,'text-anchor':'middle',class:'m'},sv)});
+  txt('三个矩阵里的数一开始是随机的，模型训练时自己调；这就是第 8 章 d_k = 64 的来源',{x:340,y:375,'text-anchor':'middle',class:'m'},sv)}
+const W0=[[0.5,0.1],[0,0.5],[0.2,0]];
+function draw(){
+  clear(sv);
+  if(custom!==null){const W=[[custom,0.1],[0,0.5],[0.2,0]];
+    txt(`"甜"的权重改成 ${fmt(custom)}：榨汁 = ${fmt(custom)}×7 + 0 + 1.6 = ${fmt(custom*7+1.6)}，好拿不变`,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);scene(W,2);return}
+  const f=ST[FR[k]];txt(f.cap,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+  if(f.s===3)qkv();else scene(W0,f.s);
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('w').oninput=e=>{ANIM.stop();custom=+e.target.value/10;$('wv').textContent=fmt(custom);draw()};
+setupPlayer({captureSeed:1,reset,next},1600);
+</script></body></html>

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>softmax 为什么套 eˣ</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:12px}</style></head>
+<body><main>
+<h1>第 6 章 · softmax（下）：为什么要先套 eˣ</h1>
+<p class="sub">配套讲义：<a href="../lessons/06-softmax-exp.html">第 6 章 · softmax（下）：为什么要先套 e^x</a>。softmax：p = e^分数 ÷ 所有 e^分数之和。朴素版：p = 分数 ÷ 总分（第 3 章）。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="s">自己拖：苹果的分数（小明 2、小红 5 不变）</label><input type="range" id="s" min="-6" max="6" step="1" value="-1"><span id="sv2">−1</span></div>
+<p class="note">看点：① 分数有负的（苹果 −1）时，朴素版会算出负的注意力；② 先套 eˣ，所有数都变成正的，比例一定在 0 到 1 之间；③ 分数只差 3，套上 eˣ 后差 e³ ≈ 20 倍：同一组分数 [2, 1, 5]，小红从 62.5% 变成 93.6%。滑块：拖苹果的分数，上面朴素版一旦变负就出错，下面 softmax 永远正常。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const NM=['小明','苹果','小红'],COL=['var(--teal)','var(--amber)','var(--purple)'];
+const fmt=(v,d=3)=>{const r=Math.round(v*10**d)/10**d;return (Object.is(r,-0)?'0':String(r)).replace('-','−')};
+const pct=v=>fmt(v*100,1)+'%';
+const naive=S=>{const t=S.reduce((a,b)=>a+b,0);return S.map(v=>v/t)},soft=S=>{const E=S.map(Math.exp),t=E.reduce((a,b)=>a+b,0);return E.map(v=>v/t)};
+const ST=[{cap:'分数可以是负数：小明 2、苹果 −1、小红 5',s:0},{cap:'朴素版：总分 6，苹果 = −1 ÷ 6 ≈ −0.167，注意力是负的？',s:1},
+  {cap:'先套 eˣ：e² = 7.389，e⁻¹ = 0.368，e⁵ = 148.4，全是正数',s:2},{cap:'再除以总和 156.17：比例都在 0 到 1 之间，加起来是 1',s:3},
+  {cap:'原因 2，拉开差距：同一组分数 [2, 1, 5]',s:4}];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+function bars(x0,y0,vals,U,labF,o={}){ // 柱子可正可负
+  el('line',{x1:x0-10,y1:y0,x2:x0+3*80,y2:y0,stroke:'var(--muted)'},sv);
+  vals.forEach((v,i)=>{const x=x0+i*80,h=v*U,bad=o.neg&&v<0;
+    el('rect',{x,y:h>=0?y0-h:y0,width:50,height:Math.max(Math.abs(h),1),rx:4,fill:bad?'var(--bad)':COL[i]},sv);
+    const t=txt(labF(v,i),{x:x+25,y:h>=0?y0-h-6:y0-h+15,'text-anchor':'middle',class:'big'},sv);if(bad)t.style.fill='var(--bad)';
+    txt(NM[i],{x:x+25,y:y0+(h<0?-6:18),'text-anchor':'middle',class:'m'},sv)});
+  if(o.title)txt(o.title,{x:x0+110,y:o.ty||y0+(vals.some(v=>v<0)?66:44),'text-anchor':'middle',class:'m'},sv)}
+function stack(x0,y,w,P,title){let x=x0;txt(title,{x:x0-10,y:y+24,'text-anchor':'end',class:'big'},sv);
+  P.forEach((p,i)=>{const ww=Math.max(0,p)*w;el('rect',{x,y,width:ww,height:36,fill:COL[i]},sv);
+    if(ww>44){const t=txt(`${NM[i]} ${pct(p)}`,{x:x+ww/2,y:y+23,'text-anchor':'middle',class:'v'},sv);t.style.fill='#fff'}x+=ww});
+  el('rect',{x:x0,y,width:w,height:36,fill:'none',stroke:'var(--line)'},sv)}
+function draw(){
+  clear(sv);
+  if(custom!==null){const S=[2,custom,5],N=naive(S),P=soft(S),bad=N.some(v=>v<0)||!isFinite(N[0]);
+    txt(`分数 [2, ${fmt(custom)}, 5]`+(bad?'：朴素版出现负的比例，出错':'：两种都能算，但 softmax 更集中'),{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+    bars(110,170,N.map(v=>isFinite(v)?v:0),90,v=>fmt(v),{neg:true,title:'朴素版：分数 ÷ 总分',ty:60});
+    bars(430,170,P,90,v=>fmt(v),{title:'softmax：eˣ ÷ 总和',ty:60});
+    stack(160,250,460,N.map(v=>isFinite(v)?v:0),'朴素版');stack(160,310,460,P,'softmax');return}
+  const f=ST[FR[k]];txt(f.cap,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+  const S=[2,-1,5];
+  if(f.s<=1){bars(110,210,S,24,v=>fmt(v),{title:'分数'});
+    if(f.s===1){bars(430,210,naive(S),120,v=>fmt(v),{neg:true,title:'朴素版比例（÷6）'});
+      txt('注意力最少是 0（不看），不可能"负着看"',{x:340,y:330,'text-anchor':'middle',class:'m'},sv);
+      txt('另外，分数总和正好是 0 时还会除以 0',{x:340,y:352,'text-anchor':'middle',class:'m'},sv)}}
+  else if(f.s<=3){const E=S.map(Math.exp);bars(110,290,E,1.4,v=>fmt(v),{title:'eˣ（都是正数）'});
+    if(f.s===3){bars(430,290,soft(S),220,v=>fmt(v),{title:'÷ 156.17 后的比例'});
+      txt('0.047 + 0.002 + 0.950 ≈ 1',{x:340,y:375,'text-anchor':'middle',class:'big'},sv)}}
+  else{const S2=[2,1,5];stack(160,90,460,naive(S2),'朴素版');stack(160,150,460,soft(S2),'softmax');
+    txt('小红 5 分、小明 2 分：只差 3 分',{x:340,y:230,'text-anchor':'middle',class:'big'},sv);
+    txt('朴素版：5 ÷ 2 = 2.5 倍　　套 eˣ 后：148.4 ÷ 7.4 ≈ 20 倍（e³）',{x:340,y:258,'text-anchor':'middle',class:'big'},sv);
+    txt('代入第 4 章取信息：朴素版"她" = [6.25, 8.75]，softmax"她" = [9.36, 9.83]，几乎就是小红 [10, 10]',{x:340,y:300,'text-anchor':'middle',class:'m'},sv);
+    txt('高分更高，低分相对更低：注意力集中在相关的词上',{x:340,y:330,'text-anchor':'middle',class:'m'},sv)}
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('s').oninput=e=>{ANIM.stop();custom=+e.target.value;$('sv2').textContent=fmt(custom);draw()};
+setupPlayer({captureSeed:1,reset,next},1600);
+</script></body></html>

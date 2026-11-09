@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 5 章 · 次方与 e · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="5-e">第 5 章 · 次方与 e</h1><p><a class="btn" href="../animations/05-power-and-e.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：softmax 公式里的 <span class="arithmatex">\(e^{x}\)</span> 是什么？<br />
+讲解日期：2026-10-26 · 上一章：<a href="../lessons/04-weighted-average.html">第 4 章 按比例取信息</a> · 下一章：<a href="../lessons/06-softmax-exp.html">第 6 章 softmax（下）</a><br />
+本章缩写：softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；exp = exponential（指数）：exp(x) = eˣ；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="_2">第一步：次方</h3>
+<p><span class="arithmatex">\(2^3\)</span> 读作"<strong>2 的 3 次方</strong>"，意思是 <strong>3 个 2 相乘</strong>：<span class="arithmatex">\(2\times2\times2=8\)</span>。右上角的小数字 = 自己乘自己几次。</p>
+<ul>
+<li><span class="arithmatex">\(10^2 = 10\times10 = 100\)</span></li>
+<li><span class="arithmatex">\(3^2 = 3\times3 = 9\)</span></li>
+</ul>
+<h3 id="0">第二步：0 次方和负数次方</h3>
+<p>"乘 0 次""乘 −1 次"听起来怪，看规律：</p>
+<table>
+<thead>
+<tr>
+<th>写法</th>
+<th><span class="arithmatex">\(2^3\)</span></th>
+<th><span class="arithmatex">\(2^2\)</span></th>
+<th><span class="arithmatex">\(2^1\)</span></th>
+<th><span class="arithmatex">\(2^0\)</span></th>
+<th><span class="arithmatex">\(2^{-1}\)</span></th>
+<th><span class="arithmatex">\(2^{-2}\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>值</td>
+<td>8</td>
+<td>4</td>
+<td>2</td>
+<td><strong>1</strong></td>
+<td><strong>1/2</strong></td>
+<td><strong>1/4</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>每往右一格就除以 2。</strong> 顺着推：</p>
+<ul>
+<li><strong>0 次方 = 1</strong></li>
+<li><strong>负数次方 = 正的小数</strong>，越来越小，但<strong>永远不会变成 0 或负数</strong></li>
+</ul>
+<h3 id="e">第三步：e 是什么</h3>
+<p>e 是一个固定的数，约 <strong>2.71828…</strong>，小数点后无限不循环，和 <span class="arithmatex">\(\pi\approx3.14\)</span> 一样是数学里的特殊数。</p>
+<p><strong>来历：利滚利。</strong> 存 1 元，年利率 100%：</p>
+<table>
+<thead>
+<tr>
+<th>一年结息几次</th>
+<th>年底的钱</th>
+<th>计算</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 次</td>
+<td>2</td>
+<td><span class="arithmatex">\(2^1\)</span></td>
+</tr>
+<tr>
+<td>2 次</td>
+<td>2.25</td>
+<td><span class="arithmatex">\(1.5^2\)</span></td>
+</tr>
+<tr>
+<td>4 次</td>
+<td>2.441</td>
+<td><span class="arithmatex">\(1.25^4\)</span></td>
+</tr>
+<tr>
+<td>12 次</td>
+<td>2.613</td>
+<td><span class="arithmatex">\((1+\tfrac{1}{12})^{12}\)</span></td>
+</tr>
+<tr>
+<td>365 次</td>
+<td>2.7146</td>
+<td><span class="arithmatex">\((1+\tfrac{1}{365})^{365}\)</span></td>
+</tr>
+<tr>
+<td>无数次</td>
+<td><strong>2.71828…</strong></td>
+<td><strong>e</strong></td>
+</tr>
+</tbody>
+</table>
+<p>结息越勤钱越多，但有上限，上限就是 e。e 的意思：<strong>100% 的增长率连续不断复利一年，变成多少倍。</strong></p>
+<p><strong>机器学习为什么用 e：</strong> <span class="arithmatex">\(e^{x}\)</span> 增长的速度恰好等于它自己的大小，训练时求梯度的数学最简单。换成 2 或 10 当底数 softmax 也能用，选 e 是因为最省事。</p>
+<h3 id="ex">第四步：<span class="arithmatex">\(e^{x}\)</span></h3>
+<p>就是把 2.718 套进次方规则：</p>
+<table>
+<thead>
+<tr>
+<th>x</th>
+<th>2</th>
+<th>1</th>
+<th>0</th>
+<th>−1</th>
+<th>−2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(e^{x}\)</span></td>
+<td>7.389</td>
+<td>2.718</td>
+<td>1</td>
+<td>0.368</td>
+<td>0.135</td>
+</tr>
+</tbody>
+</table>
+<p><strong><span class="arithmatex">\(e^{x}\)</span> 永远是正数；x 越大涨得越快。</strong> x 是小数时用计算器算，不需要手算。</p>
+<h3 id="_3">怎么读、怎么写</h3>
+<table>
+<thead>
+<tr>
+<th>写法</th>
+<th>中文读法</th>
+<th>英文读法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(e^{x}\)</span></td>
+<td>e 的 x 次方（也说 x 次幂）</td>
+<td>e to the x</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(e^{2}\)</span></td>
+<td>e 的 2 次方 / e 的平方</td>
+<td>e squared</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(e^{-1}\)</span></td>
+<td>e 的负 1 次方</td>
+<td>e to the minus one</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(2^{3}\)</span></td>
+<td>2 的 3 次方 / 2 的立方</td>
+<td>two cubed</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>e 按英文字母读（"伊"）。</li>
+<li>打字写 <code>e^x</code>，<code>^</code> 表示次方。</li>
+<li>代码写 <code>exp(x)</code> / <code>torch.exp(x)</code>，exp = exponential（指数），和 <span class="arithmatex">\(e^{x}\)</span> 是同一个东西。</li>
+</ul>
+<h2 id="eex">动画演示：次方、利滚利逼近 e、eˣ 曲线</h2>
+<p><img alt="次方与 e" src="../animations/05-power-and-e.gif" /></p>
+<p>可交互版：<a href="../animations/05-power-and-e.html">animations/05-power-and-e.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"）。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>2³ = 2 × 2 × 2；</li>
+<li>指数每少 1 就除以 2：2⁰ = 1，负数次方是越来越小的正数（第二步）；</li>
+<li>利滚利：一年结息 1、2、4、12、365 次，越来越接近上限 e ≈ 2.718（第三步）；</li>
+<li><span class="arithmatex">\(e^x\)</span> 曲线：左边贴着 0 但永远在 0 上面，右边越涨越快（第四步）；滑块：拖 x 看 <span class="arithmatex">\(e^x\)</span> 的值。</li>
+</ol>
+<h2 id="_4">练习与作答记录</h2>
+<p><strong>题</strong>：按表格规律再往右推一格，<span class="arithmatex">\(2^{-2}\)</span> 等于多少？</p>
+<p><strong>作答</strong>：<strong>1/4</strong>。✓（1/2 再除以 2）</p>
+<p><strong>追问记录</strong>：本章是因为问了"<span class="arithmatex">\(e^{x}\)</span> 是什么意思""<span class="arithmatex">\(e^{x}\)</span> 怎么读""e 到底是什么数"才补讲的，这几处是之前跳过的前置知识。</p>
+<h2 id="_5">本章复习卡片</h2>
+<p>R04 次方规律 · R05 e 是什么 / 怎么读（见 <a href="../review.html">review.md</a>）</p>
+<h2 id="_6">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_7">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ 3Blue1Brown《微积分的本质》</td>
+<td>What's so special about Euler's number e? 那一集</td>
+<td>为什么偏偏是 e：<span class="arithmatex">\(e^{x}\)</span> 的变化速度等于它自己</td>
+</tr>
+<tr>
+<td>Goodfellow《Deep Learning》</td>
+<td>§4.1 Overflow and Underflow</td>
+<td><span class="arithmatex">\(e^{x}\)</span> 长得太快，电脑存不下时怎么办（第 6 章 softmax 会用到）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_8">数学原理</h3>
+<ul>
+<li><strong>指数法则</strong>：同底相乘，指数相加。负数次方 = 倒数。0 次方 = 1。</li>
+<li><strong>e 的定义</strong>：<span class="arithmatex">\((1 + 1/n)^n\)</span> 在 n 越来越大时逼近的数，约 2.71828。</li>
+<li><strong>e 的特别之处</strong>：<span class="arithmatex">\(e^{x}\)</span> 的导数（变化速度）还是它自己。所以训练时求梯度特别方便，这是 softmax 选 e 的数学原因之一。</li>
+<li><strong>ln（自然对数）</strong>：<span class="arithmatex">\(e^{x}\)</span> 的反操作。以后的交叉熵 loss、log-softmax 都会用到。</li>
+</ul>
+<h3 id="_9">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(a^m \cdot a^n = a^{m+n}\)</span></td>
+<td>同底相乘，指数相加</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(a^{-n} = \frac{1}{a^n},\ a^0 = 1\)</span></td>
+<td>负数次方、0 次方</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(e = \lim_{n \to \infty} (1 + \frac{1}{n})^n \approx 2.71828\)</span></td>
+<td>e 的定义</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\frac{d}{dx} e^{x} = e^{x}\)</span></td>
+<td>导数还是它自己</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\ln(e^{x}) = x,\ e^{\ln x} = x\)</span></td>
+<td>ln 和 <span class="arithmatex">\(e^{x}\)</span> 互为反操作</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(e^{a-b} = \frac{e^{a}}{e^{b}}\)</span></td>
+<td>下一章证明 softmax 性质时要用</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="04-weighted-average.html">← 第 4 章 · 按比例取信息：加权平均</a><a href="06-softmax-exp.html">第 6 章 · softmax（下）：为什么要先套 e^x →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

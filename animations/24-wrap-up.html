@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>数参数与 warmup</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:11px}</style></head>
+<body><main>
+<h1>第 24 章 · 收尾：数参数、warmup 学习率、§3 地图</h1>
+<p class="sub">配套讲义：<a href="../lessons/24-wrap-up.html">第 24 章 · 收尾：数参数、warmup 学习率、对照原文通读 §3</a>。数参数用玩具模型：d_model = 4、h = 2、d_ff = 16、V = 8、N = 2（忽略 bias 和 LayerNorm）。学习率用论文 Eq. 3。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="w">自己拖：warmup_steps</label><input type="range" id="w" min="500" max="16000" step="500" value="4000"><span id="wv">4000</span></div>
+<div class="row"><label for="d">自己拖：d_model</label><input type="range" id="d" min="0" max="3" step="1" value="2"><span id="dv">512</span></div>
+<p class="note">看点：① 一个 attention 子层 = W^Q、W^K、W^V、W^O 四块，各 d × d（多头只是切开），共 4d² = 64；② FFN = W₁、W₂，共 2·d·d_ff = 128；③ encoder 层 1 个 attention + FFN = 192，decoder 层 2 个 attention + FFN = 256；④ 整个模型 2 × 192 + 2 × 256 + embedding 32 = 928，位置编码 0；⑤ 学习率：上升直线和下降曲线取小的那个，在 warmup_steps 处最高；⑥ §3 地图：原文每段对应哪几章。滑块：改 warmup_steps 和 d_model，曲线和最高点跟着变。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const DM=[128,256,512,1024];
+const ST=[{cap:'attention 子层：W^Q、W^K、W^V、W^O 各 4 × 4，共 4d² = 64',s:0},
+  {cap:'FFN 子层：W₁（4 × 16）+ W₂（16 × 4），共 2·d·d_ff = 128',s:1},
+  {cap:'encoder 层 = 64 + 128 = 192；decoder 层 = 64 × 2 + 128 = 256',s:2},
+  {cap:'整个模型：2 × 192 + 2 × 256 + embedding 32 = 928；位置编码 0',s:3},
+  {cap:'学习率 = 上升直线和下降曲线中小的那个（Eq. 3）',s:4},
+  {cap:'d = 512、warmup = 4000：第 4000 步最高 ≈ 0.000699',s:5},
+  {cap:'§3 地图：原文每一段对应哪几章',s:6}];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+const lr=(s,d,w)=>Math.pow(d,-.5)*Math.min(Math.pow(s,-.5),s*Math.pow(w,-1.5));
+function mat(x,y,r,c,cs,col,lab){el('rect',{x,y,width:c*cs,height:r*cs,rx:3,fill:col,opacity:.25,stroke:col},sv);
+  for(let i=1;i<r;i++)el('line',{x1:x,y1:y+i*cs,x2:x+c*cs,y2:y+i*cs,stroke:col,opacity:.35},sv);
+  for(let j=1;j<c;j++)el('line',{x1:x+j*cs,y1:y,x2:x+j*cs,y2:y+r*cs,stroke:col,opacity:.35},sv);
+  txt(lab,{x:x+c*cs/2,y:y-6,'text-anchor':'middle',class:'m'},sv)}
+function stackBar(parts,y,total){let x=60;const sc=560/total;parts.forEach(([l,v,c])=>{const w=v*sc;if(w>0){el('rect',{x,y,width:w,height:40,fill:c,opacity:.75,stroke:'var(--bg)'},sv);
+  if(w>40)txt(`${l} ${v}`,{x:x+w/2,y:y+25,'text-anchor':'middle',class:'v'},sv).style.fill='#fff'}x+=w});}
+function curve(d,w,marks){const X0=70,Y0=330,PW=560,PH=250,S=100000,peak=lr(w,d,w),ymax=Math.max(peak*1.15,1e-9);
+  const px=s=>X0+s/S*PW,py=v=>Y0-Math.min(v,ymax)/ymax*PH;
+  el('line',{x1:X0,y1:Y0,x2:X0+PW,y2:Y0,stroke:'var(--muted)'},sv);el('line',{x1:X0,y1:Y0,x2:X0,y2:Y0-PH,stroke:'var(--muted)'},sv);
+  txt('step（训练第几步）',{x:X0+PW/2,y:Y0+34,'text-anchor':'middle',class:'m'},sv);txt('学习率',{x:X0-6,y:Y0-PH-6,class:'m'},sv);
+  [0,25000,50000,75000,100000].forEach(s=>txt(s/1000+'k',{x:px(s),y:Y0+16,'text-anchor':'middle',class:'v'},sv));
+  let a='',b='',m='';for(let i=1;i<=800;i++){const s=i/800*S,u=Math.pow(d,-.5)*s*Math.pow(w,-1.5),v=Math.pow(d,-.5)*Math.pow(s,-.5);
+    if(u<=ymax)a+=(a?'L':'M')+px(s)+','+py(u);if(v<=ymax)b+=(b?'L':'M')+px(s)+','+py(v);m+=(i>1?'L':'M')+px(s)+','+py(Math.min(u,v))}
+  el('path',{d:a,fill:'none',stroke:'var(--teal)','stroke-dasharray':'5 4','stroke-width':1.5},sv);
+  el('path',{d:b,fill:'none',stroke:'var(--amber)','stroke-dasharray':'5 4','stroke-width':1.5},sv);
+  el('path',{d:m,fill:'none',stroke:'var(--warm)','stroke-width':3},sv);
+  [['上升直线 step × w^−1.5（前 w 步）','var(--teal)','5 4'],['下降曲线 step^−0.5（w 步以后）','var(--amber)','5 4'],['实际学习率 = 两者取小','var(--warm)','']].forEach(([t,c,da],i)=>{const y=Y0-PH+20+i*20;
+    el('line',{x1:420,y1:y-4,x2:448,y2:y-4,stroke:c,'stroke-width':da?1.5:3,'stroke-dasharray':da||'none'},sv);txt(t,{x:454,y,class:'v'},sv)});
+  el('circle',{cx:px(w),cy:py(peak),r:5,fill:'var(--warm)'},sv);
+  txt(`最高点：第 ${w} 步，${peak.toFixed(6)}`,{x:px(w)+12,y:py(peak)+28,class:'big'},sv).style.fill='var(--warm)';
+  (marks||[]).forEach(s=>{const v=lr(s,d,w),r=px(s)>X0+PW-80;el('circle',{cx:px(s),cy:py(v),r:4,fill:'var(--accent)'},sv);txt(`第 ${s} 步：${v.toFixed(6)}`,{x:px(s)+(r?-6:8),y:py(v)-10,'text-anchor':r?'end':'start',class:'v'},sv)})}
+function draw(){
+  clear(sv);
+  if(custom!==null){const {w,d}=custom;txt(`d_model = ${d}，warmup_steps = ${w}：最高学习率 ${lr(w,d,w).toFixed(6)}`,{x:340,y:28,'text-anchor':'middle',class:'cap'},sv);curve(d,w);
+    txt('warmup 越长，最高点越靠后、越低；d_model 越大，整条曲线越低',{x:340,y:385,'text-anchor':'middle',class:'m'},sv);return}
+  const f=ST[FR[k]];txt(f.cap,{x:340,y:28,'text-anchor':'middle',class:'cap'},sv);const cs=18;
+  if(f.s===0){['W^Q','W^K','W^V','W^O'].forEach((l,i)=>mat(90+i*130,90,4,4,cs,i<3?'var(--purple)':'var(--accent)',l+'（4 × 4）'));
+    txt('W^Q、W^K、W^V：2 个头各 4 × 2，拼起来就是 4 × 4（第 13 章：多头 = 单头参数）',{x:340,y:200,'text-anchor':'middle',class:'m'},sv);
+    txt('4 × 16 = 64 = 4d²',{x:340,y:250,'text-anchor':'middle',class:'big'},sv).style.fill='var(--purple)'}
+  else if(f.s===1){mat(110,80,4,16,cs,'var(--teal)','W₁（4 × 16）');mat(470,80,16,4,cs/1.6,'var(--teal)','W₂（16 × 4）');
+    txt('64 + 64 = 128 = 2·d·d_ff',{x:340,y:300,'text-anchor':'middle',class:'big'},sv).style.fill='var(--teal)';
+    txt('d_ff = 4d 时 FFN 是 attention 的两倍',{x:340,y:326,'text-anchor':'middle',class:'m'},sv)}
+  else if(f.s===2){txt('encoder 层',{x:60,y:110,class:'big'},sv);stackBar([['attention',64,'var(--purple)'],['FFN',128,'var(--teal)']],120,256);
+    txt('decoder 层（多一个"查原文"的 attention）',{x:60,y:220,class:'big'},sv);stackBar([['看自己',64,'var(--purple)'],['查原文',64,'var(--warm)'],['FFN',128,'var(--teal)']],230,256);
+    txt('192',{x:60+192/256*560+8,y:145,class:'big'},sv);txt('256',{x:612,y:255,'text-anchor':'end',class:'big'},sv)}
+  else if(f.s===3){stackBar([['enc 层 1',192,'var(--purple)'],['enc 层 2',192,'var(--purple)'],['dec 层 1',256,'var(--warm)'],['dec 层 2',256,'var(--warm)'],['emb',32,'var(--accent)']],150,928);
+    txt('928',{x:340,y:230,'text-anchor':'middle',class:'big'},sv);
+    txt('embedding 表 8 × 4 = 32（三处共享，只算一次）；位置编码用 sin、cos，没有参数',{x:340,y:270,'text-anchor':'middle',class:'m'},sv);
+    txt('论文 base 照这个方法数 → Table 3 写 65M（自己算：题 1）',{x:340,y:300,'text-anchor':'middle',class:'m'},sv)}
+  else if(f.s===4)curve(512,4000);
+  else if(f.s===5)curve(512,4000,[1000,100000]);
+  else{const M=[['§3 开头 + Figure 1','L110–L125','21'],['§3.1 encoder / decoder','L127–L143','17–21'],['§3.2 attention 定义','L145–L150','4、9'],['§3.2.1 公式 (1)、√d_k','L164–L201','2–8、11、12'],
+      ['§3.2.2 多头','L192–L220','10、13'],['§3.2.3 三种用法','L222–L238','17、21'],['§3.3 FFN','L240–L251','20'],['§3.4 embedding、softmax','L253–L259','22'],['Table 1 复杂度','L263–L272','23'],['§3.5 位置编码','L276–L298','14–16']];
+    M.forEach(([a,b,c],i)=>{const col=i%2,row=Math.floor(i/2),x=40+col*310,y=60+row*64;el('rect',{x,y,width:290,height:52,rx:8,fill:'var(--accent-bg)',stroke:'var(--accent)',opacity:.9},sv);
+      txt(a,{x:x+12,y:y+22,class:'big'},sv);txt(`${b} → 第 ${c} 章`,{x:x+12,y:y+42,class:'m'},sv)})}
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+function onSlide(){ANIM.stop();custom={w:+$('w').value,d:DM[+$('d').value]};$('wv').textContent=custom.w;$('dv').textContent=custom.d;draw()}
+$('w').oninput=onSlide;$('d').oninput=onSlide;
+setupPlayer({captureSeed:1,reset,next},1600);
+</script></body></html>

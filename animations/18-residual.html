@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>残差连接</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}</style></head>
+<body><main>
+<h1>第 18 章 · 残差连接：输出 = 输入 + 子层(输入)</h1>
+<p class="sub">配套讲义：<a href="../lessons/18-residual.html">第 18 章 · 残差连接：输出 = 输入 + 子层(输入)</a>。"咬" = [0, 1] 依次穿过 4 个子层（论文有 12 个），每个子层写一条批注。批注的数字是编的，只看形状。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="amt">自己拖：批注写多大（0 = 每层都空着不写）</label><input type="range" id="amt" min="0" max="100" value="100"><span id="amtv">100%</span></div>
+<p class="note">看点：① 子层 1 之后，上面（加残差）"咬自己"的特征还在，下面（不加残差）只剩 0.27；② 子层 3 没话说、批注为 0：上面原样透传，下面整个词都没了；③ 最后上面 = 原词 + 所有批注，下面只剩最后一个子层写的东西。滑块拖到 0：上面一路不变，下面一路是 0。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const X0=[0,1];
+const SUB=[[1.46,0.27],[0.3,-0.2],[0,0],[-0.4,0.5]];
+const NAME=['子层 1 attention','子层 2 FFN','子层 3（没话说）','子层 4'];
+const CAPS=[
+  '起点：两条路都从"咬" = [0, 1] 出发',
+  '子层 1 写批注 [1.46, 0.27]：上面加到原词上，下面直接换成它',
+  '子层 2 再写一条：上面在原有基础上继续加，下面又被整个换掉',
+  '子层 3 没话说，批注 = [0, 0]：上面原样透传，下面整个词没了',
+  '最后：上面 = 原词 + 所有批注，下面只剩最后一个子层写的东西'];
+const FR=[];for(let st=0;st<=4;st++)for(let r=0;r<2;r++)FR.push(st);
+let k=0,custom=null;
+const f2=v=>{const r=Math.round(v*100)/100;return (Object.is(r,-0)?0:r).toString().replace('-','−')};
+const vec=v=>`[${f2(v[0])}, ${f2(v[1])}]`;
+function lanes(amt){
+  const sub=SUB.map(s=>s.map(x=>x*amt));
+  const res=[X0],raw=[X0];
+  sub.forEach((s,i)=>{const p=res[i];res.push([p[0]+s[0],p[1]+s[1]]);raw.push(s)});
+  return {sub,res,raw};
+}
+const COLX=i=>70+i*135, U=22;
+function barPair(cx,base,v,dim){
+  [0,1].forEach(j=>{
+    const h=v[j]*U,x=cx-26+j*28;
+    const r=el('rect',{x,y:h>=0?base-h:base,width:22,height:Math.max(Math.abs(h),1),rx:3,fill:j?'var(--amber)':'var(--teal)'},sv);
+    if(dim)r.setAttribute('opacity','.25');
+  });
+  el('line',{x1:cx-34,y1:base,x2:cx+34,y2:base,stroke:'var(--line)'},sv);
+}
+function lane(y,label,vals,upto,sub,isRes,warnSelf){
+  txt(label,{x:14,y:y-62,class:'big'},sv);
+  for(let i=0;i<=4;i++){
+    const cx=COLX(i),show=i<=upto;
+    barPair(cx,y,show?vals[i]:[0,0],!show);
+    if(show){
+      const t=txt(vec(vals[i]),{x:cx,y:y+26,'text-anchor':'middle'},sv);
+      const lost=!isRes&&i>0&&Math.abs(vals[i][1])<0.3;
+      if(lost)t.style.fill='var(--bad)';
+      if(i===upto&&i>0&&lost){const w=txt(Math.abs(vals[i][0])+Math.abs(vals[i][1])<0.01?'词没了':'"咬自己"快没了',{x:cx,y:y+44,'text-anchor':'middle',class:'m'},sv);w.style.fill='var(--bad)'}
+    }
+    if(i<4){
+      const ax=cx+40,bx=COLX(i+1)-40;
+      const on=i<upto;
+      el('line',{x1:ax,y1:y-14,x2:bx,y2:y-14,stroke:on?'var(--accent)':'var(--line)','stroke-width':on?2:1,'marker-end':'url(#ar)'},sv);
+      if(on){const t=txt((isRes?'+ ':'→ ')+vec(sub[i]),{x:(ax+bx)/2,y:y-26,'text-anchor':'middle',class:'m'},sv);t.style.fill='var(--purple)'}
+    }
+  }
+}
+function draw(){
+  clear(sv);
+  const d=el('defs',{},sv),m=el('marker',{id:'ar',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:6,markerHeight:6,orient:'auto'},d);
+  el('path',{d:'M0,0 L10,5 L0,10 z',fill:'var(--accent)'},m);
+  const amt=custom!==null?custom:1, upto=custom!==null?4:FR[k];
+  const L=lanes(amt);
+  txt(custom!==null?`批注都乘 ${Math.round(amt*100)}%：${amt===0?'上面一路不变（全透传），下面一路是 0':'看两条路最后各剩什么'}`:CAPS[upto],{x:340,y:24,'text-anchor':'middle',class:'cap'},sv);
+  for(let i=0;i<4;i++)txt(NAME[i],{x:(COLX(i)+COLX(i+1))/2,y:52,'text-anchor':'middle',class:'m'},sv);
+  lane(160,'加残差：x + 批注（共享文档加批注）',L.res,upto,L.sub,true);
+  lane(320,'不加残差：直接换成子层输出（传话游戏）',L.raw,upto,L.sub,false);
+  const t1=txt('■ 第 1 个数：谁在咬',{x:430,y:385,class:'m'},sv);t1.style.fill='var(--teal)';
+  const t2=txt('■ 第 2 个数：咬自己',{x:560,y:385,class:'m'},sv);t2.style.fill='var(--amber)';
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('amt').oninput=e=>{ANIM.stop();custom=+e.target.value/100;$('amtv').textContent=e.target.value+'%';draw()};
+setupPlayer({captureSeed:1,reset,next},1500);
+</script></body></html>

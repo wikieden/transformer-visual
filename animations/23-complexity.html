@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Attention 复杂度</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:11px}</style></head>
+<body><main>
+<h1>第 23 章 · 复杂度：为什么 attention 是 n²，长文本为什么难</h1>
+<p class="sub">配套讲义：<a href="../lessons/23-complexity.html">第 23 章 · 复杂度：为什么 attention 是 n²，长文本为什么难</a>。n = 句子有几个 token；d = 每个词几个数；RNN = Recurrent Neural Network（循环神经网络）。显存按每个数 2 字节粗算。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="n">自己拖：句子长度 n（d = 512）</label><input type="range" id="n" min="0" max="100" step="1" value="20"><span id="nv">63</span></div>
+<p class="note">看点：① 全班两两握手：分数表 n × n 格，每格一次 d 维点积，打分要 n²·d 次乘法；② n 翻倍，格子变 4 倍；③ RNN 传话要排队 n 步，attention 所有格子同时算；④ 第 1 个词到最后一个词：RNN 走 n − 1 步，attention 一步直达；⑤ n < d 时 n²d 比 nd² 小；⑥ n 到十万，一张分数表就要约 20 GB。滑块：n 从 10 拖到 100000，看格子数、和 RNN 的比值、一张分数表的显存。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const D=8;
+const ST=[{cap:'n = 4：分数表 4 × 4 = 16 格，每格 d = 8 次乘法，共 128 次',s:0,n:4},
+  {cap:'n = 8：64 格 × 8 = 512 次，是 n = 4 的 4 倍',s:0,n:8},
+  {cap:'n = 16：256 格 × 8 = 2048 次，又是 4 倍：n 翻倍，工作量 × 4',s:0,n:16},
+  {cap:'RNN 传话：一个接一个，必须排队 n 步',s:1},
+  {cap:'attention 同时握手：所有格子一起算，排队 1 步',s:2},
+  {cap:'最长路径：RNN 走 n − 1 步，attention 一步直达',s:3},
+  {cap:'n = 50、d = 512：attention n²d 只有 RNN nd² 的约 1/10',s:4},
+  {cap:'n 变大：一张分数表（每层每头）的显存',s:5}];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+const fmt=x=>{if(x>=1e8)return(x/1e8).toFixed(x>=1e9?0:1)+' 亿';if(x>=1e4)return(x/1e4).toFixed(x>=1e5?0:1)+' 万';return Math.round(x).toLocaleString()};
+const bytes=b=>b>=1e9?(b/1e9).toFixed(1)+' GB':b>=1e6?(b/1e6).toFixed(1)+' MB':(b/1e3).toFixed(1)+' KB';
+function grid(n,x0,y0,size,col){const show=Math.min(n,32),cs=size/show;
+  for(let i=0;i<show;i++)for(let j=0;j<show;j++)el('rect',{x:x0+j*cs+.5,y:y0+i*cs+.5,width:Math.max(.5,cs-1),height:Math.max(.5,cs-1),fill:col||'var(--purple)',opacity:.35},sv);
+  el('rect',{x:x0,y:y0,width:size,height:size,fill:'none',stroke:'var(--purple)'},sv);
+  if(n>32)txt(`（只画了 32 × 32，实际 ${n} × ${n}）`,{x:x0+size/2,y:y0+size+18,'text-anchor':'middle',class:'m'},sv)}
+function people(n,y,col){const w=Math.min(70,560/n),x0=340-n*w/2;for(let i=0;i<n;i++){el('circle',{cx:x0+i*w+w/2,cy:y,r:14,fill:col,opacity:.3,stroke:col},sv);txt(String(i+1),{x:x0+i*w+w/2,y:y+5,'text-anchor':'middle',class:'v'},sv)}return i=>x0+i*w+w/2}
+function defs(){const d=el('defs',{},sv);['var(--warm)','var(--purple)'].forEach((c,i)=>{const m=el('marker',{id:'m'+i,viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:6,markerHeight:6,orient:'auto'},d);el('path',{d:'M0,0 L10,5 L0,10 z',fill:c},m)})}
+function draw(){
+  clear(sv);defs();
+  if(custom!==null){const n=custom,d=512,a=n*n*d,r=n*d*d;
+    txt(`n = ${n.toLocaleString()}，d = 512`,{x:340,y:28,'text-anchor':'middle',class:'cap'},sv);grid(n,40,60,250);
+    const rows=[['分数表格子数 n²',fmt(n*n)],['attention 打分 n²·d',fmt(a)+' 次乘法'],['RNN 每层 n·d²',fmt(r)+' 次乘法'],['attention ÷ RNN = n ÷ d',(n/d).toFixed(n<d?3:1)+' 倍'],['一张分数表（每层每头）',bytes(n*n*2)]];
+    rows.forEach(([l,v],i)=>{txt(l,{x:330,y:100+i*46,class:'m'},sv);txt(v,{x:330,y:122+i*46,class:'big'},sv).style.fill=i===3?(n<d?'var(--good)':'var(--bad)'):i===4&&n*n*2>8e9?'var(--bad)':''});
+    txt(n<d?'n < d：attention 比 RNN 省':'n > d：平方开始"咬人"',{x:500,y:350,'text-anchor':'middle',class:'big'},sv).style.fill=n<d?'var(--good)':'var(--bad)';return}
+  const f=ST[FR[k]];txt(f.cap,{x:340,y:28,'text-anchor':'middle',class:'cap'},sv);
+  if(f.s===0){const n=f.n;grid(n,60,60,260);
+    txt(`${n} × ${n} = ${n*n} 格`,{x:500,y:120,'text-anchor':'middle',class:'big'},sv);txt(`每格 d = ${D} 次乘法（一次点积）`,{x:500,y:150,'text-anchor':'middle',class:'m'},sv);
+    txt(`打分：${n*n} × ${D} = ${n*n*D} 次`,{x:500,y:190,'text-anchor':'middle',class:'big'},sv).style.fill='var(--purple)';
+    [4,8,16].forEach((m,i)=>{const w=m*m*D/2048*220;el('rect',{x:400,y:240+i*34,width:Math.max(3,w),height:22,rx:3,fill:m===n?'var(--purple)':'var(--muted)',opacity:m===n?.8:.3},sv);txt(`n = ${m}`,{x:392,y:256+i*34,'text-anchor':'end',class:'m'},sv)})}
+  else if(f.s===1||f.s===2){const n=6;
+    txt('RNN：传话',{x:40,y:80,class:'big'},sv);const P=people(n,110,'var(--warm)');
+    for(let i=0;i<n-1;i++){el('line',{x1:P(i)+15,y1:110,x2:P(i+1)-16,y2:110,stroke:'var(--warm)','stroke-width':2,'marker-end':'url(#m0)'},sv);txt(`第 ${i+1} 步`,{x:(P(i)+P(i+1))/2,y:92,'text-anchor':'middle',class:'v'},sv)}
+    txt(`必须排队 ${n-1} 步（O(n)）：后一个人要等前一个人传完`,{x:340,y:150,'text-anchor':'middle',class:'m'},sv);
+    if(f.s===2){txt('attention：同时握手',{x:40,y:200,class:'big'},sv);const Q=people(n,300,'var(--purple)');
+      for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)el('path',{d:`M${Q(i)},286 Q${(Q(i)+Q(j))/2},${286-(j-i)*16} ${Q(j)},286`,fill:'none',stroke:'var(--purple)','stroke-width':1.2,opacity:.6},sv);
+      txt('所有格子一起算：排队 1 步（O(1)），GPU 同时开工',{x:340,y:345,'text-anchor':'middle',class:'m'},sv)}}
+  else if(f.s===3){const n=6;txt('RNN',{x:40,y:90,class:'big'},sv);const P=people(n,120,'var(--warm)');
+    for(let i=0;i<n-1;i++)el('line',{x1:P(i)+15,y1:120,x2:P(i+1)-16,y2:120,stroke:'var(--warm)','stroke-width':2.5,'marker-end':'url(#m0)'},sv);
+    txt(`1 号的信息到 ${n} 号：走 ${n-1} 步，越走越弱`,{x:340,y:165,'text-anchor':'middle',class:'big'},sv).style.fill='var(--warm)';
+    txt('attention',{x:40,y:230,class:'big'},sv);const Q=people(n,280,'var(--purple)');
+    el('path',{d:`M${Q(0)},266 Q${(Q(0)+Q(n-1))/2},200 ${Q(n-1)},266`,fill:'none',stroke:'var(--purple)','stroke-width':2.5,'marker-end':'url(#m1)'},sv);
+    txt('1 号直接到 6 号：1 步',{x:340,y:330,'text-anchor':'middle',class:'big'},sv).style.fill='var(--purple)'}
+  else if(f.s===4){const n=50,d=512,a=n*n*d,r=n*d*d,sc=420/r;
+    [['attention：n²·d',a,'var(--purple)'],['RNN：n·d²',r,'var(--warm)']].forEach(([l,v,c],i)=>{const y=110+i*80;txt(l,{x:60,y:y-10,class:'big'},sv);
+      el('rect',{x:60,y,width:Math.max(3,v*sc),height:34,rx:4,fill:c,opacity:.75},sv);txt(v.toLocaleString(),{x:70+v*sc,y:y+22,class:'big'},sv)});
+    txt('两边同除以 n·d：比的就是 n 和 d',{x:340,y:300,'text-anchor':'middle',class:'big'},sv);txt('n = 50 < d = 512，所以 attention 更省（L316–L321）',{x:340,y:328,'text-anchor':'middle',class:'m'},sv)}
+  else{const N=[1e3,1e4,1e5];txt('n',{x:90,y:90,'text-anchor':'middle',class:'m'},sv);txt('一张分数表（2 字节 / 格）',{x:360,y:90,'text-anchor':'middle',class:'m'},sv);
+    N.forEach((n,i)=>{const y=110+i*70,b=n*n*2,w=Math.max(4,(Math.log10(b)-5)/6*420);txt(n.toLocaleString(),{x:90,y:y+24,'text-anchor':'middle',class:'big'},sv);
+      el('rect',{x:150,y,width:w,height:36,rx:4,fill:i===2?'var(--bad)':'var(--purple)',opacity:.7},sv);txt(bytes(b),{x:160+w,y:y+24,class:'big'},sv)});
+    txt('（条的长度按 10 倍一格画）',{x:360,y:330,'text-anchor':'middle',class:'m'},sv);
+    txt('十万个 token：一层一个头就 20 GB → 只看邻居 / FlashAttention / 线性注意力',{x:340,y:362,'text-anchor':'middle',class:'m'},sv)}
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('n').oninput=e=>{ANIM.stop();custom=Math.round(10**(1+(+e.target.value)/100*4));$('nv').textContent=custom.toLocaleString();draw()};
+setupPlayer({captureSeed:1,reset,next},1600);
+</script></body></html>

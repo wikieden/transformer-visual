@@ -1,0 +1,1036 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>transformer-deep-dive · 复习卡片 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="index.html">从零读懂 Transformer</a>
+<a href="lessons/index.html">讲义目录</a>
+<a href="animations/index.html">动画</a>
+<a href="review.html">复习卡片</a>
+<a href="lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="transformer-deep-dive">transformer-deep-dive · 复习卡片</h1>
+<p>讲解中卡住、追问、答错的地方，以及必须记住的公式和符号，都会自动追加到这里。每张卡片的"来源"链接到 <a href="lessons/index.html">lessons/</a> 里对应的讲义章节，忘了就回去重读那一章。</p>
+<h2 id="_1">怎么用</h2>
+<ol>
+<li>先只看<strong>问题</strong>，自己说出或写出答案；</li>
+<li>再点开"答案"核对；</li>
+<li>答对了，在"复习记录"里补一个日期；答错了就当天再看一遍。</li>
+</ol>
+<p><strong>复习间隔</strong>（按答对的次数）：第 1 次 → 隔 1 天 → 隔 3 天 → 隔 7 天 → 隔 14 天 → 隔 30 天。连续答对 5 次的卡片移到文末"已掌握"。</p>
+<p>想复习时说一声"复习"，我会挑到期的卡片来考你。</p>
+<hr />
+<h2 id="_2">基础数学</h2>
+<h3 id="r01-7-5-8-8-5-7">R01 · 向量是什么？<code>[7, 5, 8]</code> 和 <code>[8, 5, 7]</code> 一样吗？</h3>
+<p>来源：<a href="lessons/01-vector.html">第 1 章</a> · 加入 2026-10-25 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<p>向量就是<strong>一串数字，用来描述一个东西</strong>；每个位置的含义固定（比如第 1 个是甜、第 2 个是大、第 3 个是红）。所以两者<strong>不一样</strong>：顺序一换，描述的就是另一个东西。有几个数就叫几维，论文里每个词是 512 维。</p>
+<p>口诀：一串数字描一物，位置含义不能乱。</p>
+</details>
+<h3 id="r02-830130">R02 · 点积怎么算？结果大说明什么？算一下 <code>[8,3,0]·[1,3,0]</code></h3>
+<p>来源：<a href="lessons/02-dot-product.html">第 2 章</a> · 加入 2026-10-25 · 复习记录： 2026-10-26 ✗（把点积结果答成"向量"）；2026-10-26 重做 ✓（[3,0,2]·[1,5,4]=11，一个数）</p>
+<details>
+<summary>答案</summary>
+<p>同位置相乘，再全部加起来：<span class="arithmatex">\(\mathbf a\cdot\mathbf b=\sum_{i=1}^{d}a_ib_i\)</span>。结果越大，两个向量越"像"。</p>
+<p><span class="arithmatex">\(8\times1+3\times3+0\times0=17\)</span></p>
+<p>口诀：对位相乘再相加，数字越大越像它。</p>
+</details>
+<h3 id="r03-sum_i1d-a_i">R03 · 符号 <span class="arithmatex">\(\sum_{i=1}^{d}\)</span> 和 <span class="arithmatex">\(a_i\)</span> 分别是什么意思？</h3>
+<p>来源：<a href="lessons/02-dot-product.html">第 2 章</a> · 加入 2026-10-25 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<ul>
+<li><span class="arithmatex">\(\sum\)</span>（读"西格玛"）= 求和：i 从 1 数到 d，把每一项加起来。</li>
+<li><span class="arithmatex">\(a_i\)</span> = 向量 a 的第 i 个数（右下角的小字叫下标）。</li>
+<li>粗体 <span class="arithmatex">\(\mathbf a\)</span> = 整个向量。</li>
+</ul>
+</details>
+<h3 id="r04-23202-2">R04 · <span class="arithmatex">\(2^3\)</span>、<span class="arithmatex">\(2^0\)</span>、<span class="arithmatex">\(2^{-2}\)</span> 各等于多少？为什么负数次方不会变成负数？</h3>
+<p>来源：<a href="lessons/05-power-and-e.html">第 5 章</a> · 加入 2026-10-26 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<p><span class="arithmatex">\(2^3=8\)</span>，<span class="arithmatex">\(2^0=1\)</span>，<span class="arithmatex">\(2^{-2}=1/4\)</span>。</p>
+<p>规律：<span class="arithmatex">\(2^3\to2^2\to2^1\to2^0\to2^{-1}\to2^{-2}\)</span> 每往下一步就<strong>除以 2</strong>：8 → 4 → 2 → 1 → 1/2 → 1/4。一直在除，只会越来越接近 0，永远不会变成 0 或负数。</p>
+</details>
+<h3 id="r05-e-ex">R05 · e 是什么数？<span class="arithmatex">\(e^{x}\)</span> 怎么读，代码里怎么写？</h3>
+<p>来源：<a href="lessons/05-power-and-e.html">第 5 章</a> · 加入 2026-10-26 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<ul>
+<li>e ≈ <strong>2.71828…</strong>，来自"利滚利"：1 元按 100% 年利率<strong>连续不断</strong>地复利一年，最终变成 e 元。结息越勤钱越多，但有上限，上限就是 e。</li>
+<li><span class="arithmatex">\(e^{x}\)</span> 读作"e 的 x 次方"（英文 e to the x）；打字写 <code>e^x</code>；代码写 <code>exp(x)</code>、<code>torch.exp(x)</code>，三者是同一个东西。</li>
+<li>机器学习用 e：<span class="arithmatex">\(e^{x}\)</span> 增长的速度等于它自己，求梯度时数学最简单。</li>
+</ul>
+</details>
+<h2 id="softmax">softmax</h2>
+<h3 id="r06-softmax">R06 · softmax 是做什么的？朴素版公式是什么？</h3>
+<p>来源：<a href="lessons/03-softmax-ratio.html">第 3 章</a> · 加入 2026-10-25 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<p>把一组分数变成<strong>加起来等于 1 的比例</strong>（"归一化"）。朴素版：每个分数除以总分，<span class="arithmatex">\(p_j=s_j/\sum_k s_k\)</span>。例：分数 [2, 1, 5] → [0.25, 0.125, 0.625]。</p>
+<p>口诀：分数变比例，加起来等于一。</p>
+</details>
+<h3 id="r07-softmax-layernorm">R07 · softmax 和 LayerNorm 都叫"归一化"，区别是什么？</h3>
+<p>来源：<a href="lessons/03-softmax-ratio.html">第 3 章</a> · 加入 2026-10-25 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>softmax</th>
+<th>LayerNorm（层归一化）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>作用对象</td>
+<td>一组分数</td>
+<td>一个向量里的 512 个数</td>
+</tr>
+<tr>
+<td>结果</td>
+<td>全是正数，加起来 = 1</td>
+<td>平均值变 0，大小调到统一范围</td>
+</tr>
+<tr>
+<td>目的</td>
+<td>得到注意力比例</td>
+<td>防止数字越算越大或越小，训练稳定</td>
+</tr>
+</tbody>
+</table>
+<p>口诀：softmax 分注意，LayerNorm 稳数值。</p>
+</details>
+<h3 id="r08-softmax-ex-1">R08 · 真正的 softmax 公式是什么？为什么要先套 <span class="arithmatex">\(e^{x}\)</span>（原因 1）？</h3>
+<p>来源：<a href="lessons/06-softmax-exp.html">第 6 章</a> · 加入 2026-10-26 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<div class="arithmatex">\[p_j=\frac{e^{s_j}}{\sum_k e^{s_k}}\]</div>
+<p>读作"p_j 等于 e 的 s_j 次方，除以所有 e 的 s_k 次方之和"。</p>
+<p>原因 1：点积分数<strong>可能是负数</strong>。分数 [2, −1, 5] 用朴素版，苹果的比例是 −1/6，<strong>负的注意力没有意义</strong>；总分为 0 时还会除以 0。<span class="arithmatex">\(e^{x}\)</span> 永远是正数，套上以后比例一定在 0 到 1 之间：[0.047, 0.002, 0.950]。</p>
+</details>
+<h3 id="r11-softmax-ex-2-2-1-5">R11 · softmax 套 <span class="arithmatex">\(e^{x}\)</span> 的原因 2 是什么？分数 [2, 1, 5] 时小红的比例从多少变成多少？</h3>
+<p>来源：<a href="lessons/06-softmax-exp.html">第 6 章</a> · 加入 2026-10-26 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<p><strong>拉开差距，让注意力集中在有用的词上。</strong> 分数每多 1，<span class="arithmatex">\(e^{x}\)</span> 就多乘一次 2.718：5 分对 2 分，原始是 2.5 倍，套上后 <span class="arithmatex">\(e^3\approx20\)</span> 倍。</p>
+<p>小红从朴素版的 <strong>62.5%</strong> 变成 softmax 的 <strong>93.6%</strong>；苹果从 12.5% 降到 1.7%。取信息时，"她"几乎完全取小红的信息，无关的苹果几乎不混进来。</p>
+</details>
+<h3 id="r12-softmax">R12 · 什么是 softmax 饱和？为什么饱和了模型就学不动？</h3>
+<p>来源：<a href="lessons/07-saturation.html">第 7 章</a> · 加入 2026-10-26 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<p>分数差距太大（如 [2, 1, 50]）时，softmax 比例变成 ≈ [0, 0, 1]，已经"顶满"。模型学习靠微调分数、看结果变化：此时把 50 调成 51，比例仍是 1.000，<strong>结果不随分数变化，模型得不到往哪调的信号</strong>，就学不动了。</p>
+<p>类比：音量旋钮已经拧到最大，再拧也听不出区别。</p>
+</details>
+<h3 id="r13-softmax">R13 · softmax 饱和和过拟合有什么区别？</h3>
+<p>来源：<a href="lessons/07-saturation.html">第 7 章</a> · 加入 2026-10-26 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>饱和</th>
+<th>过拟合 overfitting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>类比</td>
+<td>学不进去，怎么练成绩都不动</td>
+<td>死记硬背，练习题全对、新题不会</td>
+</tr>
+<tr>
+<td>表现</td>
+<td>训练数据上结果一直不变好</td>
+<td>训练数据上很好，新数据上很差</td>
+</tr>
+<tr>
+<td>方向</td>
+<td>学得太少（学不动）</td>
+<td>学得太死（学过头）</td>
+</tr>
+</tbody>
+</table>
+<p>例：训练 99%、新句子 50% → 过拟合；怎么调结果都不变 → 饱和。术语是"饱和"，不是"过饱和"。</p>
+</details>
+<h3 id="r14-sqrtd_kd_k64">R14 · 为什么点积要除以 <span class="arithmatex">\(\sqrt{d_k}\)</span>？<span class="arithmatex">\(d_k=64\)</span> 时除以几？</h3>
+<p>来源：<a href="lessons/08-sqrt-dk.html">第 8 章</a> · 加入 2026-10-26 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<p>点积是 <span class="arithmatex">\(d_k\)</span> 项相加，像抛 <span class="arithmatex">\(d_k\)</span> 次硬币（+1 / −1）数总分，结果通常离 0 约 <span class="arithmatex">\(\sqrt{d_k}\)</span>。<span class="arithmatex">\(d_k=64\)</span> 时分数在 ±8 左右，softmax 会饱和、学不动。所以每个分数<strong>除以 <span class="arithmatex">\(\sqrt{64}=8\)</span></strong>，拉回 ±1 左右。</p>
+<p><span class="arithmatex">\(\sqrt{64}\)</span> = "哪个数自乘等于 64" = 8，读作"根号 64"。这一步就是 "Scaled Dot-Product Attention" 里的 scaled（缩放）。</p>
+</details>
+<h3 id="r15-d_k64-sqrtd_k8softmax">R15 · 如果除以 <span class="arithmatex">\(d_k\)</span>（64）而不是 <span class="arithmatex">\(\sqrt{d_k}\)</span>（8），会怎样？softmax 的比例最多加起来是多少？</h3>
+<p>来源：<a href="lessons/08-sqrt-dk.html">第 8 章</a> · 加入 2026-10-26 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<p>[8, −8, 3] ÷ 64 = [0.125, −0.125, 0.047]，差距太小。套 <span class="arithmatex">\(e^{x}\)</span> 后确实都 ≈ 1（1.133, 0.882, 1.048），但<strong>还要除以总和</strong>，所以比例 ≈ [0.37, 0.29, 0.34]，<strong>每个约 1/3，加起来永远等于 1</strong>。</p>
+<p>问题：注意力变成平均分配，"有用的词被放大"的作用消失，"她"会把小明、苹果、小红的信息平均混在一起。</p>
+<p>结论：除少了 → 饱和（只看一个）；除多了 → 平均（谁都一样）；除以 <span class="arithmatex">\(\sqrt{d_k}\)</span> 正好。</p>
+</details>
+<h2 id="attention">attention 流程</h2>
+<h3 id="r16-qkv-app">R16 · Q、K、V 分别是什么？用外卖 App 想吃"辣的面"举例</h3>
+<p>来源：<a href="lessons/09-qkv.html">第 9 章</a> · 加入 2026-10-26（前 4 次答错，第 5 次在新场景答对） · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>外卖例子</th>
+<th>作用</th>
+<th>是谁的</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Q</strong> Query</td>
+<td>"辣的面"</td>
+<td>我想找什么</td>
+<td>去找的一方，一份</td>
+</tr>
+<tr>
+<td><strong>K</strong> Key</td>
+<td>店铺标签</td>
+<td>和 Q 比对，算分数</td>
+<td>被找的一方，每家店一份</td>
+</tr>
+<tr>
+<td><strong>V</strong> Value</td>
+<td>实际的菜</td>
+<td>按比例被取走</td>
+<td>被找的一方，每家店一份</td>
+</tr>
+</tbody>
+</table>
+<p>口诀：Q 去问，K 来答"像不像"，V 是最后拿走的东西。</p>
+<p>易错：Q、K 按"是谁的"分，<strong>不是把一句话拆成两段</strong>；共同的词是 Q、K 对得上的原因。K 只用来打分，最后混合进来的只有 V。</p>
+<p>为什么 Q、K 要分开："我要找什么"（Q）和"我是什么"（K）是两回事；若 Q = K，每个词和自己最像，只会盯着自己看。</p>
+</details>
+<h3 id="r09-attention">R09 · attention 分哪四步？</h3>
+<p>来源：<a href="lessons/04-weighted-average.html">第 4 章</a> · 加入 2026-10-25 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<p><strong>词变向量 → 点积打分 → softmax 分比例 → 按比例取信息</strong></p>
+<p>对应论文公式 <span class="arithmatex">\(\text{softmax}(QK^\top/\sqrt{d_k})\,V\)</span>：<span class="arithmatex">\(QK^\top\)</span> = 打分，softmax = 分比例，乘 <span class="arithmatex">\(V\)</span> = 取信息（<span class="arithmatex">\(\sqrt{d_k}\)</span> 之后再讲）。</p>
+</details>
+<h3 id="r10-025-0125-0625-010001010">R10 · "按比例取信息"怎么算？用 [0.25, 0.125, 0.625] 和信息向量 [0,10]、[0,0]、[10,10] 算一下</h3>
+<p>来源：<a href="lessons/04-weighted-average.html">第 4 章</a> · 加入 2026-10-25 · 复习记录： 2026-10-26 ✓（0.5×[2,4]+0.5×[6,0]=[4,2]）</p>
+<details>
+<summary>答案</summary>
+<p>加权平均：每个信息向量乘上它的比例，再按位置加起来，<span class="arithmatex">\(\mathbf o=\sum_j p_j\mathbf v_j\)</span>（同"总评 = 平时 × 0.3 + 期末 × 0.7"）。</p>
+<ul>
+<li>第 1 位：<span class="arithmatex">\(0.25\times0+0.125\times0+0.625\times10=6.25\)</span></li>
+<li>第 2 位：<span class="arithmatex">\(0.25\times10+0.125\times0+0.625\times10=8.75\)</span></li>
+</ul>
+<p>结果 [6.25, 8.75]："她"的理解主要从小红那里取来。</p>
+</details>
+<h3 id="r17-8-3-0-w-1-05-0-02-2-01-05-0">R17 · 什么是矩阵？"向量乘矩阵"怎么算？算 [8, 3, 0] 乘 W（列 1 = [0.5, 0, 0.2]，列 2 = [0.1, 0.5, 0]）</h3>
+<p>来源：<a href="lessons/10-matrix-transform.html">第 10 章</a> · 加入 2026-10-26（曾因对位错算成 5.6） · 复习记录： 2026-10-26 ✗（[1,2]×W 答成 [3,6]：按"行"算了，应该按"列"）；重做 ✓ [5,4]</p>
+<details>
+<summary>答案</summary>
+<p>矩阵 = 几组权重排成的数字表，<strong>每一列是一组权重</strong>；行数 = 原向量长度，列数 = 新向量长度。</p>
+<p>向量乘矩阵 = 向量和<strong>每一列</strong>各做一次点积，结果排成新向量：
+- 列 1：<span class="arithmatex">\(0.5\times8+0\times3+0.2\times0=4\)</span>
+- 列 2：<span class="arithmatex">\(0.1\times8+0.5\times3+0\times0=2.3\)</span></p>
+<p>结果 <strong>[4, 2.3]</strong>。易错：一定要<strong>对位</strong>，权重第 3 个乘向量第 3 个（香蕉"红"= 0）；一定要<strong>按列</strong>，不是按行。</p>
+<p>口诀：向量乘矩阵，竖着取列做点积。</p>
+</details>
+<h3 id="r18-qkv-d_k64">R18 · 每个词的 Q、K、V 向量是怎么来的？<span class="arithmatex">\(d_k=64\)</span> 从哪来？</h3>
+<p>来源：<a href="lessons/10-matrix-transform.html">第 10 章</a> · 加入 2026-10-26 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<p>同一个词向量 <span class="arithmatex">\(\mathbf x\)</span>（512 个数）乘<strong>三个不同的矩阵</strong>：</p>
+<div class="arithmatex">\[\mathbf q = \mathbf x W^Q,\quad \mathbf k = \mathbf x W^K,\quad \mathbf v = \mathbf x W^V\]</div>
+<p><span class="arithmatex">\(W^Q\)</span> 是 512 行 × 64 列，所以 q 有 64 个数，这就是 <span class="arithmatex">\(d_k=64\)</span>（矩阵的列数）。矩阵里的权重一开始随机，训练中由模型自己调。</p>
+</details>
+<h3 id="r19-q-mathbf-q-q">R19 · 大写 <span class="arithmatex">\(Q\)</span> 和小写 <span class="arithmatex">\(\mathbf q\)</span> 有什么区别？<span class="arithmatex">\(Q\)</span> 是几行几列？为什么要排成矩阵？</h3>
+<p>来源：<a href="lessons/11-matrix-qk.html">第 11 章</a> · 加入 2026-10-26 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<ul>
+<li>小写 <span class="arithmatex">\(\mathbf q\)</span>：<strong>一个词</strong>的 query 向量。</li>
+<li>大写 <span class="arithmatex">\(Q\)</span>：<strong>所有词</strong>的 q 排成的矩阵，<strong>每一行是一个词的 q</strong>。<span class="arithmatex">\(K\)</span>、<span class="arithmatex">\(V\)</span> 同理。</li>
+<li>形状：<strong>行数 = 句子里的词数 <span class="arithmatex">\(n\)</span></strong>，<strong>列数 = 每个 q 的长度 <span class="arithmatex">\(d_k\)</span></strong>（论文 64）。</li>
+<li>为什么：一次矩阵乘法同时算完所有词，GPU 最擅长。</li>
+</ul>
+</details>
+<h3 id="r20-qktop-q-0-2k-1-0-0-2-1-1">R20 · <span class="arithmatex">\(QK^\top\)</span> 算出来的是什么？练习：q（她）= [0, 2]，k：小明 [1, 0]、小红 [0, 2]、她 [1, 1]，算"她"那一行</h3>
+<p>来源：<a href="lessons/11-matrix-qk.html">第 11 章</a> · 加入 2026-10-26（讲解时跳过，留作复习题） · 复习记录： 2026-10-26 ✓（第 12 章走公式时算出 [0,4,2]）</p>
+<details>
+<summary>答案</summary>
+<p><span class="arithmatex">\(QK^\top\)</span> 是一张 <span class="arithmatex">\(n\times n\)</span> 的<strong>分数表</strong>：第 i 行第 j 列 = 第 i 个词的 q 和第 j 个词的 k 的点积。行 = 谁去找，列 = 被找的是谁。</p>
+<p>"她"那一行：
+- ·小明 [1, 0]：<span class="arithmatex">\(0\times1+2\times0=0\)</span>
+- ·小红 [0, 2]：<span class="arithmatex">\(0\times0+2\times2=4\)</span>
+- ·她 [1, 1]：<span class="arithmatex">\(0\times1+2\times1=2\)</span></p>
+<p>结果 <strong>[0, 4, 2]</strong>："她"最关注<strong>小红</strong>。</p>
+</details>
+<h3 id="r21">R21 · 数乘、向量加法、点积，结果分别是"一个数"还是"向量"？各举一个例子</h3>
+<p>来源：<a href="lessons/appendix-vector-ops.html">附录 向量操作速查</a> · 加入 2026-10-26（复习时反馈记不清） · 复习记录： 2026-10-26 ✗（把点积结果答成"向量"）；2026-10-26 重做 ✓（[3,0,2]·[1,5,4]=11，一个数）；数乘 2×[1,3,5]=[2,6,10] ✓；加法 [1,2,3]+[4,0,1]=[5,2,4] ✓</p>
+<details>
+<summary>答案</summary>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>例子</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>数乘</td>
+<td>0.5 × [10, 4] = [5, 2]</td>
+<td>向量（每个位置都乘）</td>
+</tr>
+<tr>
+<td>加法</td>
+<td>[1, 2] + [3, 4] = [4, 6]</td>
+<td>向量（同位置相加）</td>
+</tr>
+<tr>
+<td>点积</td>
+<td>[2, 1] · [3, 4] = 10</td>
+<td><strong>一个数</strong>（相乘后全部加起来）</td>
+</tr>
+</tbody>
+</table>
+<p>加权平均 = 数乘 + 加法，所以结果是向量；点积是打分，所以是一个数。</p>
+</details>
+<h3 id="r22-top-123456-ktop">R22 · 什么是转置 <span class="arithmatex">\(^\top\)</span>？写出 [[1,2,3],[4,5,6]] 的转置。公式里为什么要用 <span class="arithmatex">\(K^\top\)</span>？</h3>
+<p>来源：<a href="lessons/12-transpose-formula.html">第 12 章</a> · 加入 2026-10-26 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<p>转置 = 把表格翻过来，<strong>行变列</strong>：原来第 1 行变第 1 列，第 2 行变第 2 列。2 行 × 3 列 → 3 行 × 2 列。</p>
+<div class="arithmatex">\[\begin{bmatrix}1 &amp; 2 &amp; 3\\ 4 &amp; 5 &amp; 6\end{bmatrix}^\top=\begin{bmatrix}1 &amp; 4\\ 2 &amp; 5\\ 3 &amp; 6\end{bmatrix}\]</div>
+<p>为什么要 <span class="arithmatex">\(K^\top\)</span>：矩阵乘法是"左边的行 × 右边的列"。<span class="arithmatex">\(Q\)</span> 每<strong>行</strong>是一个 q；<span class="arithmatex">\(K\)</span> 里每个 k 也是<strong>行</strong>，要翻成<strong>列</strong>才能和 q 做点积。<span class="arithmatex">\(QK^\top\)</span> 得到 <span class="arithmatex">\(n\times n\)</span> 分数表。</p>
+</details>
+<h3 id="r23-1-q-02k-100211v-010101055d_k2">R23 · 公式 1 的四步各做什么？q（她）= [0,2]，k = [1,0]、[0,2]、[1,1]，v = [0,10]、[10,10]、[5,5]，<span class="arithmatex">\(d_k=2\)</span>，走一遍</h3>
+<p>来源：<a href="lessons/12-transpose-formula.html">第 12 章</a> · 加入 2026-10-26 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<div class="arithmatex">\[\text{Attention}(Q,K,V)=\text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V\]</div>
+<table>
+<thead>
+<tr>
+<th>步</th>
+<th>做什么</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① 打分 <span class="arithmatex">\(QK^\top\)</span></td>
+<td>q 和每个 k 点积</td>
+<td>[0, 4, 2]</td>
+</tr>
+<tr>
+<td>② 缩放 <span class="arithmatex">\(\div\sqrt{d_k}\)</span></td>
+<td>除以 √2 ≈ 1.41</td>
+<td>[0, 2.83, 1.41]</td>
+</tr>
+<tr>
+<td>③ softmax</td>
+<td>套 eˣ（1, 16.94, 4.10），除以总和 22.04</td>
+<td>[0.045, 0.769, 0.186]</td>
+</tr>
+<tr>
+<td>④ 乘 V</td>
+<td>加权平均</td>
+<td>[8.62, 9.07] ≈ 小红的 [10, 10]</td>
+</tr>
+</tbody>
+</table>
+<p>易错：③ 的比例加起来必须是 1，可用 1 − 其他两项验算。</p>
+</details>
+<h3 id="r24-v-100v-010-05">R24 · 为什么要多头注意力？v（小红）= [10,0]、v（因为）= [0,10]，单头各给 0.5 会怎样？</h3>
+<p>来源：<a href="lessons/13-multi-head.html">第 13 章</a> · 加入 2026-10-26 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<p>一个头只有<strong>一组比例</strong>。一个词想同时关注几样东西（"她"指谁 → 小红；在讲什么关系 → 因为），只能把注意力分开给，加权平均后信息被稀释：<span class="arithmatex">\(0.5\times[10,0]+0.5\times[0,10]=[5,5]\)</span>，两样都只剩一半。</p>
+<p>多头：每个头专看一样（头 1 → [10,0]，头 2 → [0,10]），<strong>拼接</strong>成 [10, 0, 0, 10]，两样都完整保留。类比：多个评委各盯剧情、画面、配乐。</p>
+</details>
+<h3 id="r25-d_k-64">R25 · 多头注意力怎么做？论文几个头？每个头 <span class="arithmatex">\(d_k\)</span> 为什么是 64？多头比单头贵吗？</h3>
+<p>来源：<a href="lessons/13-multi-head.html">第 13 章</a> · 加入 2026-10-26 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<div class="arithmatex">\[\text{MultiHead}(Q,K,V)=\text{Concat}(\text{head}_1,\dots,\text{head}_h)\,W^O\]</div>
+<ul>
+<li>每个头有自己的 <span class="arithmatex">\(W^Q, W^K, W^V\)</span>，各算一遍 attention；</li>
+<li>拼接（Concat，首尾接起来，不是相加）→ 乘 <span class="arithmatex">\(W^O\)</span> 汇总；</li>
+<li>论文 h = 8，<span class="arithmatex">\(d_k = 512 / 8 = 64\)</span>，拼接后回到 512；</li>
+<li>代价：8 个 512 × 64 拼起来 = 一个 512 × 512，参数和计算量与单头几乎一样。</li>
+</ul>
+<p>口诀：一头只有一组比，多头各看各的戏；拼回原长再汇总。</p>
+</details>
+<h3 id="r26-attention">R26 · "狗咬人"和"人咬狗"里，"咬"经过 attention 算出的新向量一样吗？为什么？</h3>
+<p>来源：<a href="lessons/14-positional-encoding.html">第 14 章</a> · 加入 2026-10-27 · 复习记录： 2026-10-27 ✗（答成"不一样"）</p>
+<details>
+<summary>答案</summary>
+<p><strong>一模一样。</strong> 意思应该不同，但 attention 分不出来：</p>
+<ol>
+<li>分数 = "咬"的 q · 每个词的 k；k 是词自己的，和它排第几无关 → 每个词在两句里拿到的比例相同；</li>
+<li>最后一步是加权<strong>相加</strong>，加法换顺序结果不变（3 + 5 = 5 + 3）。</li>
+</ol>
+<p>类比：attention 只看到"一袋词"，知道袋里有哪些词，不知道顺序。所以必须另外加入<strong>位置信息</strong>（positional encoding，论文 §3.5）。</p>
+</details>
+<h3 id="r27-p_101p_303-1-0">R27 · 位置信息怎么加进词向量？写出公式。号码牌 <span class="arithmatex">\(p_1=[0,1]\)</span>、<span class="arithmatex">\(p_3=[0,3]\)</span>，"人" = [1, 0]，在"人咬狗"和"狗咬人"里分别变成多少？</h3>
+<p>来源：<a href="lessons/14-positional-encoding.html">第 14 章</a> · 加入 2026-11-05 · 复习记录： 2026-11-05 ✓（答对"人"坐 1 号座戴 [0, 1]）</p>
+<details>
+<summary>答案</summary>
+<div class="arithmatex">\[x_i' = x_i + p_i\]</div>
+<ul>
+<li><span class="arithmatex">\(x_i\)</span>：第 <span class="arithmatex">\(i\)</span> 个位置上那个词的词向量（只看是哪个词）</li>
+<li><span class="arithmatex">\(p_i\)</span>：第 <span class="arithmatex">\(i\)</span> 个位置的"号码牌"（只看排第几，和是哪个词无关）</li>
+<li>号码牌属于<strong>座位</strong>，不属于词：谁坐上来，谁就戴上这块牌</li>
+</ul>
+<p>"人咬狗"：人坐 1 号座 → [1, 0] + [0, 1] = <strong>[1, 1]</strong>
+"狗咬人"：人坐 3 号座 → [1, 0] + [0, 3] = <strong>[1, 3]</strong></p>
+<p>同一个词，座位不同，向量就不同，attention 就能分出顺序。</p>
+</details>
+<h3 id="r28-0-10-20-3-2-0-1000">R28 · 号码牌用 [0, 1]、[0, 2]、[0, 3]……一直往上加，有什么问题？"狗" = [2, 0] 坐到 1000 号座会怎样？</h3>
+<p>来源：<a href="lessons/14-positional-encoding.html">第 14 章</a> · 加入 2026-11-05 · 复习记录： 2026-11-05 ✓（算对 [2, 1000]，后半问没答）</p>
+<details>
+<summary>答案</summary>
+<p>[2, 0] + [0, 1000] = <strong>[2, 1000]</strong>。词本身的数只有 2，牌上的数有 1000，向量几乎只剩"坐第几号"，看不出是哪个词了。</p>
+<p>类比：小纸条上写着名字，旁边贴一块巨大的门牌号，远看只看得见门牌号。</p>
+<p>结论：号码牌的数<strong>不能无限变大</strong>，要一直保持在固定的小范围里。论文用 sin、cos 做号码牌，原因之一就是它们的值永远在 −1 到 1 之间（第 15、16 章）。</p>
+</details>
+<h3 id="r29-sin-14-114-sin">R29 · sin 是什么？它的值在什么范围？转了 1/4 圈和 1¼ 圈，sin 各是多少？</h3>
+<p>来源：<a href="lessons/15-sin-cos.html">第 15 章</a> · 加入 2026-11-05 · 复习记录： 2026-11-05 ✓（答对 1¼ 圈是 1）</p>
+<details>
+<summary>答案</summary>
+<p>类比：半径为 1 的摩天轮，从正右边上车、逆时针转。<strong>sin = 你比中心轴高多少</strong>。</p>
+<ul>
+<li>范围：永远在 <strong>−1 到 1</strong> 之间，转多少圈都跑不出去；</li>
+<li>周期 period：每转一整圈重复一次，所以 1/4 圈和 1¼ 圈都是 <strong>+1</strong>；</li>
+<li>几个点：0 圈 → 0，1/4 圈 → +1，1/2 圈 → 0，3/4 圈 → −1。</li>
+</ul>
+<p>对号码牌的意义：数不会无限变大（不盖住词）；但会重复，相隔一整圈的座位会撞牌（第 16 章用多档时钟解决）。</p>
+</details>
+<h3 id="r30-sincos-cos-sin">R30 · 只看 sin（高度），分得清摩天轮的正右边和正左边吗？cos 是什么？写出正右边、最顶上、正左边的 (cos, sin)</h3>
+<p>来源：<a href="lessons/15-sin-cos.html">第 15 章</a> · 加入 2026-11-05 · 复习记录： 2026-11-05 ✓（自己答出"缺一个维度"）</p>
+<details>
+<summary>答案</summary>
+<p>分不清：正右边和正左边的高度都是 0，只看 sin 少了一个维度。</p>
+<p><strong>cos = 比中心轴偏右多少</strong>（偏左为负），范围也是 −1 到 1，也是转一圈重复。</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>(cos, sin)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>正右边（0 圈）</td>
+<td>(+1, 0)</td>
+</tr>
+<tr>
+<td>最顶上（1/4 圈）</td>
+<td>(0, +1)</td>
+</tr>
+<tr>
+<td>正左边（1/2 圈）</td>
+<td>(−1, 0)</td>
+</tr>
+</tbody>
+</table>
+<p>sin 管高度，cos 管左右；两个数一起才能说清在圆上的哪一点。</p>
+</details>
+<h3 id="r31-cos-sin-1-14-3-0-5">R31 · 用 (cos, sin) 当号码牌、座位号每加 1 多转 1/4 圈：3 号座的牌是多少？它比老号码牌 [0, 座位号] 好在哪？5 号座会出什么问题？</h3>
+<p>来源：<a href="lessons/15-sin-cos.html">第 15 章</a> · 加入 2026-11-05 · 复习记录： 2026-11-05 ✓（答对 5 号座 1.25 圈，和 1 号撞牌）</p>
+<details>
+<summary>答案</summary>
+<ul>
+<li>3 号座：转 3/4 圈到最底下 → (0, −1)；"狗" [2, 0] 坐上去变成 [2, −1]。</li>
+<li>好在哪：每个数都在 −1 到 1 之间，座位号再大也盖不住词（老号码牌 1000 号座是 [0, 1000]）。类比：老牌是越拉越长的尺子，新牌是只在表盘上转圈的指针。</li>
+<li>问题：5 号座转 1¼ 圈，牌是 (0, 1)，和 1 号座<strong>一模一样</strong>。一个摩天轮每隔一圈就重复，座位多了就撞牌 → 第 16 章用多档时钟解决。</li>
+</ul>
+</details>
+<h3 id="r32-radian-1-14-sinpi">R32 · 弧度 radian 是什么？1 圈、半圈、1/4 圈各是多少弧度？<span class="arithmatex">\(\sin(\pi)\)</span> 是多少？</h3>
+<p>来源：<a href="lessons/15-sin-cos.html">第 15 章</a> · 加入 2026-11-05 · 复习记录： 2026-11-05 ✓（答出 π 是半圈）</p>
+<details>
+<summary>答案</summary>
+<p><strong>弧度 = 沿着半径为 1 的摩天轮的边走了多长的路。</strong> 一整圈的边长是 2π ≈ 6.28。</p>
+<table>
+<thead>
+<tr>
+<th>圈</th>
+<th>角度</th>
+<th>弧度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1/4</td>
+<td>90°</td>
+<td>π/2 ≈ 1.57</td>
+</tr>
+<tr>
+<td>1/2</td>
+<td>180°</td>
+<td>π ≈ 3.14</td>
+</tr>
+<tr>
+<td>1</td>
+<td>360°</td>
+<td>2π ≈ 6.28</td>
+</tr>
+</tbody>
+</table>
+<p><span class="arithmatex">\(\sin(\pi)\)</span>：π 是半圈，在正左边，高度 = <strong>0</strong>。</p>
+<p>sin、cos 括号里的数默认是弧度。论文的 <span class="arithmatex">\(\sin(pos)\)</span> 就是"座位号是几，就沿边走几"，每个座位约多转 1 ÷ 6.28 ≈ 0.16 圈。</p>
+</details>
+<h3 id="r33-14-18-9">R33 · 一个摩天轮会撞牌，怎么解决？快轮每座 1/4 圈、慢轮每座 1/8 圈，9 号座和谁撞？论文用了几个轮子？</h3>
+<p>来源：<a href="lessons/16-multi-clock.html">第 16 章</a> · 加入 2026-11-05 · 复习记录： 2026-11-05 ✓（圈数 2.25、1.125 算对，没说撞 1 号座）</p>
+<details>
+<summary>答案</summary>
+<p><strong>再加转得更慢的轮子</strong>，号码牌同时记下每个轮子的 (cos, sin)。类比：只看秒针每分钟重复，加上分针、时针就分得清。</p>
+<ul>
+<li>9 号座：快轮 2.25 圈（同 1 号座，最顶上），慢轮 1.125 圈（同 1 号座，右上方）→ <strong>和 1 号座撞</strong>。两个轮子每 8 个座位才重复，比一个轮子的 4 个晚一倍。</li>
+<li>论文：<strong>256 个</strong>轮子，号码牌 256 × 2 = 512 个数。最快的约 6.28 个座位转一圈（每座 1 弧度），最慢的约 62832 个座位（10000 × 2π）才转一圈（AIAYN L291）。</li>
+</ul>
+<p>快轮管近处，慢轮管远处。</p>
+</details>
+<h3 id="r34-512-256">R34 · 论文的号码牌为什么正好是 512 个数？是"因为有 256 个轮子"吗？</h3>
+<p>来源：<a href="lessons/16-multi-clock.html">第 16 章</a> · 加入 2026-11-05 · 复习记录： 2026-11-05 ✗（答成"256 个轮子 × 2 = 512"，因果反了）；2026-11-05 追问 ✓（768 → 768 个数、384 个轮子）；2026-11-05 第 18 章题 2 复发 ✗（残差那题又答成"256 × 2"）</p>
+<details>
+<summary>答案</summary>
+<p>不是。顺序是反过来的：</p>
+<ol>
+<li>词向量有 <strong>512 个数</strong>（<span class="arithmatex">\(d_{model} = 512\)</span>）；</li>
+<li>号码牌要和词向量<strong>对位相加</strong>（<span class="arithmatex">\(x_i + p_i\)</span>），两个向量必须一样长 → 号码牌也是 512 个数；</li>
+<li>每个轮子出 sin、cos 2 个数 → 轮子个数 = 512 ÷ 2 = 256。</li>
+</ol>
+<p>先有 512，才有 256 个轮子。原文 AIAYN L281–L282："the same dimension <span class="arithmatex">\(d_{model}\)</span> as the embeddings, so that the two can be summed"。</p>
+<p>举一反三：词向量 768 个数 → 号码牌 768 个数 → 384 个轮子。</p>
+</details>
+<h3 id="r35-3-0-1">R35 · 写出论文的正弦位置编码公式。"狗"坐 3 号座，号码牌第 0 位和第 1 位是什么？约等于多少？</h3>
+<p>来源：<a href="lessons/16-multi-clock.html">第 16 章</a> · 加入 2026-11-05（讲解时要求演示，未作答） · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<div class="arithmatex">\[PE_{(pos,2i)} = \sin(pos / 10000^{2i/d_{model}}),\quad PE_{(pos,2i+1)} = \cos(pos / 10000^{2i/d_{model}})\]</div>
+<ul>
+<li><span class="arithmatex">\(pos\)</span> 座位号；<span class="arithmatex">\(i\)</span> 第几个轮子（0～255）；偶数位 <span class="arithmatex">\(2i\)</span> 放 sin，奇数位 <span class="arithmatex">\(2i+1\)</span> 放 cos；括号里 = 这个轮子沿边走了多远（弧度）。</li>
+</ul>
+<p>3 号座、第 0 个轮子：<span class="arithmatex">\(10000^{0} = 1\)</span>，括号里 = 3 / 1 = 3。</p>
+<ul>
+<li>第 0 位 = <span class="arithmatex">\(\sin(3)\)</span> ≈ <strong>0.14</strong></li>
+<li>第 1 位 = <span class="arithmatex">\(\cos(3)\)</span> ≈ <strong>−0.99</strong></li>
+</ul>
+<p>检查：3 弧度 ≈ 0.48 圈，差一点到正左边 → 高度略大于 0，左右接近 −1。</p>
+</details>
+<h3 id="r36-0-1-01">R36 · 论文第 0 个轮子每个座位沿边走多远？"狗"坐 1 号座，号码牌第 0、1 位约等于多少？</h3>
+<p>来源：<a href="lessons/16-multi-clock.html">第 16 章</a> · 加入 2026-11-05 · 复习记录：2026-11-05 ✗（答"1.57，0"：当成了第 15 章每座 1/4 圈的玩具轮子，还把括号里的弧度当成 sin 的值）；2026-11-05 再练 半对（2 号座圈数 0.3–0.4 对，括号里说成 1.x，应为 2）</p>
+<details>
+<summary>答案</summary>
+<p>第 0 个轮子转速那一块 <span class="arithmatex">\(= 10000^{0} = 1\)</span>，括号里 = <span class="arithmatex">\(pos / 1 = pos\)</span>：每个座位沿边走 <strong>1 弧度</strong>（≈ 0.16 圈，约 57°），不是 1/4 圈（π/2 ≈ 1.57 弧度）。</p>
+<p>1 号座：
+- 第 0 位 = <span class="arithmatex">\(\sin(1)\)</span> ≈ <strong>0.84</strong>
+- 第 1 位 = <span class="arithmatex">\(\cos(1)\)</span> ≈ <strong>0.54</strong></p>
+<p>第 0 个轮子括号里就是座位号本身：2 号座括号里 = 2（≈ 0.32 圈），3 号座 = 3（≈ 0.48 圈）。</p>
+<p>易错：1.57 是"走了多远"（括号里），不是 sin 的值；sin、cos 的值永远在 −1 到 1 之间。</p>
+</details>
+<h3 id="r37-0-1">R37 · 正弦公式括号里的数是什么意思？论文第 0 个轮子，括号里等于什么？"1" 又是什么？</h3>
+<p>来源：<a href="lessons/16-multi-clock.html">第 16 章</a> · 加入 2026-11-05 · 复习记录：2026-11-05 ✗（答"1"：把一步的长度当成了一共走了多远）；2026-11-05 再练 ✓（10 号座 → 10）</p>
+<details>
+<summary>答案</summary>
+<p>括号里 = 这个轮子在这个座位上<strong>一共沿边走了多远</strong>（弧度）。</p>
+<p>第 0 个轮子：一步（每个座位）长 <span class="arithmatex">\(1 / 10000^{0} = 1\)</span> 弧度，坐在 <span class="arithmatex">\(pos\)</span> 号座就走了 <span class="arithmatex">\(pos\)</span> 步，所以括号里 <span class="arithmatex">\(= pos \times 1 =\)</span> <strong>pos</strong>。</p>
+<ul>
+<li>1 号座 → 1，2 号座 → 2，10 号座 → 10</li>
+<li>"1" 是一步的长度，不是括号里（只有 1 号座碰巧相等）</li>
+</ul>
+<p>类比：每步 1 米，走 3 步一共 3 米。</p>
+</details>
+<h3 id="r38-posi256-100-128-001">R38 · 正弦公式里 pos、i、256 各管什么？"狗"坐 100 号座，第 128 个轮子（一步 0.01 弧度）括号里是几？</h3>
+<p>来源：<a href="lessons/16-multi-clock.html">第 16 章</a> · 加入 2026-11-05 · 复习记录：2026-11-05 ✗（答"256 × 0.01"：把轮子个数当成了步数）；2026-11-05 改答 ✗（"1.28"：用轮子编号 128 当了步数）；2026-11-05 再练 半对（300 号座答"都是 3"：第 128 个轮子 3 对，第 0 个轮子应为 300）</p>
+<details>
+<summary>答案</summary>
+<ul>
+<li><span class="arithmatex">\(pos\)</span>（座位号）：<strong>走了几步</strong></li>
+<li><span class="arithmatex">\(i\)</span>（第几个轮子）：<strong>一步多长</strong> = <span class="arithmatex">\(1 / 10000^{2i/d_{model}}\)</span></li>
+<li>256（轮子总数）：号码牌有几组数，<strong>不进括号</strong></li>
+<li>易错：拿 256 或 128 当步数；步数永远是座位号</li>
+</ul>
+<p>括号里 = 步数 × 步长 = <span class="arithmatex">\(pos \times 1/10000^{2i/d_{model}}\)</span></p>
+<p>100 号座、第 128 个轮子：<span class="arithmatex">\(100 \times 0.01 =\)</span> <strong>1</strong>（第 0 个轮子则是 100 × 1 = 100）。</p>
+<p>不同轮子步数一样、步长不同，所以括号里不一样：300 号座 → 第 0 个轮子 300，第 128 个轮子 3。</p>
+<p>类比：256 个人一起走同样的步数（座位号），每人步子大小不同；括号里 = 某一个人走了多远。</p>
+</details>
+<h3 id="r39-128-100002id_model">R39 · 第 128 个轮子：<span class="arithmatex">\(10000^{2i/d_{model}}\)</span> 等于几？一步多长？为什么？</h3>
+<p>来源：<a href="lessons/16-multi-clock.html">第 16 章</a> · 加入 2026-11-05 · 复习记录：2026-11-05 ✗（追问"为什么第 128 个轮子一步是 100"：把慢的倍数当成了步长）；2026-11-05 再练 ✓（第 0 个轮子：倍数 1，一步 1）</p>
+<details>
+<summary>答案</summary>
+<ol>
+<li>指数：<span class="arithmatex">\(2 \times 128 / 512 = 0.5\)</span></li>
+<li>慢的倍数：<span class="arithmatex">\(10000^{0.5} = \sqrt{10000} = 100\)</span></li>
+<li>一步多长：<span class="arithmatex">\(1 / 100 = 0.01\)</span> 弧度</li>
+</ol>
+<ul>
+<li>慢的倍数（分母）越大，一步越短，轮子越慢</li>
+<li>第 0 个轮子：倍数 <span class="arithmatex">\(10000^0 = 1\)</span>，一步 1；第 128 个：倍数 100，一步 0.01</li>
+</ul>
+<p>易错：100 是倍数，不是步长；括号里的数是弧度，换成圈要除以 6.28（300 弧度 ≈ 48 圈）。</p>
+</details>
+<h3 id="r40">R40 · 为什么要从快到慢一组轮子？挨着的两个座位靠哪种轮子分开，隔得很远的靠哪种？</h3>
+<p>来源：<a href="lessons/16-multi-clock.html">第 16 章</a> · 加入 2026-11-05 · 复习记录：2026-11-05 ✓（2、3 号座：用第 0 个，第 255 个几乎一样）</p>
+<details>
+<summary>答案</summary>
+<ul>
+<li><strong>快轮管近处</strong>：2、3 号座在第 0 个轮子上差 1 弧度，号码牌 (0.91, −0.42) vs (0.14, −0.99)；在第 255 个轮子上只差 0.0001 弧度，几乎一样。</li>
+<li><strong>慢轮管远处</strong>：1、45 号座在第 0 个轮子上转了 7 圈多回到差不多的位置，(0.84, 0.54) vs (0.85, 0.53) 几乎撞牌；在第 128 个轮子上是 0.01 vs 0.45 弧度，分得很开。</li>
+</ul>
+<p>类比：秒针分得开相差 1 秒的时刻，日历分得开相差一周的时刻。256 个轮子拼起来，远近都分得清。</p>
+</details>
+<h3 id="r41-attention-128-50-53-200-203">R41 · 论文为什么说正弦号码牌方便模型按"相对位置"做 attention？第 128 个轮子从 50 号挪到 53 号、从 200 号挪到 203 号，各多转多少？</h3>
+<p>来源：<a href="lessons/16-multi-clock.html">第 16 章</a> · 加入 2026-11-05 · 复习记录：2026-11-05 ✓（"0.03，一样"）</p>
+<details>
+<summary>答案</summary>
+<p>挪 <span class="arithmatex">\(k\)</span> 个座位，每个轮子多转 <span class="arithmatex">\(k \times\)</span> 步长，<strong>只看 <span class="arithmatex">\(k\)</span>，不看起点</strong>：</p>
+<ul>
+<li>第 128 个轮子：3 × 0.01 = <strong>0.03</strong> 弧度，两次一样</li>
+<li>第 0 个轮子：3 × 1 = 3 弧度</li>
+</ul>
+<p>所以"往后挪 <span class="arithmatex">\(k\)</span> 个座位"对每个轮子都是"再转一个固定角度"，这是一个固定的线性动作。论文 L292–L294：对任意固定的 <span class="arithmatex">\(k\)</span>，<span class="arithmatex">\(PE_{pos+k}\)</span> 可以写成 <span class="arithmatex">\(PE_{pos}\)</span> 的线性函数，模型因此容易学会按相对位置做 attention（具体写法靠和角公式，RoPE 时推）。</p>
+</details>
+<h3 id="r42-mask-2-attention">R42 · 为什么生成文字的模型要做因果 mask？"狗咬人"里 2 号座"咬"做 attention 能看哪几个座位？</h3>
+<p>来源：<a href="lessons/17-causal-mask.html">第 17 章</a> · 加入 2026-11-05 · 复习记录：2026-11-05 ✓（"1，2"）</p>
+<details>
+<summary>答案</summary>
+<ul>
+<li>模型生成时<strong>一次说一个词</strong>（auto-regressive，论文 L115–L116），后面的词还不存在；</li>
+<li>训练时整句一起放进去、每个座位猜下一个词，如果能看后面的词，就是<strong>偷看答案</strong>；</li>
+<li>规则：每个座位只能看<strong>自己和前面</strong>（论文 L142–L143、L235–L236）。</li>
+</ul>
+<p>2 号座"咬"：能看 <strong>1 号、2 号</strong>；不能看 3 号"人"（那是它要猜的答案）。</p>
+<p>类比：听写时用纸遮住后面的答案。</p>
+</details>
+<h3 id="r43-mask-9">R43 · 因果 mask 在分数表上遮哪些格子？是什么形状？"狗咬人"9 格遮几格？</h3>
+<p>来源：<a href="lessons/17-causal-mask.html">第 17 章</a> · 加入 2026-11-05 · 复习记录：2026-11-05 ✓（"3"）</p>
+<details>
+<summary>答案</summary>
+<p>分数表行 = 谁去找，列 = 被找的。第 <span class="arithmatex">\(i\)</span> 行只留第 1～<span class="arithmatex">\(i\)</span> 列，右边遮掉：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>狗</th>
+<th>咬</th>
+<th>人</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>狗</td>
+<td>✓</td>
+<td>✗</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>咬</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>人</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>能看的是<strong>左下三角（含对角线）</strong>，所以叫下三角 mask；遮掉右上三角。</li>
+<li>3 个词遮 2 + 1 + 0 = <strong>3</strong> 格；一般 <span class="arithmatex">\(n\)</span> 个词遮 <span class="arithmatex">\(n(n-1)/2\)</span> 格。</li>
+</ul>
+<p>类比：电影院面朝屏幕，只看得到前排。</p>
+</details>
+<h3 id="r44-mask-0e0-2-1-0">R44 · 因果 mask 能不能把被遮格子的分数改成 0？<span class="arithmatex">\(e^{0}\)</span> 是多少？"咬"那一行 [2, 1, 0] 里"人"分到多少权重？</h3>
+<p>来源：<a href="lessons/17-causal-mask.html">第 17 章</a> · 加入 2026-11-05 · 复习记录：2026-11-05 ✗（答"分不到"：以为 <span class="arithmatex">\(e^{0}\)</span> 是 0）；2026-11-05 再练 ✓（要接近 0 得往负数改）</p>
+<details>
+<summary>答案</summary>
+<p>不能。<span class="arithmatex">\(e^{0} =\)</span> <strong>1</strong>（0 次方等于 1，第 5 章），不是 0。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>狗</th>
+<th>咬</th>
+<th>人</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>分数</td>
+<td>2</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(e^{\text{分数}}\)</span></td>
+<td>7.39</td>
+<td>2.72</td>
+<td>1</td>
+</tr>
+<tr>
+<td>权重</td>
+<td>0.67</td>
+<td>0.24</td>
+<td><strong>0.09</strong></td>
+</tr>
+</tbody>
+</table>
+<p>"人"还分到 9%，还在偷看。分数 0 不是"没有"，套 <span class="arithmatex">\(e^{x}\)</span> 后是 1，照样分比例。要让权重变 0，得让 <span class="arithmatex">\(e^{\text{分数}}\)</span> 变 0。</p>
+</details>
+<h3 id="r45-100-3-softmax">R45 · 为什么用 −∞ 而不是 −100 来遮？"狗"那一行 [3, −∞, −∞] softmax 后是多少？</h3>
+<p>来源：<a href="lessons/17-causal-mask.html">第 17 章</a> · 加入 2026-11-05 · 复习记录：2026-11-05 ✗（答"0.9998，0.001，0.001"：以为 −∞ 还剩一丁点）；2026-11-05 再练 ✓（[1, 1, −∞, −∞] → 0.5、0.5、0、0）</p>
+<details>
+<summary>答案</summary>
+<ul>
+<li>−10、−100：<span class="arithmatex">\(e^{\text{分数}}\)</span> 很小但<strong>不是 0</strong>（<span class="arithmatex">\(e^{-10} \approx 0.000045\)</span>），还剩一丁点权重；</li>
+<li>−∞：<span class="arithmatex">\(e^{-\infty}\)</span> <strong>正好是 0</strong>，权重正好 0（论文 L236–L238）。</li>
+</ul>
+<p>[3, −∞, −∞] → <span class="arithmatex">\(e\)</span> 后 [20.09, 0, 0] → 总和 20.09 → 权重 <strong>[1, 0, 0]</strong>。</p>
+<p>自查：softmax 权重加起来一定正好是 1。类比：−100 是调小音量，−∞ 是静音键。</p>
+</details>
+<h3 id="r46-mask-attention-mask-m-0-0">R46 · 写出带 mask 的 attention 公式。mask 表 <span class="arithmatex">\(M\)</span> 里能看的格子为什么填 0？它和"把分数换成 0"有什么不同？</h3>
+<p>来源：<a href="lessons/17-causal-mask.html">第 17 章</a> · 加入 2026-11-05 · 复习记录：2026-11-05 半对（答"需要 e x 再取数值"：顺序对，没说出填 0 的原因）；2026-11-05 再练 ✓（[2, 1, 3] + [0, 0, −∞] = [2, 1, −∞]）</p>
+<details>
+<summary>答案</summary>
+<div class="arithmatex">\[\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}} + M\right) V\]</div>
+<ul>
+<li><span class="arithmatex">\(M\)</span>：能看填 <strong>0</strong>，要遮填 <strong>−∞</strong>；在 softmax <strong>之前</strong>加到分数表上。</li>
+<li>填 0：<strong>分数 + 0 = 原分数</strong>，加了等于没加，能看的格子不受影响。</li>
+<li>和第三步不同：第三步是把分数<strong>换成</strong> 0（<span class="arithmatex">\(e^{0}=1\)</span>，遮不住）；这里是给分数<strong>加上</strong> 0（不变）。</li>
+<li>要遮的格子：分数 + (−∞) = −∞ → <span class="arithmatex">\(e^{-\infty} = 0\)</span> → 权重 0。</li>
+</ul>
+<p>CS336 handout §3.5.4 L1168–L1178、§3.5.5 L1223–L1233。</p>
+</details>
+<h3 id="r47-x-0-1attention-146-027">R47 · 残差连接是什么？为什么要加回原来的 <span class="arithmatex">\(x\)</span>？"咬" = [0, 1]，attention 子层输出 [1.46, 0.27]，残差后是多少？</h3>
+<p>来源：<a href="lessons/18-residual.html">第 18 章</a> · 加入 2026-11-05 · 复习记录：2026-11-05 ✓（"1.46，1.27"）</p>
+<details>
+<summary>答案</summary>
+<div class="arithmatex">\[\text{输出} = x + \text{Sublayer}(x)\]</div>
+<p>（论文 L131–L133：每个子层的输出是 <span class="arithmatex">\(\text{LayerNorm}(x + \text{Sublayer}(x))\)</span>。）</p>
+<ul>
+<li>不加残差：直接用子层输出 [1.46, 0.27]，"咬"自己的特征（第 2 个数）从 1 掉到 0.27，更像"狗"了：<strong>取来了别人的信息，丢了自己</strong>。</li>
+<li>加残差：[0, 1] + [1.46, 0.27] = <strong>[1.46, 1.27]</strong>，自己的特征还在，外加"谁在咬"的信息。</li>
+</ul>
+<p>类比：老师用红笔写批注，不是把作文撕掉换一篇。</p>
+</details>
+<h3 id="r48-embedding-d_model-512-256-2">R48 · 论文为什么要求所有子层和 embedding 层的输出都是 <span class="arithmatex">\(d_{model} = 512\)</span> 维？是因为"256 个轮子 × 2"吗？</h3>
+<p>来源：<a href="lessons/18-residual.html">第 18 章</a> · 加入 2026-11-05 · 复习记录：2026-11-05 ✗（答"一共 256 层，sin cos 一起就是"：套用了位置编码的 256 × 2，又把层和轮子混了）；2026-11-05 再练 ✓（768，要相加就必须一致）</p>
+<details>
+<summary>答案</summary>
+<p>不是。原因是<strong>残差连接要对位相加</strong>：<span class="arithmatex">\(x + \text{Sublayer}(x)\)</span>。</p>
+<ol>
+<li>对位相加要求两个向量<strong>一样长</strong>（[1, 2, 3] + [4, 5] 加不了）；</li>
+<li><span class="arithmatex">\(x\)</span> 是 <span class="arithmatex">\(d_{model} = 512\)</span> 个数，所以子层输出也得是 512 个数；</li>
+<li>加完还是 512，下一个子层继续加，一路都得是 512（论文 L134–L135）。</li>
+</ol>
+<p>先有"要相加"，才定"一样长"（同 R34：号码牌也是因为要和词向量相加才是 512）。层数是 <span class="arithmatex">\(N = 6\)</span>（L128），和位置编码的 256 个轮子无关。</p>
+</details>
+<h3 id="r49-0-0-146-127">R49 · 为什么有了残差连接，层可以叠很多？某个子层批注是 [0, 0]、输入 [1.46, 1.27]，残差后是多少？</h3>
+<p>来源：<a href="lessons/18-residual.html">第 18 章</a> · 加入 2026-11-05 · 复习记录：2026-11-05 ✓（"1.46，1.27，相当于透传了特征"）</p>
+<details>
+<summary>答案</summary>
+<p>[1.46, 1.27] + [0, 0] = <strong>[1.46, 1.27]</strong>：输入原样透传，这一层像不存在。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>不加残差</th>
+<th>加残差</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>没用的子层要做到</td>
+<td>输出 = 输入（原样抄，难）</td>
+<td>批注 = 0（空着不写，容易）</td>
+</tr>
+<tr>
+<td>最坏情况</td>
+<td>把结果弄坏（输出 [0, 0] 词就没了）</td>
+<td>这一层像不存在</td>
+</tr>
+</tbody>
+</table>
+<p>所以多加的层最差是"没帮上忙"，不会抹掉前面的成果。来源：ResNet（He et al. 2015，论文引用 [11]，L577）。</p>
+</details>
+<h3 id="r50-layernorm-mu-2-4-6-8">R50 · LayerNorm 的第一步做什么？写出平均值 <span class="arithmatex">\(\mu\)</span> 的公式。[2, 4, 6, 8] 减掉平均值后是什么？</h3>
+<p>来源：<a href="lessons/19-layernorm.html">第 19 章</a> · 加入 2026-11-06 · 复习记录：2026-11-06 ✓（"1=5，2=-3，-1，1，3"）</p>
+<details>
+<summary>答案</summary>
+<p>算出这个词向量自己的平均值，每个数都减掉它，让中心落在 0：</p>
+<div class="arithmatex">\[\mu = \frac{1}{d}\sum_{i=1}^{d} x_i\]</div>
+<p>(2 + 4 + 6 + 8) ÷ 4 = 5，减完是 <strong>[−3, −1, 1, 3]</strong>。类比：A 老师 [80, 90, 100]、B 老师 [50, 60, 70] 减完都是 [−10, 0, 10]，打分松紧没了，好坏顺序还在。</p>
+</details>
+<h3 id="r51-layernorm-layer-norm-batchnorm">R51 · LayerNorm 这个词里 Layer 和 Norm 各是什么意思？它和 BatchNorm 差在哪？</h3>
+<p>来源：<a href="lessons/19-layernorm.html">第 19 章 · 插问</a> · 加入 2026-11-06 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<ul>
+<li><strong>Norm = Normalization</strong>（归一化），按标准调整：中心放到 0、宽度统一。不是"向量长度"的那个 norm。</li>
+<li><strong>Layer</strong>：平均值和方差用<strong>同一个样本、同一层里所有的数</strong>来算。在 Transformer 里就是一个词自己的 512 个数。</li>
+<li><strong>BatchNorm</strong> 是用<strong>一批样本里同一个位置的数</strong>来算（把全班的第 1 题放一起比）；LayerNorm 只看自己的整张卷子。</li>
+</ul>
+<p>来源：<code>layernorm-1607.06450.txt</code> 摘要 L17–L25，§3 L106–L107。</p>
+</details>
+<h3 id="r52-sigma2-sigma-3-1-1-3">R52 · 方差 <span class="arithmatex">\(\sigma^2\)</span> 和标准差 <span class="arithmatex">\(\sigma\)</span> 怎么算？为什么不能把"减完平均值的数"直接平均？[−3, −1, 1, 3] 的方差是多少？</h3>
+<p>来源：<a href="lessons/19-layernorm.html">第 19 章</a> · 加入 2026-11-06 · 复习记录：2026-11-06 ✓（"0，5"）</p>
+<details>
+<summary>答案</summary>
+<div class="arithmatex">\[\sigma^2 = \frac{1}{d}\sum_{i=1}^{d}(x_i-\mu)^2 \qquad \sigma=\sqrt{\sigma^2}\]</div>
+<p>先减平均值、再平方、再平均，得到方差；开根号回到原单位，得到标准差。直接平均不行，因为减完平均值的数加起来<strong>永远是 0</strong>，一正一负抵消了；平方后都是正数，不会抵消。</p>
+<p>[−3, −1, 1, 3]：平方后 [9, 1, 1, 9]，和 20，÷ 4 = <strong>5</strong>，σ = √5 ≈ 2.24。类比：A 老师 [−10, 10] 的 σ = 10，C 老师 [−20, 20] 的 σ = 20，C 散得是 A 的 2 倍。来源：<code>layernorm-1607.06450.txt</code> Eq. (3) L105–L117。</p>
+</details>
+<h3 id="r53-1-1-5-5-sqrtsigma2varepsilon">R53 · 把 [1, 1, 5, 5] 减平均值、再除以标准差，结果是什么？分母为什么要写成 <span class="arithmatex">\(\sqrt{\sigma^2+\varepsilon}\)</span>？</h3>
+<p>来源：<a href="lessons/19-layernorm.html">第 19 章</a> · 加入 2026-11-06 · 复习记录：2026-11-06 ✓（"a=-1,-1,1,1 b=0,不加就无法除了"）</p>
+<details>
+<summary>答案</summary>
+<div class="arithmatex">\[\hat{x}_i = \frac{x_i - \mu}{\sqrt{\sigma^2 + \varepsilon}}\]</div>
+<p>μ = 3 → [−2, −2, 2, 2]，σ² = 4，σ = 2 → <strong>[−1, −1, 1, 1]</strong>。整理完一定是平均值 0、方差 1。</p>
+<p>ε 是很小的数（常用 1e-5，CS336 handout L963–L964）。如果所有数都一样，比如 [3, 3, 3, 3]，那么 σ = 0，没有 ε 就是除以 0。平时 ε 小到可以忽略，只在 σ² 接近 0 时兜底。类比：A 老师 [−10, 10] ÷ 10、C 老师 [−20, 20] ÷ 20，结果都是 [−1, 1]。</p>
+</details>
+<h3 id="r54-hatx-1-1-1-1-2-3y-1-1-5-5">R54 · 整理完 <span class="arithmatex">\(\hat{x}\)</span> = [−1, −1, 1, 1]，γ 全是 2、β 全是 3，<span class="arithmatex">\(y\)</span> 是多少？和原向量 [1, 1, 5, 5] 比说明什么？</h3>
+<p>来源：<a href="lessons/19-layernorm.html">第 19 章</a> · 加入 2026-11-06 · 复习记录：2026-11-06 ✗（没做出来，看了讲解）；2026-11-06 再练 4（a）又卡住：<span class="arithmatex">\(\gamma \cdot \hat{x} + \beta\)</span> 不会逐个算，已讲（每个数先乘 γ、再加 β）；2026-11-06 重做 ✓（[−1, 1]、γ=3、β=5 → "2，8"）；再练（b）✓（"正好就是3，5"：[2, 8] 的 σ = 3 = γ、μ = 5 = β）</p>
+<details>
+<summary>答案</summary>
+<p><span class="arithmatex">\(y_i = \gamma_i \hat{x}_i + \beta_i\)</span>，一个位置一个位置算：−1 × 2 + 3 = <strong>1</strong>，1 × 2 + 3 = <strong>5</strong>，所以 y = <strong>[1, 1, 5, 5]</strong>，和原向量一模一样。</p>
+<p>原因：原向量 μ = 3、σ = 2，而这里 γ = σ、β = μ。整理是"减 μ、除以 σ"，γ、β 是"乘 σ、加 μ"，倒着做一遍，互相抵消。</p>
+<p>说明：γ、β 让 LayerNorm 不会硬性夺走模型需要的大小信息，模型真要原来的大小能学着放回去（和残差"最坏退回原样"很像）。限制：γ、β 所有词共用，每个词的 μ、σ 却各不相同，所以只能给每个位置一个统一的放大和挪动，做不到对每个词都正好撤销。</p>
+</details>
+<h3 id="r55-post-ln-pre-ln-x-146-127-0-0lnx-1-1">R55 · 写出 post-LN 和 pre-LN 的公式。x = [1.46, 1.27]、子层批注 [0, 0]、LN(x) ≈ [1, −1]，两种的输出各是多少？</h3>
+<p>来源：<a href="lessons/19-layernorm.html">第 19 章</a> · 加入 2026-11-06 · 复习记录：2026-11-06 ✗（没做，看了计算过程）；再练 ✓（x = [3, 5]：LN = [−1, 1]，pre-LN "3，5"，post-LN "-1，1"）</p>
+<details>
+<summary>答案</summary>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>公式</th>
+<th>从里往外算</th>
+<th>输出</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pre-LN</td>
+<td><span class="arithmatex">\(x + \text{Sublayer}(\text{LN}(x))\)</span></td>
+<td>LN(x) = [1, −1] → 子层写 [0, 0] → 加回原件 x</td>
+<td><strong>[1.46, 1.27]</strong>，原样通过</td>
+</tr>
+<tr>
+<td>post-LN</td>
+<td><span class="arithmatex">\(\text{LN}(x + \text{Sublayer}(x))\)</span></td>
+<td>子层写 [0, 0] → x + 0 = [1.46, 1.27] → 整理</td>
+<td><strong>[1, −1]</strong>，大小信息被整理掉</td>
+</tr>
+</tbody>
+</table>
+<p>pre-LN 里 LN 只整理"给子层看的复印件"，批注加回没整理过的原件，主干（残差流）上没有 LN，所以要在最后一个 block 后补一个 LN。现在的 GPT-3、LLaMA 都用 pre-LN（CS336 handout §3.5 L937–L951）；post-LN 是原论文做法（L132–L133），训练开头要 warm-up（Pre-LN 论文摘要 L15–L39）。</p>
+</details>
+<h3 id="r56-rmsnorm-layernorm-rms-1-7-rmsnorm">R56 · RMSNorm 和 LayerNorm 差在哪？写出 RMS 的公式。[1, 7] 的 RMSNorm 是多少？</h3>
+<p>来源：<a href="lessons/19-layernorm.html">第 19 章</a> · 加入 2026-11-06 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<div class="arithmatex">\[\text{RMS}(x) = \sqrt{\frac{1}{d}\sum_{i} x_i^2 + \varepsilon} \qquad \text{RMSNorm}(x)_i = \frac{x_i}{\text{RMS}(x)}\, g_i\]</div>
+<p>RMS 倒着读就是计算顺序：平方（Square）→ 平均（Mean）→ 开根号（Root）。和 LayerNorm 比：<strong>不减 μ</strong>（不挪中心），除以 RMS 而不是 σ，整理后只乘 g，<strong>没有 β</strong>。效果差不多、更快（RMSNorm 论文摘要 L21–L30）；LLaMA 和 CS336 作业 1 用它（handout L955–L964）。</p>
+<p>[1, 7]：平方 [1, 49]，平均 25，RMS = 5 → <strong>[0.2, 1.4]</strong>（LayerNorm 是 [−1, 1]）。中心没挪到 0，还是两个正数。</p>
+</details>
+<h3 id="r57-ffn-attention-position-wiseseparately-and-identically">R57 · FFN 和 attention 分工有什么不同？"position-wise"（separately and identically）是什么意思？</h3>
+<p>来源：<a href="lessons/20-ffn.html">第 20 章</a> · 加入 2026-11-06 · 复习记录：2026-11-06 ✓（"a=不回，b=同一套"）</p>
+<details>
+<summary>答案</summary>
+<p>attention 是<strong>开会</strong>：每个词去看别的词，汇集整句的信息；FFN 是<strong>回座位消化</strong>：每个词只用自己的 512 个数加工一遍（CS336 handout L660–L662）。</p>
+<p>position-wise（论文 L242–L244 "applied to each position separately and identically"）：
+- <strong>separately</strong>：每个词分别送进 FFN，算"狗"不用"人"的数字；
+- <strong>identically</strong>：同一层里所有词共用同一个 FFN、同一套参数。</p>
+<p>不同层的 FFN 参数不同（L248–L249 "different parameters from layer to layer"）。</p>
+</details>
+<h3 id="r58-ffn-relu-4-2-0-01-7-relu">R58 · 写出 FFN 的公式，从里往外说每一步做什么。ReLU 是什么？[−4, 2, 0, −0.1, 7] 做 ReLU 是多少？</h3>
+<p>来源：<a href="lessons/20-ffn.html">第 20 章</a> · 加入 2026-11-06 · 复习记录：2026-11-06 ✓（"0，5"；"0，2，0，0，7"）</p>
+<details>
+<summary>答案</summary>
+<div class="arithmatex">\[\text{FFN}(x) = \max(0,\ xW_1 + b_1)\,W_2 + b_2\]</div>
+<p>① <span class="arithmatex">\(xW_1 + b_1\)</span>：第一次转换（乘矩阵、加偏置 b）；② <span class="arithmatex">\(\max(0,\cdot)\)</span>：ReLU；③ <span class="arithmatex">\((\dots)W_2 + b_2\)</span>：第二次转换。论文 L244："two linear transformations with a ReLU activation in between"。</p>
+<p>ReLU(z) = max(0, z)：正数原样通过，负数（再小也算）变成 0，0 还是 0。像门卫只放正数进门。一串数就每个各过一次门：[−4, 2, 0, −0.1, 7] → <strong>[0, 2, 0, 0, 7]</strong>。</p>
+</details>
+<h3 id="r59-relu-rectifiedlinearunit-ffnd_ff">R59 · ReLU 是什么的缩写？Rectified、Linear、Unit 各指什么？FFN、<span class="arithmatex">\(d_{ff}\)</span> 的全称呢？</h3>
+<p>来源：<a href="lessons/20-ffn.html">第 20 章 · 插问</a> · 加入 2026-11-06 · 复习记录：</p>
+<details>
+<summary>答案</summary>
+<p><strong>ReLU = Rectified Linear Unit</strong>：
+- <strong>Rectified</strong>（整流）：像电学里的整流器，把负的一半截掉，负数变 0；
+- <strong>Linear</strong>（线性）：正数那一半原样输出，<span class="arithmatex">\(y = z\)</span> 是直线；
+- <strong>Unit</strong>（单元）：神经网络里的一个计算单元，每个数各自过一次。</p>
+<p><strong>FFN = Feed-Forward Network</strong>（前馈网络，数据只往前送）；<span class="arithmatex">\(d_{ff}\)</span> 的 ff = feed-forward，指 FFN 中间层的宽度（论文 2048）。</p>
+</details>
+<h3 id="r60-ffn-w_1w_2-d_modelgpt-2-smalld_model-768-d_ff">R60 · FFN 的 <span class="arithmatex">\(W_1\)</span>、<span class="arithmatex">\(W_2\)</span> 各是几行几列？为什么最后要回到 <span class="arithmatex">\(d_{model}\)</span>？GPT-2 small（<span class="arithmatex">\(d_{model}\)</span> = 768）的 <span class="arithmatex">\(d_{ff}\)</span> 是多少？</h3>
+<p>来源：<a href="lessons/20-ffn.html">第 20 章</a> · 加入 2026-11-06 · 复习记录：2026-11-06 ✓（"2048，512，因为出要512，b=3072，768，3072"）</p>
+<details>
+<summary>答案</summary>
+<p>规律：矩阵<strong>行数 = 进去几个数，列数 = 出来几个数</strong>（第 10 章）。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>进去</th>
+<th>矩阵</th>
+<th>出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(xW_1 + b_1\)</span></td>
+<td>512</td>
+<td><strong>512 × 2048</strong></td>
+<td>2048</td>
+</tr>
+<tr>
+<td>ReLU</td>
+<td>2048</td>
+<td>—</td>
+<td>2048</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\((\dots)W_2 + b_2\)</span></td>
+<td>2048</td>
+<td><strong>2048 × 512</strong></td>
+<td>512</td>
+</tr>
+</tbody>
+</table>
+<p>回到 512 是因为残差 <span class="arithmatex">\(x + \text{FFN}(x)\)</span> 要对位相加（R48）。<span class="arithmatex">\(d_{ff}\)</span> 一般是 <span class="arithmatex">\(d_{model}\)</span> 的 4 倍（CS336 handout L1022–L1024；论文 L250–L251：512 / 2048）：768 × 4 = <strong>3072</strong>，<span class="arithmatex">\(W_1\)</span> 是 768 × 3072。类比：摊开草稿纸算，再誊回答题卡。</p>
+</details>
+<h3 id="r61-ffn-relu-4-5-relu-5-times-max0-4x-x-22">R61 · FFN 中间为什么非要夹一个 ReLU？用"× 4 再 × 5"说明；夹上 ReLU 后 <span class="arithmatex">\(5 \times \max(0, 4x)\)</span> 在 x = 2、−2 时是多少？</h3>
+<p>来源：<a href="lessons/20-ffn.html">第 20 章</a> · 加入 2026-11-06 · 复习记录：2026-11-06 ✓（"a=40,20,b=40,0,不能"）</p>
+<details>
+<summary>答案</summary>
+<p>不夹：× 4 再 × 5 = 一步 × 20（x = 2 → 40）。矩阵也一样，<span class="arithmatex">\(xW_1W_2 = x(W_1W_2)\)</span>，两层叠了等于一层，摊开到 2048 白折腾。类比：两次换汇 = 一次换汇。</p>
+<p>夹上 ReLU：x = 2 → 8 → 8 → <strong>40</strong>；x = −2 → −8 → 0 → <strong>0</strong>。找不到固定的 k 同时满足（k = 20 时 −2 会得 −40）。ReLU 做了"正的放、负的拦"的判断，这叫<strong>非线性</strong>（non-linear）；只会乘一个数、加一个数的叫线性（linear）。CS336 handout L660–L662："non-linearly transforms it"。</p>
+</details>
+<h3 id="r62-silu-sigmoid-2-0882-012silu2silu2-relu">R62 · SiLU 和 sigmoid 的公式是什么？已知 σ(2) ≈ 0.88、σ(−2) ≈ 0.12，SiLU(2)、SiLU(−2) 各是多少？和 ReLU 比差在哪？</h3>
+<p>来源：<a href="lessons/20-ffn.html">第 20 章</a> · 加入 2026-11-06 · 复习记录：2026-11-06 ✗（SiLU(−2) 答成 0.24，丢了负号）；2026-11-06 再练 ✗（σ(3) ≈ 0.95：SiLU(3) 答 1.9、SiLU(−3) 答 −0.1，符号对了但乘成了 2，应是 2.85、−0.15）；2026-11-06 重做 ✓（σ(4) ≈ 0.98："3.92，-0.08"）</p>
+<details>
+<summary>答案</summary>
+<div class="arithmatex">\[\sigma(x) = \frac{1}{1+e^{-x}} \qquad \text{SiLU}(x) = x \cdot \sigma(x)\]</div>
+<p>sigmoid 把任何数压到 0～1（σ(0) = 0.5）；SiLU = Sigmoid Linear Unit，又叫 Swish。</p>
+<p>SiLU(2) = 2 × 0.88 = <strong>1.76</strong>；SiLU(−2) = −2 × 0.12 = <strong>−0.24</strong>（负数 × 正数 = 负数）。ReLU(2) = 2，ReLU(−2) = 0。</p>
+<p>和 ReLU 比：大的正数都 ≈ x，大的负数都 ≈ 0；区别在 0 附近，ReLU 硬拐，SiLU 圆滑地弯过去，负数那边<strong>漏一点点负的</strong>。CS336 handout L1031–L1037："similar to the ReLU…but is smooth at zero"。</p>
+</details>
+<h3 id="r63-1-05-0-4-6-8-swiglu-ffn">R63 · ⊙ 和点积有什么不同？闸门 [1, 0.5, 0] ⊙ 内容 [4, 6, 8] 是多少？写出 SwiGLU 版 FFN，它有几个矩阵？</h3>
+<p>来源：<a href="lessons/20-ffn.html">第 20 章</a> · 加入 2026-11-06 · 复习记录：2026-11-06 ✗（没做，看了推理过程）</p>
+<details>
+<summary>答案</summary>
+<p>⊙（element-wise product，逐个相乘）：对位相乘，<strong>不加起来</strong>，结果还是一串数；点积对位相乘后<strong>加起来</strong>，得一个数。[1, 2, 3] ⊙ [2, 2, 2] = [2, 4, 6]，[1, 2, 3] · [2, 2, 2] = 12。</p>
+<p>[1, 0.5, 0] ⊙ [4, 6, 8] = <strong>[4, 3, 0]</strong>：闸门全开原样过、开一半剩一半、关上过不去。</p>
+<div class="arithmatex">\[\text{FFN}(x) = W_2\big(\text{SiLU}(W_1 x) \odot W_3 x\big)\]</div>
+<p>GLU（Gated Linear Unit）把"放多少"（闸门路 SiLU(<span class="arithmatex">\(W_1x\)</span>)）和"放什么"（内容路 <span class="arithmatex">\(W_3x\)</span>）拆开；共 <strong>3 个矩阵</strong>，原论文 FFN 是 2 个（CS336 handout Eq. (6)(7)，L1038–L1049）。类比：调音台，每个声道一个推子。</p>
+</details>
+<h3 id="r64-swiglu-d_ff-frac83-d_model-4-d_model-768">R64 · SwiGLU 的 <span class="arithmatex">\(d_{ff}\)</span> 为什么是 <span class="arithmatex">\(\frac{8}{3} d_{model}\)</span>，不是 4 倍？<span class="arithmatex">\(d_{model}\)</span> = 768 时是多少？</h3>
+<p>来源：<a href="lessons/20-ffn.html">第 20 章</a> · 加入 2026-11-06 · 复习记录：2026-11-06 ✗（算出 2048 对；原因答成"数值分布合理"，应是参数预算）；2026-11-06 再练 ✗（"一块" = 768 × 1024：原版每个 3 块对，但没算总数；SwiGLU 没换算成 2 块；两者都是 6 块）</p>
+<details>
+<summary>答案</summary>
+<p><strong>为了参数总数不变</strong>：原版 2 个矩阵，各 <span class="arithmatex">\(d_{model} \times 4d_{model}\)</span>，共 <span class="arithmatex">\(8 d_{model}^2\)</span>；SwiGLU 3 个矩阵，各 <span class="arithmatex">\(d_{model} \times d_{ff}\)</span>，共 <span class="arithmatex">\(3 d_{model} d_{ff}\)</span>。令两者相等 → <span class="arithmatex">\(d_{ff} = \frac{8}{3} d_{model}\)</span>（= 4 × <span class="arithmatex">\(\frac{2}{3}\)</span>）。GLU variants 论文 L74–L77："To keep the number of parameters and the amount of computation constant…"。类比：三个人分原来两个人的预算。</p>
+<p>768 × 8 ÷ 3 = <strong>2048</strong>。验算（"一块" = 768 × 1024）：原版每个矩阵 3 块 × 2 = 6 块；SwiGLU 每个 2 块 × 3 = 6 块，一样多。实际还要取 64 的倍数（CS336 handout L1069–L1071）。</p>
+</details>
+<hr />
+<h3 id="r65-encoder-attention-ffn-layernorm6">R65 · 一个 encoder 层里有几个 attention 子层、几个 FFN 子层、几次 LayerNorm？6 层一共多少？和句子有几个词有关吗？</h3>
+<p>来源：<a href="lessons/21-transformer-layer.html">第 21 章</a> · 加入 2026-11-07 · 复习记录：2026-11-07 ✗（答成 3、3、3，把"3 个词"当成了零件个数）；2026-11-07 再练 ✓（N = 4 层答 4、4、8，词数不影响）</p>
+<details>
+<summary>答案</summary>
+<p>一层：attention 1 个、FFN 1 个、LayerNorm 2 次（两道工序各一次：<span class="arithmatex">\(z=\text{LN}(x+\text{MHA}(x))\)</span>，输出 <span class="arithmatex">\(=\text{LN}(z+\text{FFN}(z))\)</span>）。
+6 层：<strong>6、6、12</strong>。和词数无关：所有词共用同一套子层，词多词少零件个数都不变；词数只影响每个子层要处理多少行。</p>
+</details>
+<hr />
+<h3 id="r66-decoder-attention-ffn-layernorm6">R66 · 一个 decoder 层里有几个 attention 子层、几个 FFN 子层、几次 LayerNorm？6 层一共多少？</h3>
+<p>来源：<a href="lessons/21-transformer-layer.html">第 21 章</a> · 加入 2026-11-07 · 复习记录：2026-11-07 ✗（答成 1、1、2、12，照搬了 encoder 的数，漏了"回头查原文"那道工序）；2026-11-07 再练 ✓（整个 Transformer 18 个 attention 子层；Q 来自 decoder，K、V 来自 encoder 最后一层）</p>
+<details>
+<summary>答案</summary>
+<p>一层：attention <strong>2</strong> 个（masked self-attention 看自己写过的 + encoder-decoder attention 回头查原文）、FFN 1 个、LayerNorm <strong>3</strong> 次（三道工序各一次）。
+6 层：attention 12、FFN 6、LayerNorm <strong>18</strong>。数 LayerNorm = 数工序：encoder 2 道，decoder 3 道。</p>
+</details>
+<hr />
+<h3 id="r67-attention-attention">R67 · attention 的分数表几行几列怎么定？输出有几行？三种 attention 里哪种分数表不是方的、哪种要遮？</h3>
+<p>来源：<a href="lessons/21-transformer-layer.html">第 21 章</a> · 加入 2026-11-07（第三步卡住，要求重讲） · 复习记录：2026-11-07 卡住（小问 3"译文问原文"不会定行列，要求解释）；2026-11-07 填表半对（4、5、4 × 5、4 × 512 ✓，但答"遮住右上" ✗：把译文开会的 mask 带进了译文问原文）；2026-11-07 再练 ✓（dog 能看原文"人"，看不到译文 bites）</p>
+<details>
+<summary>答案</summary>
+<p><strong>行 = 提问的词（Q 的个数），列 = 被问的词（K 的个数）</strong>；乘 V 后每个提问的词拿回一个新向量，所以<strong>输出行数 = 提问的词数</strong>。
+- encoder self-attention：原文问原文，方的，不遮；
+- masked self-attention：译文问译文，方的，<strong>遮右上角</strong>（还没写出来的词不能看）；
+- encoder-decoder attention：译文问原文，<strong>译文词数 × 原文词数</strong>，通常不是方的；不遮；输出行数 = 译文词数，才能加回译文的残差。</p>
+</details>
+<hr />
+<h3 id="r68-attention-5">R68 · 一次 attention 里的"稿子表"和"分数表"有什么区别？5 个词时各是多大？</h3>
+<p>来源：<a href="lessons/21-transformer-layer.html">第 21 章</a> · 加入 2026-11-07 · 复习记录：2026-11-07 ✗（encoder self-attention 的分数表答成 5 × 512，把稿子表当成了分数表；还把 decoder 的"只看前面"搬进了 encoder）；2026-11-07 再练 ✓（分数表 5 × 5，出去 5 × 512）</p>
+<details>
+<summary>答案</summary>
+<ul>
+<li><strong>稿子表</strong>：每行一个词，每格是这个词 512 个数里的一个 → 5 × 512；进来、出去都是它。</li>
+<li><strong>分数表</strong>（QKᵀ）：每行一个提问的词，每列一个被问的词，每格是<strong>一个分</strong> → 5 × 5，和 512 无关。</li>
+<li>流程：5 × 512 →（打分）5 × 5 →（乘 V）5 × 512。</li>
+<li>encoder self-attention 不遮：每个词都看全部 5 个词（包括自己）。只有 decoder 的 masked self-attention 才"只看前面"。</li>
+</ul>
+</details>
+<hr />
+<h3 id="r69-encoder-decoder-k-decoder">R69 · 生成一句译文时，encoder 跑几次？decoder 跑几轮？第 k 轮 decoder 里"译文问原文"的分数表几行几列？</h3>
+<p>来源：<a href="lessons/21-transformer-layer.html">第 21 章</a> · 加入 2026-11-07 · 复习记录：2026-11-07 卡住（题 4 不会数轮数和行列，要求讲解）；2026-11-07 讲解后填表 ✓（1 次、4 轮、2 × 3；第 2 轮输入漏写了 &lt;开始&gt;）</p>
+<details>
+<summary>答案</summary>
+<ul>
+<li><strong>encoder 只跑 1 次</strong>：原文不变，读一遍存成笔记 e，每轮都查同一份 e。</li>
+<li><strong>decoder 每轮选出 1 个词</strong>：要选出几个词（包括最后的 &lt;结束&gt;）就跑几轮。</li>
+<li>第 k 轮 decoder 的输入是"&lt;开始&gt; + 前面已选出的 k − 1 个词"，一共 k 个词。所以 ③ 的分数表是 <strong>k × 原文词数</strong>：行数一轮比一轮多 1，列数始终不变。</li>
+</ul>
+</details>
+<hr />
+<h2 id="_3">已掌握</h2>
+<p>（连续答对 5 次的卡片移到这里，每月抽查一次。）</p>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

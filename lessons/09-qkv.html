@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 9 章 · Q、K、V 分别是什么 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="9-qkv">第 9 章 · Q、K、V 分别是什么</h1><p><a class="btn" href="../animations/09-qkv.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：公式里的 Q、K、V 是什么？为什么一个词要分出三个向量？<br />
+讲解日期：2026-10-26 · 上一章：<a href="../lessons/08-sqrt-dk.html">第 8 章 除以 √d_k</a> · 下一章：<a href="../lessons/10-matrix-transform.html">第 10 章 转换与矩阵</a><br />
+对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.2，L145–L162<br />
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；QK / OV circuit：Query–Key 线路（决定看谁）/ Output–Value 线路（决定拿什么）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="_2">图书馆找书</h3>
+<p>想找一本讲做红烧肉的书：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>是什么</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Q</strong>（Query，查询）</td>
+<td>你心里<strong>想找什么</strong></td>
+<td>"我想找讲做红烧肉的书"</td>
+</tr>
+<tr>
+<td><strong>K</strong>（Key，键）</td>
+<td>每本书<strong>贴的标签</strong></td>
+<td>书脊上的"家常菜谱""世界历史""编程入门"</td>
+</tr>
+<tr>
+<td><strong>V</strong>（Value，值）</td>
+<td>每本书<strong>里面的内容</strong></td>
+<td>菜谱那本里的具体做法</td>
+</tr>
+</tbody>
+</table>
+<p>找书三步，正好对应 attention：</p>
+<ol>
+<li>拿需求（Q）和每本书的标签（K）<strong>比对</strong>，看哪本最对得上 → 点积打分</li>
+<li>对得上的多看，对不上的少看 → softmax 分比例</li>
+<li><strong>真正带走的是内容（V）</strong>，不是标签 → 按比例取信息</li>
+</ol>
+<p>关键：<strong>用来比对的是标签（K），被拿走的是内容（V），两者不是同一个东西。</strong> 标签只要说明"我是讲什么的"，内容才是真正有用的信息。</p>
+<h3 id="_3">回到"她"那句话</h3>
+<blockquote>
+<p>小明把苹果给了小红，因为<strong>她</strong>饿了。</p>
+</blockquote>
+<ul>
+<li>"她"的 <strong>Q</strong>：我在找"一个女性的人"</li>
+<li>"小红"的 <strong>K</strong>：我是"一个女性的名字"，和"她"的 Q 很对得上 → 分数高</li>
+<li>"小红"的 <strong>V</strong>：携带的具体信息（是谁、做了什么……），"她"要取走的就是这些</li>
+</ul>
+<p>第 4 章的信息向量 [像女生的程度, 是人的程度] 就是 V；第 2 章拿"她"和各个词做点积，其实就是"她"的 Q 和每个词的 K 做点积。<strong>之前已经算过了，只是现在才起名字。</strong></p>
+<p><strong>每个词都同时有 Q、K、V 三个向量</strong>：每个词既会去找别人（用 Q），也会被别人找（用 K、V）。三个向量都是从这个词本身的向量变换出来的，怎么变换见<a href="../lessons/10-matrix-transform.html">第 10 章</a>。</p>
+<h2 id="q-k-v">动画演示：图书馆找书：Q 比对 K，带走 V</h2>
+<p><img alt="Q K V" src="../animations/09-qkv.gif" /></p>
+<p>可交互版：<a href="../animations/09-qkv.html">animations/09-qkv.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"）。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>每本书书脊上贴标签（K），书里是内容（V）；</li>
+<li>Q（想找红烧肉做法）和每个 K 做点积：方向越接近，分数越高；</li>
+<li>softmax 分比例，真正带走的是内容 V，不是标签；</li>
+<li>换成句子："她"的 Q 找"一个女性的人"，小红的 K 最对得上，取走小红的 V；滑块：转动 Q 的方向，带走的内容跟着变。</li>
+</ol>
+<h2 id="_4">练习与作答记录</h2>
+<p><strong>题</strong>：在网上搜"红烧肉做法"。搜索框里打的字、每个网页的标题、网页的正文，分别对应 Q、K、V 哪个？</p>
+<p><strong>第 1 次作答</strong>："Q 是做法，K 是红烧肉，V 是做法内容。"</p>
+<p><strong>点评</strong>：V ≈ 网页正文 ✓。Q、K ✗：把搜索词"红烧肉做法"拆成了两半，分给了 Q 和 K。关键是<strong>谁的</strong>：Q 属于"去找的一方"（你），K 和 V 属于"被找的一方"（每个网页各有一份）。</p>
+<p><strong>第 2 次作答</strong>（提示"想想是谁写的"之后）："我自己写的，所以 Q 是我。" ✓（更精确：Q 是"我想找什么"，即搜索框里的整串字）</p>
+<p><strong>第 3 次作答</strong>："我要找做法是 Q，K 是红烧肉，V 是 5 个诀窍和历史由来。"</p>
+<p><strong>点评</strong>：仍把搜索词拆成"做法"和"红烧肉"分给 Q、K，并把网页标题当成了 V。卡点：搜索词和标题里<strong>都有"红烧肉"</strong>，所以把"共同的那个词"当成了 K。其实共同的词正是 Q 和 K <strong>能对上（分数高）的原因</strong>；K 是每个网页自己的整条标题。改用"三个网页走一遍搜索三步"的具体例子重讲。</p>
+<p><strong>第 4 次作答</strong>（三个网页走一遍之后）："1 是后面内容，到底是做法还是由来，比关联性；第 3 步最后拿走标题 + 正文。"</p>
+<p><strong>点评</strong>：第 1 步的观察 ✓：A、B 都有"红烧肉"，真正拉开分数的是"诀窍 / 由来"这部分，比的就是关联性。但问题问的是"拿哪两样东西比"：<strong>搜索词 vs 每个网页的标题</strong>。第 3 步：现实里确实标题和正文都看到，这是类比和 attention 的差别。attention 里 K 和 V 是<strong>两个分开的向量</strong>，K 只用来打分，最后混合进来的只有 V。直接给出对应关系，改用新场景检验。</p>
+<p><strong>对应关系</strong>：搜索框里的字 = <strong>Q</strong>（我想找什么）；每个网页的标题 = <strong>K</strong>（我是讲什么的，用来比对）；每个网页的正文 = <strong>V</strong>（真正被取走的内容）。</p>
+<p><strong>迁移题</strong>：外卖 App 想吃"辣的面"，每家店有店铺标签和实际做出来的菜。"辣的面"、店铺标签、实际吃到的菜分别是 Q、K、V 哪个？</p>
+<p><strong>作答</strong>："Q 是我要找辣口味的面买外卖，K 是店铺标签，V 是实际的菜。" ✓ <strong>在新场景里独立对上了。</strong></p>
+<h3 id="_5">小结</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>搜索</th>
+<th>外卖</th>
+<th>作用</th>
+<th>是谁的</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Q</strong></td>
+<td>搜索框里的字</td>
+<td>"辣的面"</td>
+<td>说明我想找什么</td>
+<td>去找的一方，一份</td>
+</tr>
+<tr>
+<td><strong>K</strong></td>
+<td>网页标题</td>
+<td>店铺标签</td>
+<td>和 Q 比对，算分数</td>
+<td>被找的一方，每个各一份</td>
+</tr>
+<tr>
+<td><strong>V</strong></td>
+<td>网页正文</td>
+<td>实际的菜</td>
+<td>按比例被取走</td>
+<td>被找的一方，每个各一份</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Q 去问，K 来答"像不像"，V 是最后拿走的东西。</p>
+</blockquote>
+<p>易错点：Q、K 是按"<strong>是谁的</strong>"分，不是把一句话拆成几段分；Q 和 K 里出现的共同词，是它们能对上（分数高）的原因。attention 里 K 只用来打分，最后混合进来的只有 V。</p>
+<h3 id="q-k">为什么 Q 和 K 要分成两个向量</h3>
+<p><strong>题</strong>：为什么不让每个词只用一个向量，既当 Q 又当 K？</p>
+<p><strong>作答</strong>："因为意义不同，在不同场合下分别需要 Q、K，所以要有 2 个不同的。" ✓</p>
+<p><strong>补充</strong>：
+- "她"的 Q 是"我在找一个女性的人"，K 是"我是一个代词"：<strong>"我要找什么"和"我是什么"本来就是两回事</strong>，一个向量装不下两种意思。
+- 如果 Q = K，任何词和自己做点积都很大（自己和自己最像），每个词都会主要盯着自己看，attention 就失去了"去看别人"的作用。</p>
+<h2 id="_6">本章复习卡片</h2>
+<p>R16 Q、K、V 分别是什么（见 <a href="../review.html">review.md</a>）</p>
+<h2 id="_7">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_8">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>§3.2，L145–L162</td>
+<td>原文："把 query 和一组 key-value 对映射成输出"</td>
+</tr>
+<tr>
+<td>★ 3Blue1Brown, Attention in transformers, visually explained（神经网络系列）</td>
+<td>全集</td>
+<td>动画演示 Q、K、V 各自在干什么</td>
+</tr>
+<tr>
+<td>Jay Alammar, The Illustrated Transformer</td>
+<td>Self-Attention in Detail</td>
+<td>Q、K、V 向量的图解</td>
+</tr>
+<tr>
+<td>Elhage et al. 2021, A Mathematical Framework for Transformer Circuits（https://transformer-circuits.pub/2021/framework/index.html）</td>
+<td>QK circuit 与 OV circuit 部分</td>
+<td>进阶视角：Q、K 一起决定"看谁"，V（和输出矩阵）决定"拿走什么"</td>
+</tr>
+<tr>
+<td>Formal Algorithms for Transformers</td>
+<td>Algorithm 3、Algorithm 4</td>
+<td>Q、K、V 的正式伪代码</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_9">数学原理</h3>
+<ul>
+<li><strong>软查找 soft lookup</strong>：普通字典是"key 完全相等才取 value"；attention 是"每个 key 按相似度给一个比例，所有 value 按比例混合"。</li>
+<li><strong>为什么 Q、K 要分开</strong>：打分可以写成 <span class="arithmatex">\(\mathbf x_i^\top W^Q (W^K)^\top \mathbf x_j\)</span>。中间这个矩阵一般不对称，所以"她看小红"的分数和"小红看她"的分数可以不一样。如果 Q、K 用同一个矩阵，两个方向的分数就被迫相等。</li>
+</ul>
+<h3 id="_10">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(\mathbf q_i = \mathbf x_i W^Q,\ \mathbf k_i = \mathbf x_i W^K,\ \mathbf v_i = \mathbf x_i W^V\)</span></td>
+<td>同一个词变出三个向量</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(s_{ij} = \mathbf q_i \cdot \mathbf k_j = \mathbf x_i W^Q (W^K)^\top \mathbf x_j^\top\)</span></td>
+<td>打分展开后的形式（双线性形式）</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\mathbf o_i = \sum_j p_{ij} \mathbf v_j\)</span></td>
+<td>取信息只用 V</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="08-sqrt-dk.html">← 第 8 章 · 为什么除以 √d_k</a><a href="10-matrix-transform.html">第 10 章 · 转换与矩阵：Q、K、V 是怎么变出来的 →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

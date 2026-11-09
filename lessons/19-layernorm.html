@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 19 章 · LayerNorm：把每个词的数字调到统一范围 · 从零读懂 Transformer</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
+:root[data-theme="dark"]{--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif}
+a{color:var(--acc)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .in{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:14px}
+header.top .brand{font-weight:600;color:var(--fg);text-decoration:none;margin-right:auto}
+header.top a{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:24px 16px 72px;overflow-wrap:anywhere}
+h1{font-size:28px;line-height:1.35;margin:8px 0 16px} h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:1px solid var(--line)} h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+blockquote{margin:16px 0;padding:10px 16px;background:var(--quote);border-left:3px solid var(--acc);border-radius:4px;color:var(--mute)}
+blockquote p{margin:4px 0}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto} pre code{padding:0;background:none}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;margin:12px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top} th{background:var(--code)}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:8px 0;background:var(--card)}
+details[open]{padding-bottom:10px} summary{cursor:pointer;color:var(--acc);font-weight:500}
+mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
+.btn{display:inline-block;margin:4px 8px 4px 0;padding:6px 14px;border:1px solid var(--acc);border-radius:999px;text-decoration:none;font-size:14px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:16px 0}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--acc)} .card img{border:0;border-bottom:1px solid var(--line);border-radius:0;aspect-ratio:16/10;object-fit:contain;width:100%}
+.card .no{color:var(--mute);font-size:13px;padding:8px 12px 0} .card .t{padding:0 12px 12px;font-weight:500;line-height:1.5}
+.lead{font-size:17px;color:var(--mute)}
+footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head><body>
+<header class="top"><div class="in">
+<a class="brand" href="../index.html">从零读懂 Transformer</a>
+<a href="../lessons/index.html">讲义目录</a>
+<a href="../animations/index.html">动画</a>
+<a href="../review.html">复习卡片</a>
+<a href="../lessons/appendix-glossary.html">缩写表</a>
+</div></header>
+<main>
+<h1 id="19-layernorm">第 19 章 · LayerNorm：把每个词的数字调到统一范围</h1><p><a class="btn" href="../animations/19-layernorm.html">▶ 打开本章可交互动画</a></p>
+<blockquote>
+<p>本章回答：残差一层层往上加，数字会越来越乱，LayerNorm 怎么把它们整理好？它要用到的平均值、方差是什么？<br />
+讲解日期：2026-11-05 起 · 上一章：<a href="../lessons/18-residual.html">第 18 章 残差连接</a> · 下一章：<a href="../lessons/20-ffn.html">第 20 章 前馈网络 FFN</a><br />
+对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.1，L131–L133；<code>layernorm-1607.06450.txt</code> §3（L100 起）<br />
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；FFN = Feed-Forward Network（前馈网络）；LayerNorm / LN = Layer Normalization（层归一化）；RMSNorm = Root Mean Square Normalization（均方根归一化）；BatchNorm = Batch Normalization（批归一化）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；⊙ = element-wise product（逐个相乘，又叫 Hadamard 积）；GPT = Generative Pre-trained Transformer（生成式预训练 Transformer）；LLaMA = Large Language Model Meta AI（Meta 的开源大模型）；PaLM = Pathways Language Model（Google 的大模型）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+</blockquote>
+<h2 id="_1">讲解</h2>
+<h3 id="2026-11-05">第一步：为什么要整理：大家"打分松紧"不一样；第一个工具：平均值（2026-11-05）</h3>
+<p><strong>接第 18 章</strong>：残差流 <span class="arithmatex">\(x_{12} = x_0 + s_1 + \dots + s_{12}\)</span>，12 条批注一路往上加。有的词加着加着数字变得很大，有的还很小；同一个词在第 2 层和第 10 层，数字的大小也可能差很多。第 7 章讲过，数字太大会让 softmax 饱和，训练也容易不稳。</p>
+<p>第 3 章（卡片 R07）提过：<strong>LayerNorm 是给每个词的向量自己做一次整理</strong>，让它的 512 个数中心对齐、大小统一。论文 L132–L133：每个子层的输出是 <span class="arithmatex">\(\text{LayerNorm}(x + \text{Sublayer}(x))\)</span>，也就是第 18 章那个加法做完，马上整理一下。</p>
+<p><strong>类比：两个老师打分松紧不一样。</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>三份作业的分数</th>
+<th>看出什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A 老师（打分松）</td>
+<td>[80, 90, 100]</td>
+<td>第 3 份最好，第 1 份最差</td>
+</tr>
+<tr>
+<td>B 老师（打分严）</td>
+<td>[50, 60, 70]</td>
+<td>一模一样的排法，只是整体低 30 分</td>
+</tr>
+</tbody>
+</table>
+<p>两组分数"谁好谁差"的信息完全一样，只是<strong>中心</strong>不一样。要放在一起比，先把中心对齐。</p>
+<p><strong>第一个工具：平均值（mean）</strong>：所有数加起来，除以个数。</p>
+<ul>
+<li>A 老师：(80 + 90 + 100) ÷ 3 = <strong>90</strong></li>
+<li>B 老师：(50 + 60 + 70) ÷ 3 = <strong>60</strong></li>
+</ul>
+<p><strong>每个数减掉平均值</strong>，中心就都挪到了 0：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>原分数</th>
+<th>减平均值后</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A 老师</td>
+<td>[80, 90, 100]</td>
+<td>[−10, 0, 10]</td>
+</tr>
+<tr>
+<td>B 老师</td>
+<td>[50, 60, 70]</td>
+<td>[−10, 0, 10]</td>
+</tr>
+</tbody>
+</table>
+<p>两组变得一模一样，打分松紧的差别没了，"谁好谁差"的信息还在。</p>
+<p>公式写法：一个向量有 <span class="arithmatex">\(d\)</span> 个数 <span class="arithmatex">\(x_1, \dots, x_d\)</span>，平均值记作 <span class="arithmatex">\(\mu\)</span>（读作"缪"，希腊字母 mu）：</p>
+<div class="arithmatex">\[\mu = \frac{1}{d}\sum_{i=1}^{d} x_i\]</div>
+<p><strong>一句话</strong>：LayerNorm 第一步，算出一个词向量的平均值 <span class="arithmatex">\(\mu\)</span>，每个数都减掉它，让中心落在 0。</p>
+<h3 id="layernorm-2026-11-06">插问：LayerNorm 这个词怎么来的（2026-11-06）</h3>
+<p><strong>LayerNorm = Layer Normalization 的缩写</strong>，论文标题就叫 "Layer Normalization"（<code>layernorm-1607.06450.txt</code> L1）。Transformer 论文 L132 写的是全称 "layer normalization [1]"，[1] 就是这篇论文。</p>
+<p><strong>Norm = Normalization（归一化 / 标准化）</strong></p>
+<ul>
+<li>词根是 normal（标准的、正常的），再往上是拉丁语 norma：木匠用的直角尺，拿来量东西"正不正"。</li>
+<li>normalize = "按标准尺子调一遍"。这里的标准就是：<strong>中心在 0（第一步，减平均值），散开的宽度统一（第二步要讲的方差）</strong>。</li>
+<li>注意：数学里还有另一个 norm，指向量的长度 <span class="arithmatex">\(\|x\|\)</span>。LayerNorm 里的 Norm 不是这个意思，是 Normalization 砍掉了后半截。</li>
+</ul>
+<p><strong>Layer = 层：平均值、方差用"一层里的所有数"一起算</strong></p>
+<p>这个名字是和它的前辈 <strong>BatchNorm（Batch Normalization）</strong> 对比着起的。两者的区别是：平均值和方差拿<strong>哪些数</strong>来算。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>拿哪些数算平均值和方差</th>
+<th>打分类比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BatchNorm</td>
+<td>同一个位置的数，跨<strong>一批（batch）样本</strong>一起算（摘要 L17–L20）</td>
+<td>把全班每个人的"第 1 题"放一起比</td>
+</tr>
+<tr>
+<td>LayerNorm</td>
+<td>同一个样本、<strong>同一层里所有的数</strong>一起算（摘要 L23–L25；§3 L106–L107）</td>
+<td>只看一个人自己的整张卷子，不看别人</td>
+</tr>
+</tbody>
+</table>
+<p>摘要 L23–L25 说得很直白：把 batch normalization 改成 layer normalization，平均值和方差改成"在单个训练样本上，用一层所有神经元的输入"来算。</p>
+<p>放到 Transformer 里，"一层的所有数"就是<strong>一个词在这一层的 512 个数</strong>。所以第 3 章（R07）说 LayerNorm 是"每个词自己整理自己"，不和句子里别的词、别的句子掺在一起。第一步的题 1 就是这么算的：只用 [2, 4, 6, 8] 自己的 4 个数。</p>
+<p><strong>一句话</strong>：Layer（按一层所有的数算）+ Norm（按标准调整）= 用一个词自己的 512 个数算平均值和方差，把它调到统一标准。</p>
+<h3 id="2026-11-06">第二步：中心对齐了，宽窄还不一样；第二个工具：方差（2026-11-06）</h3>
+<p><strong>接第一步</strong>：减掉平均值，只把<strong>中心</strong>对齐了。可是有的老师分数拉得开，有的挤在一起。为了好算，这次每个老师只打两份作业：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>两份作业的分数</th>
+<th>平均值</th>
+<th>减平均值后</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A 老师</td>
+<td>[80, 100]</td>
+<td>90</td>
+<td>[−10, 10]</td>
+</tr>
+<tr>
+<td>C 老师（拉得更开）</td>
+<td>[70, 110]</td>
+<td>90</td>
+<td>[−20, 20]</td>
+</tr>
+</tbody>
+</table>
+<p>中心都是 0 了，但 C 老师的数字<strong>散得更开</strong>，是 A 的 2 倍。要比，还得量一下"散得多开"。</p>
+<p><strong>先试最直接的办法：把"离中心多远"直接平均</strong></p>
+<p>A 老师：(−10 + 10) ÷ 2 = <strong>0</strong>。C 老师：(−20 + 20) ÷ 2 = <strong>0</strong>。</p>
+<p>两个都是 0，量不出差别：一正一负抵消了。减完平均值以后，这些数<strong>加起来永远是 0</strong>，第一步就是这么造出来的。</p>
+<p><strong>改进：先平方，再平均</strong>。平方以后负数也变成正数，就不会抵消了。这就是<strong>方差（variance）</strong>，记作 <span class="arithmatex">\(\sigma^2\)</span>（σ 读作"西格玛"）：</p>
+<ul>
+<li>A 老师：<span class="arithmatex">\(\big((-10)^2 + 10^2\big) \div 2 = (100 + 100) \div 2 =\)</span> <strong>100</strong></li>
+<li>C 老师：<span class="arithmatex">\(\big((-20)^2 + 20^2\big) \div 2 = (400 + 400) \div 2 =\)</span> <strong>400</strong></li>
+</ul>
+<p>方差越大，数字散得越开。</p>
+<p><strong>再开个根号，回到原来的单位：标准差（standard deviation）<span class="arithmatex">\(\sigma\)</span></strong>。方差是平方过的（分数的平方），开根号变回"分"：</p>
+<ul>
+<li>A 老师：<span class="arithmatex">\(\sigma = \sqrt{100} =\)</span> <strong>10</strong>：平均每份作业离中心 10 分</li>
+<li>C 老师：<span class="arithmatex">\(\sigma = \sqrt{400} =\)</span> <strong>20</strong>：平均每份作业离中心 20 分</li>
+</ul>
+<p>公式写法（<span class="arithmatex">\(\mu\)</span> 是第一步的平均值）：</p>
+<div class="arithmatex">\[\sigma^2 = \frac{1}{d}\sum_{i=1}^{d} (x_i - \mu)^2 \qquad \sigma = \sqrt{\sigma^2}\]</div>
+<p>LayerNorm 论文 Eq. (3)（<code>layernorm-1607.06450.txt</code> L105–L117）算的就是这两个数：<span class="arithmatex">\(\mu\)</span> 和 <span class="arithmatex">\(\sigma\)</span>，用一层里所有的数一起算（L117："H denotes the number of hidden units in a layer"，H 就是这里的 <span class="arithmatex">\(d\)</span>）。L105 说出了目的：固定住每层输入的平均值和方差（"fixing the mean and the variance"）。</p>
+<p><strong>一句话</strong>：平均值管"中心在哪"，方差 / 标准差管"散得多开"。先减、后平方、再平均，就是方差；再开根号，就是标准差。</p>
+<h3 id="2026-11-06_1">第三步：除以标准差，宽窄也统一；再加一个保险 ε（2026-11-06）</h3>
+<p><strong>接第二步</strong>：A 老师减完平均值是 [−10, 10]（σ = 10），C 老师是 [−20, 20]（σ = 20）。中心对齐了，宽窄还差 2 倍。</p>
+<p><strong>办法：每个数再除以自己的标准差 σ。</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>减平均值后</th>
+<th>σ</th>
+<th>再除以 σ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A 老师</td>
+<td>[−10, 10]</td>
+<td>10</td>
+<td>[−1, 1]</td>
+</tr>
+<tr>
+<td>C 老师</td>
+<td>[−20, 20]</td>
+<td>20</td>
+<td>[−1, 1]</td>
+</tr>
+</tbody>
+</table>
+<p>两个老师变得一模一样：中心在 0，散开的宽度也一样。可以这样理解：除以 σ，就是把单位从"分"换成"几个标准差"。−1 的意思是"比平均低 1 个标准差"。</p>
+<p>整理完的向量总是满足两条：<strong>平均值 = 0，方差 = 1</strong>。这就是第二步里说的"标准"。</p>
+<p><strong>保险：ε（读作"艾普西龙"）</strong></p>
+<p>如果一个向量所有数都一样呢？比如 [7, 7]：平均值 7，减完是 [0, 0]，σ = 0，再除以 0 就出错了。所以实际写成：</p>
+<div class="arithmatex">\[\hat{x}_i = \frac{x_i - \mu}{\sqrt{\sigma^2 + \varepsilon}}\]</div>
+<p><span class="arithmatex">\(\varepsilon\)</span> 是一个很小的数，常用 <span class="arithmatex">\(10^{-5}\)</span> = 0.00001（CS336 handout §3.5.1 L963–L964："ε is a hyperparameter that is often fixed at 1e-5"）。平时它小到可以忽略，σ² = 100 时加上 0.00001 几乎不变；只在 σ² 接近 0 的时候兜底，保证分母不是 0。</p>
+<p><strong>这一步对照原文</strong>：LayerNorm 论文 Eq. (2)（<code>layernorm-1607.06450.txt</code> L83–L89）就是"减 μ，再除以 σ"：<span class="arithmatex">\(\bar a_i = \frac{g_i}{\sigma_i}(a_i - \mu_i)\)</span>。式子前面还有一个 <span class="arithmatex">\(g_i\)</span>，下一步再讲。</p>
+<p><strong>一句话</strong>：先减平均值（中心对齐），再除以标准差（宽窄统一），分母里加个很小的 ε 防止除以 0。</p>
+<h3 id="2026-11-06_2">第四步：整理完再"放大、挪动"：γ 和 β（2026-11-06）</h3>
+<p><strong>接第三步</strong>：减平均值、除以标准差以后，每个词的 512 个数都被压成"平均 0、方差 1"。可这个标准是我们硬定的，模型未必想要。也许第 37 个位置的数，模型希望它大一点；第 200 个位置，希望它整体偏正一点。一刀切地全压成同一个范围，可能把有用的信息也压掉了。</p>
+<p><strong>办法：整理完以后，每个位置再乘一个数、加一个数，这两个数让模型自己学。</strong></p>
+<div class="arithmatex">\[y_i = \gamma_i \, \hat{x}_i + \beta_i\]</div>
+<ul>
+<li><span class="arithmatex">\(\gamma_i\)</span>（gamma，"伽马"）：第 <span class="arithmatex">\(i\)</span> 个位置<strong>放大几倍</strong>，叫 gain（增益）</li>
+<li><span class="arithmatex">\(\beta_i\)</span>（beta，"贝塔"）：第 <span class="arithmatex">\(i\)</span> 个位置<strong>整体挪多少</strong>，叫 bias（偏置）</li>
+</ul>
+<p><strong>类比：先换成标准分，再按每一科的规矩换算成成绩单上的分。</strong> 各个老师的分数先统一换成标准分（第三步）；换算到成绩单时，每一科（每个位置）有自己的规矩：乘几、加几。这些规矩全校统一（所有词共用同一套 γ、β），不是每个学生自己定；规矩本身是训练时学出来的。</p>
+<p><strong>例子</strong>：第三步整理完是 <span class="arithmatex">\(\hat{x}\)</span> = [−1, −1, 1, 1]，假设学到的 γ = [1, 3, 1, 3]，β = [0, 0, 0.5, 0.5]：</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th><span class="arithmatex">\(\hat{x}_i\)</span></th>
+<th>× <span class="arithmatex">\(\gamma_i\)</span></th>
+<th>+ <span class="arithmatex">\(\beta_i\)</span></th>
+<th><span class="arithmatex">\(y_i\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>−1</td>
+<td>× 1</td>
+<td>+ 0</td>
+<td>−1</td>
+</tr>
+<tr>
+<td>2</td>
+<td>−1</td>
+<td>× 3</td>
+<td>+ 0</td>
+<td>−3</td>
+</tr>
+<tr>
+<td>3</td>
+<td>1</td>
+<td>× 1</td>
+<td>+ 0.5</td>
+<td>1.5</td>
+</tr>
+<tr>
+<td>4</td>
+<td>1</td>
+<td>× 3</td>
+<td>+ 0.5</td>
+<td>3.5</td>
+</tr>
+</tbody>
+</table>
+<p><strong>要记的几点</strong></p>
+<ol>
+<li>一个 LayerNorm 有 <span class="arithmatex">\(d_{model}\)</span> = 512 个 γ 和 512 个 β，每个位置一对。它们和 <span class="arithmatex">\(W^Q\)</span>、<span class="arithmatex">\(W^K\)</span> 一样，是训练时学出来的参数。</li>
+<li>刚开始训练时 γ 全是 1、β 全是 0，也就是"先不改动"（CS336 handout L849 写 RMSNorm 的 gain 初始化为 1）。</li>
+<li>句子里每个词的 μ、σ 各算各的（第一、二步），但 γ、β 是所有词<strong>共用</strong>的。</li>
+</ol>
+<p><strong>这一步对照原文</strong>：LayerNorm 论文 Eq. (4)（<code>layernorm-1607.06450.txt</code> L140–L150）：<span class="arithmatex">\(h = f\big(\frac{g}{\sigma} \odot (a - \mu) + b\big)\)</span>。L149–L150 写明 b 和 g 是 bias 和 gain，"of the same dimension as" <span class="arithmatex">\(h\)</span>，也就是每个位置一个。摘要 L25–L27 也说：给每个神经元"its own adaptive bias and gain"，在整理之后用。论文里的 g、b 就是这里的 γ、β。</p>
+<p><strong>LayerNorm 完整公式</strong>（把四步合起来）：</p>
+<div class="arithmatex">\[\text{LayerNorm}(x)_i = \gamma_i \cdot \frac{x_i - \mu}{\sqrt{\sigma^2 + \varepsilon}} + \beta_i\]</div>
+<p><strong>一句话</strong>：先统一标准（减 μ、除以 σ），再让模型用自己学的 γ、β，给每个位置定放大多少、挪动多少。</p>
+<h3 id="layernorm-post-ln-pre-ln2026-11-06">第五步：LayerNorm 放在哪？post-LN 和 pre-LN（2026-11-06）</h3>
+<p><strong>接第 18 章</strong>：每个子层都有一个残差加法，LayerNorm 放在加法的前面还是后面，有两种做法。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>公式</th>
+<th>放在哪</th>
+<th>谁在用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>post-LN</strong>（后整理）</td>
+<td><span class="arithmatex">\(x_{\text{新}} = \text{LN}\big(x + \text{Sublayer}(x)\big)\)</span></td>
+<td>加完以后，把整份结果整理一遍</td>
+<td>原论文（L132–L133）</td>
+</tr>
+<tr>
+<td><strong>pre-LN</strong>（先整理）</td>
+<td><span class="arithmatex">\(x_{\text{新}} = x + \text{Sublayer}\big(\text{LN}(x)\big)\)</span></td>
+<td>子层看之前先整理，批注直接加回<strong>没整理过</strong>的 <span class="arithmatex">\(x\)</span></td>
+<td>GPT-3、LLaMA、PaLM 等，现在的标准做法</td>
+</tr>
+</tbody>
+</table>
+<p><strong>类比：第 18 章那份共享文档。</strong></p>
+<ul>
+<li><strong>post-LN</strong>：每加一条批注，就把<strong>整份文档</strong>重新排版一次。主干每层都被改一遍。</li>
+<li><strong>pre-LN</strong>：写批注的人先拿一份<strong>排好版的复印件</strong>来读，写好的批注直接贴回<strong>原文档</strong>。原文档从头到尾只被"加批注"，从来不被重新排版。</li>
+</ul>
+<p>pre-LN 的好处：第 18 章说残差流是 <span class="arithmatex">\(x_L = x_0 + s_1 + \dots + s_L\)</span>，是一条从输入直通输出的"高速公路"。pre-LN 让这条路上<strong>一个 LayerNorm 都没有</strong>，干干净净。CS336 handout §3.5（L937–L951）的说法是 a clean "residual stream" without any normalization，被认为能让梯度传得更顺；还要在<strong>最后一个 block 之后补一个 LayerNorm</strong>（"an additional layer normalization after the final Transformer block"），因为主干一路没整理过，交给输出层之前要整理一次。</p>
+<p>Pre-LN 论文（Xiong et al. 2020，<code>preln-on-layer-normalization-2002.04745.txt</code> 摘要 L15–L39）给了理由：post-LN 在训练刚开始时，靠近输出那几层的梯度很大，必须先用很小的学习率慢慢热身（learning rate warm-up），否则训练会不稳；pre-LN 一开始梯度就很规矩，可以不要这个热身。</p>
+<p><strong>一句话</strong>：post-LN 是"加完再整理"，主干每层都被整理；pre-LN 是"先整理一份给子层看，批注加回原件"，主干保持干净，现在的大模型都用它。</p>
+<h3 id="rmsnorm2026-11-06">第六步：RMSNorm：只缩放、不挪中心的简化版（2026-11-06）</h3>
+<p><strong>接前面四步</strong>：LayerNorm 做了两件事。</p>
+<ol>
+<li><strong>挪中心</strong>（re-centering）：减掉平均值 μ</li>
+<li><strong>统一宽窄</strong>（re-scaling）：除以 σ</li>
+</ol>
+<p>RMSNorm 论文（Zhang &amp; Sennrich 2019，<code>rmsnorm-1910.07467.txt</code> 摘要 L16–L30）认为<strong>第 1 件可以不做</strong>（L21–L22："re-centering invariance in LayerNorm is dispensable"），只保留第 2 件。效果差不多，速度快 7%～64%（L29–L30）。</p>
+<p><strong>RMS = Root Mean Square，倒着读就是计算顺序</strong>：先 Square（平方），再 Mean（平均），最后 Root（开根号）。</p>
+<div class="arithmatex">\[\text{RMS}(x) = \sqrt{\frac{1}{d}\sum_{i=1}^{d} x_i^2 + \varepsilon} \qquad \text{RMSNorm}(x)_i = \frac{x_i}{\text{RMS}(x)} \cdot g_i\]</div>
+<p>和 σ 对比：σ 也是"平方、平均、开根号"，但它先<strong>减掉 μ</strong> 再平方；RMS 直接拿 <span class="arithmatex">\(x_i\)</span> 本身平方，<strong>不减 μ</strong>。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>减 μ（挪中心）</th>
+<th>除以什么（统一宽窄）</th>
+<th>整理后乘 / 加</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LayerNorm</td>
+<td>要</td>
+<td>σ</td>
+<td>乘 γ、加 β</td>
+</tr>
+<tr>
+<td>RMSNorm</td>
+<td><strong>不要</strong></td>
+<td>RMS</td>
+<td>只乘 g（<strong>没有 β</strong>）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>例子</strong>：x = [1, 7]，g 全 1，ε 忽略。</p>
+<ul>
+<li>RMSNorm：平方 [1, 49] → 平均 (1 + 49) ÷ 2 = 25 → 开根号 RMS = 5 → 除完 <strong>[0.2, 1.4]</strong></li>
+<li>LayerNorm：μ = 4 → [−3, 3] → σ = 3 → <strong>[−1, 1]</strong></li>
+</ul>
+<p>RMSNorm 的结果还是两个正数，中心没被挪到 0；只是整体缩小到"平方平均是 1"（0.2² + 1.4² = 0.04 + 1.96 = 2，÷ 2 = 1）。</p>
+<p><strong>谁在用</strong>：LLaMA 用 RMSNorm，CS336 作业 1 也照它来（handout §3.5.1 L955–L964："Following Touvron et al. [2023], we will use root mean square layer normalization"；ε 常用 1e-5）。所以现在大模型的标准组合是 <strong>pre-LN + RMSNorm</strong>。</p>
+<p><strong>一句话</strong>：RMSNorm 去掉"减平均值"这一步，只除以 RMS（平方 → 平均 → 开根号），再乘一个学出来的 g；更省事，效果差不多。</p>
+<h3 id="_2">动画演示：两个词，各自整理成同一个标准</h3>
+<p><img alt="LayerNorm" src="../animations/19-layernorm.gif" /></p>
+<p>可交互版：<a href="../animations/19-layernorm.html">animations/19-layernorm.html</a>（要能点按钮、拖滑块，需要用本地服务打开，见 <a href="../animations/index.html">animations/README.md</a>"跑起来看"；滑块给"咬"的每个数都加上 c）。</p>
+<p>"狗" = [2, 4, 6, 8]（绿色），"咬" = [10, 30, 50, 70]（橙色）。每个词只用自己的 4 个数算 μ、σ（插问："Layer"的意思）。</p>
+<p><strong>怎么看</strong>：</p>
+<ol>
+<li>原始数字：咬整体更大（μ = 40 vs 5），也散得更开；</li>
+<li>第一步：各自减掉自己的 μ，中心都到 0，但咬还宽得多；</li>
+<li>第二步：阴影是中心 ± σ：狗 σ ≈ 2.24，咬 σ ≈ 22.36；</li>
+<li>第三步：各自除以 σ，两个词变成一模一样的 [−1.34, −0.45, 0.45, 1.34]；</li>
+<li>第四步：乘 γ、加 β，两个词用同一套，结果仍然一样；</li>
+<li>RMSNorm：不减 μ，只除以 RMS，结果全是正数，两个词也不完全一样；</li>
+<li>滑块：给咬整体加 c，LayerNorm 结果纹丝不动（减 μ 把加的 c 抵消了），RMSNorm 结果跟着变；c = −40 时咬的 μ 正好是 0，两种结果一样。</li>
+</ol>
+<h2 id="_3">练习与作答记录</h2>
+<p><strong>题 1</strong>：一个词向量是 [2, 4, 6, 8]。它的平均值是多少？每个数减掉平均值后是什么？</p>
+<p><strong>作答</strong>（2026-11-06）："1=5，2=-3，-1，1，3"</p>
+<p>✓ 平均值 (2 + 4 + 6 + 8) ÷ 4 = 20 ÷ 4 = 5；减掉 5 以后是 [−3, −1, 1, 3]，中心落在 0。每个数都和原来一样隔 2，只是整体往下挪了 5。</p>
+<p><strong>题 2</strong>：接着用题 1 的结果 [−3, −1, 1, 3]。
+（a）把这 4 个数直接平均，得多少？
+（b）它的方差 <span class="arithmatex">\(\sigma^2\)</span> 是多少？（先平方，再平均）</p>
+<p><strong>作答</strong>（2026-11-06）："0，5"</p>
+<p>✓（a）(−3 − 1 + 1 + 3) ÷ 4 = 0：一正一负抵消，所以直接平均量不出散得多开。（b）平方后 [9, 1, 1, 9]，加起来 20，÷ 4 = <strong>5</strong>。标准差 σ = √5 ≈ 2.24。</p>
+<p><strong>题 3</strong>：
+（a）把向量 [1, 1, 5, 5] 整个做一遍：先减平均值，再除以标准差（ε 先忽略）。结果是什么？
+（b）向量 [3, 3, 3, 3] 的标准差 σ 是多少？如果分母里不加 ε，会出什么问题？</p>
+<p><strong>作答</strong>（2026-11-06）："a=-1,-1,1,1 b=0,不加就无法除了"</p>
+<p>✓（a）平均值 3，减完是 [−2, −2, 2, 2]，方差 (4 + 4 + 4 + 4) ÷ 4 = 4，σ = 2，除完是 <strong>[−1, −1, 1, 1]</strong>。（b）所有数一样，减完是 [0, 0, 0, 0]，σ = <strong>0</strong>，分母是 0，没法除。加上 ε 以后分母是 √0.00001 ≈ 0.003，算出来是 [0, 0, 0, 0]，不会出错。</p>
+<p><strong>题 4</strong>：第三步整理完是 <span class="arithmatex">\(\hat{x}\)</span> = [−1, −1, 1, 1]。假设模型学到的 γ 全是 2，β 全是 3。
+（a）<span class="arithmatex">\(y = \gamma \hat{x} + \beta\)</span> 是多少？
+（b）和题 3 原来的向量 [1, 1, 5, 5] 比一比，你发现了什么？</p>
+<p><strong>作答</strong>（2026-11-06）："这个没动，你解答下"</p>
+<p>✗ 没做出来，下面是讲解。</p>
+<p><strong>（a）一个位置一个位置算</strong>：每个数先乘 γ（2），再加 β（3）。</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th><span class="arithmatex">\(\hat{x}_i\)</span></th>
+<th>× 2</th>
+<th>+ 3</th>
+<th><span class="arithmatex">\(y_i\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>−1</td>
+<td>−2</td>
+<td>+3</td>
+<td><strong>1</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td>−1</td>
+<td>−2</td>
+<td>+3</td>
+<td><strong>1</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>1</td>
+<td>2</td>
+<td>+3</td>
+<td><strong>5</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>1</td>
+<td>2</td>
+<td>+3</td>
+<td><strong>5</strong></td>
+</tr>
+</tbody>
+</table>
+<p>y = <strong>[1, 1, 5, 5]</strong>。</p>
+<p><strong>（b）y 和原来的向量一模一样，整理被完全撤销了。</strong> 原因是题 3 里：</p>
+<ul>
+<li>原向量的平均值 μ = <strong>3</strong>，标准差 σ = <strong>2</strong></li>
+<li>这里恰好 γ = 2 = σ，β = 3 = μ</li>
+</ul>
+<p>整理是"减 3、除以 2"，γ 和 β 是"乘 2、加 3"，正好是倒着做一遍，两步互相抵消。</p>
+<p><strong>这说明什么</strong>：有了 γ、β，LayerNorm 最多是"帮模型统一了标准"，不会硬性夺走模型需要的大小信息。真要原来的大小，模型能学着把它放回去。这和第 18 章残差的思路很像：加了这一步，最坏情况也能退回原样。</p>
+<p><strong>一个限制</strong>：γ、β 是所有词共用的，可每个词的 μ、σ 各不相同。所以它不能对每个词都正好撤销，只能给每个位置定一个统一的放大和挪动。比如这题的 γ = 2、β = 3 只对 [1, 1, 5, 5] 正好撤销，换一个 μ、σ 不同的词就不行。</p>
+<p><strong>再练 4</strong>：第三步整理完是 <span class="arithmatex">\(\hat{x}\)</span> = [−1, 1]，γ 全是 3，β 全是 5。
+（a）<span class="arithmatex">\(y = \gamma \hat{x} + \beta\)</span> 是多少？
+（b）把 y 当作原向量，算它的平均值 μ 和标准差 σ。和 γ、β 比，你发现了什么？</p>
+<p><strong>作答</strong>（2026-11-06）："（a）y = γ·x̂ + β 是多少？讲解下"</p>
+<p>卡在 <span class="arithmatex">\(\gamma \cdot \hat{x} + \beta\)</span> 怎么算。拆开讲（换一组数，不剧透原题）：</p>
+<ul>
+<li><span class="arithmatex">\(\hat{x}\)</span> 是一串数，<span class="arithmatex">\(\gamma \cdot \hat{x}\)</span> 就是<strong>这串数里每一个都乘 γ</strong>；"+ β" 就是<strong>每一个再加 β</strong>。一个格子一个格子算，格子之间互不影响。</li>
+<li>负数乘正数：先当正数乘，结果再带上负号。−1 × 2 = −2。</li>
+<li>负数加正数：在数轴上从 −2 往右走 1 格，−2 + 1 = −1。</li>
+</ul>
+<p>例子：<span class="arithmatex">\(\hat{x}\)</span> = [−1, 1]，γ = 2，β = 1。</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th><span class="arithmatex">\(\hat{x}_i\)</span></th>
+<th>先 × γ（2）</th>
+<th>再 + β（1）</th>
+<th><span class="arithmatex">\(y_i\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>−1</td>
+<td>−1 × 2 = −2</td>
+<td>−2 + 1 = −1</td>
+<td><strong>−1</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td>1</td>
+<td>1 × 2 = 2</td>
+<td>2 + 1 = 3</td>
+<td><strong>3</strong></td>
+</tr>
+</tbody>
+</table>
+<p>y = [−1, 3]。</p>
+<p><strong>再练 4（a）重做</strong>：照上面的表，γ 换成 3、β 换成 5，<span class="arithmatex">\(\hat{x}\)</span> = [−1, 1] 不变，y 是多少？</p>
+<p><strong>作答</strong>（2026-11-06）："2，8"</p>
+<p>✓ −1 × 3 + 5 = −3 + 5 = <strong>2</strong>；1 × 3 + 5 = 3 + 5 = <strong>8</strong>。y = [2, 8]。</p>
+<p><strong>再练 4（b）</strong>：把 [2, 8] 当成原向量，按第一到三步算它的平均值 μ 和标准差 σ。和 γ = 3、β = 5 比，你发现了什么？</p>
+<p><strong>作答</strong>（2026-11-06）："正好就是3，5"</p>
+<p>✓ 发现对了。补全过程，顺便把对应关系记牢：平均值 μ = (2 + 8) ÷ 2 = <strong>5</strong>，减完是 [−3, 3]，方差 (9 + 9) ÷ 2 = 9，σ = <strong>3</strong>。所以 <strong>γ = 3 = σ，β = 5 = μ</strong>：γ 对标准差（放大多少），β 对平均值（挪到哪）。γ、β 正好把"减 μ、除以 σ"倒着做了一遍。</p>
+<p><strong>题 5</strong>：第 18 章的例子，输入 x = [1.46, 1.27]，某个子层没话说，批注是 [0, 0]。已知 LN([1.46, 1.27]) ≈ [1, −1]（γ 全 1、β 全 0；μ = 1.365，σ = 0.095）。
+（a）pre-LN：<span class="arithmatex">\(x + \text{Sublayer}(\text{LN}(x))\)</span>，输出是多少？
+（b）post-LN：<span class="arithmatex">\(\text{LN}(x + \text{Sublayer}(x))\)</span>，输出是多少？
+（c）哪一种让主干上的 x 原样通过？</p>
+<p><strong>作答</strong>（2026-11-06）："你来做下这个计算过程"</p>
+<p>✗ 没做，下面是完整过程。</p>
+<p><strong>先把 LN(x) 算一遍</strong>（验证 ≈ [1, −1]）：</p>
+<ol>
+<li>平均值：μ = (1.46 + 1.27) ÷ 2 = 2.73 ÷ 2 = <strong>1.365</strong></li>
+<li>减平均值：1.46 − 1.365 = 0.095，1.27 − 1.365 = −0.095 → [0.095, −0.095]</li>
+<li>方差：(0.095² + 0.095²) ÷ 2 = 0.095² = 0.009025；σ = √0.009025 = <strong>0.095</strong></li>
+<li>除以 σ：0.095 ÷ 0.095 = 1，−0.095 ÷ 0.095 = −1 → <strong>[1, −1]</strong>（加上 ε 后约是 [0.9994, −0.9994]，看作 [1, −1]）</li>
+</ol>
+<p><strong>（a）pre-LN：<span class="arithmatex">\(x + \text{Sublayer}(\text{LN}(x))\)</span></strong>，从括号最里面往外算：</p>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>做什么</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>①</td>
+<td>LN(x)：整理一份复印件给子层看</td>
+<td>[1, −1]</td>
+</tr>
+<tr>
+<td>②</td>
+<td>Sublayer(…)：子层读完没话说</td>
+<td>[0, 0]</td>
+</tr>
+<tr>
+<td>③</td>
+<td>x + 批注：加回<strong>原件</strong> x</td>
+<td>[1.46, 1.27] + [0, 0] = <strong>[1.46, 1.27]</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>（b）post-LN：<span class="arithmatex">\(\text{LN}(x + \text{Sublayer}(x))\)</span></strong>，也从里往外：</p>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>做什么</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>①</td>
+<td>Sublayer(x)：子层没话说</td>
+<td>[0, 0]</td>
+</tr>
+<tr>
+<td>②</td>
+<td>x + 批注</td>
+<td>[1.46, 1.27] + [0, 0] = [1.46, 1.27]</td>
+</tr>
+<tr>
+<td>③</td>
+<td>LN(…)：把加完的结果整理一遍</td>
+<td><strong>[1, −1]</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>（c）pre-LN 让 x 原样通过。</strong> 同样是"没话说"的子层：pre-LN 出来还是 [1.46, 1.27]，和第 18 章残差透传一样；post-LN 出来变成 [1, −1]，原来"1.46 和 1.27 有多大"的信息被整理掉了。这就是"pre-LN 主干干净"的意思：LN 只作用在给子层看的复印件上，不碰主干。</p>
+<p><strong>再练 5</strong>：输入 x = [3, 5]，子层没话说，批注 [0, 0]（γ 全 1、β 全 0，ε 忽略）。
+（a）先算 LN([3, 5])。
+（b）pre-LN 的输出是多少？
+（c）post-LN 的输出是多少？</p>
+<p><strong>作答</strong>（2026-11-06）："-1，1"</p>
+<p>✓（a）LN([3, 5]) = <strong>[−1, 1]</strong>：μ = (3 + 5) ÷ 2 = 4，减完 [−1, 1]，方差 (1 + 1) ÷ 2 = 1，σ = 1，除完还是 [−1, 1]。（b）（c）还没答。</p>
+<p><strong>再练 5（b）（c）</strong>：接着用 x = [3, 5]、批注 [0, 0]、LN(x) = [−1, 1]。pre-LN 的输出是多少？post-LN 的输出是多少？</p>
+<p><strong>作答</strong>（2026-11-06）："3，5"</p>
+<p>✓（b）pre-LN：LN(x) = [−1, 1] 给子层看 → 批注 [0, 0] → 加回原件 [3, 5] + [0, 0] = <strong>[3, 5]</strong>，原样通过。（c）还没答。</p>
+<p><strong>再练 5（c）</strong>：post-LN 的输出是多少？</p>
+<p><strong>作答</strong>（2026-11-06）："-1，1"</p>
+<p>✓ [3, 5] + [0, 0] = [3, 5]，再整理成 <strong>[−1, 1]</strong>。再练 5 全对：同一个"没话说"的子层，pre-LN 出来 [3, 5]（原样），post-LN 出来 [−1, 1]（大小被整理掉）。</p>
+<p><strong>题 6</strong>：RMSNorm（g 全 1，ε 忽略）。
+（a）RMSNorm([1, 1, 7, 7]) 是多少？
+（b）RMSNorm([3, 3, 3, 3]) 是多少？题 3（b）里 LayerNorm 碰到 [3, 3, 3, 3] 会出问题，RMSNorm 呢？</p>
+<p><strong>作答</strong>（2026-11-06）："这个我理解了，习题忽略"</p>
+<p>跳过。参考答案留给复习用：（a）平方 [1, 1, 49, 49]，平均 25，RMS = 5，结果 [0.2, 0.2, 1.4, 1.4]。（b）平方平均 9，RMS = 3，结果 [1, 1, 1, 1]，不会出问题：RMS 只有在所有数都是 0 时才是 0；LayerNorm 的 σ 只要所有数相等就是 0。</p>
+<h2 id="_4">口诀</h2>
+<blockquote>
+<p>先减平均对中心，再除标准差统一宽窄；<br />
+分母加个 ε，防止除以 0；<br />
+整理完乘 γ 加 β，模型自己定大小；<br />
+pre-LN 先整理给子层看，批注加回原件；RMSNorm 不减平均，只除 RMS。</p>
+</blockquote>
+<h2 id="_5">本章复习卡片</h2>
+<ul>
+<li>R50（平均值 μ：LayerNorm 第一步，减掉平均值让中心落在 0；[2, 4, 6, 8] → [−3, −1, 1, 3]）</li>
+<li>R51（LayerNorm 名字：Layer = 用一层所有的数算，Norm = Normalization；和 BatchNorm 的区别）</li>
+<li>R52（方差 σ²：先减、后平方、再平均；直接平均会一正一负抵消成 0）</li>
+<li>R53（整理一个向量：减 μ、除以 <span class="arithmatex">\(\sqrt{\sigma^2+\varepsilon}\)</span>；[1, 1, 5, 5] → [−1, −1, 1, 1]；ε 防止除以 0）</li>
+<li>R54（γ、β：每个位置乘 γ、加 β；γ = σ、β = μ 时把整理撤销；但所有词共用）</li>
+<li>R55（post-LN vs pre-LN：公式、从里往外算；pre-LN 让主干原样通过）</li>
+<li>R56（RMSNorm：不减 μ，只除以 RMS，只乘 g 没有 β；LLaMA、CS336 在用）</li>
+</ul>
+<h2 id="_6">附录 · 延伸阅读</h2>
+<blockquote>
+<p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
+- 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
+- CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
+</blockquote>
+<h3 id="_7">推荐阅读</h3>
+<table>
+<thead>
+<tr>
+<th>读什么</th>
+<th>读哪里</th>
+<th>读它为了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ Attention Is All You Need</td>
+<td>§3.1 L131–L133</td>
+<td>本章原文：每个子层输出 <span class="arithmatex">\(\text{LayerNorm}(x + \text{Sublayer}(x))\)</span>，也就是 post-LN；引用 [1] 就是下面的 LayerNorm 论文</td>
+</tr>
+<tr>
+<td>★ Ba, Kiros &amp; Hinton 2016，Layer Normalization</td>
+<td>摘要 L17–L27；§2 Eq. (2) L80–L92；§3 Eq. (3) L100–L120；Eq. (4) L140–L150</td>
+<td>名字和公式的出处：摘要说清 BatchNorm vs LayerNorm（插问）；Eq. (2) 是"减 μ、除以 σ、乘 g"（第三、四步）；Eq. (3) 是 μ、σ 用一层所有的数算（第一、二步）；Eq. (4) L149–L150 说 g、b 和 h 一样长（第四步）</td>
+</tr>
+<tr>
+<td>★ CS336 assignment 1 handout</td>
+<td>§3.5 L937–L951；§3.5.1 L953–L990</td>
+<td>动手要写的版本：pre-norm（第五步）+ RMSNorm（第六步），ε = 1e-5，gain 初始化为 1（L849）；作业 Problem (rmsnorm) 在 L982</td>
+</tr>
+<tr>
+<td>Xiong et al. 2020，On Layer Normalization in the Transformer Architecture</td>
+<td><code>preln-on-layer-normalization-2002.04745.txt</code> 摘要 L15–L39</td>
+<td>第五步的理论依据：post-LN 开头输出层附近梯度大，需要 warm-up；pre-LN 不需要</td>
+</tr>
+<tr>
+<td>Zhang &amp; Sennrich 2019，Root Mean Square Layer Normalization</td>
+<td><code>rmsnorm-1910.07467.txt</code> 摘要 L16–L30；引言 L44–L55</td>
+<td>第六步的出处：认为"挪中心"可以不做，只留 RMS 缩放，快 7%～64%</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_8">数学原理</h3>
+<ul>
+<li><strong>减完平均值的数加起来是 0</strong>：<span class="arithmatex">\(\sum_i (x_i - \mu) = \sum_i x_i - d\mu = d\mu - d\mu = 0\)</span>。所以要量"散得多开"必须先平方（第二步、题 2）。</li>
+<li><strong>整理后平均 0、方差 1</strong>：<span class="arithmatex">\(\hat x_i = (x_i-\mu)/\sigma\)</span>，平均值 <span class="arithmatex">\(\frac{1}{d}\sum \hat x_i = 0\)</span>；方差 <span class="arithmatex">\(\frac{1}{d}\sum \hat x_i^2 = \sigma^2/\sigma^2 = 1\)</span>（第三步，忽略 ε）。</li>
+<li><strong>平移不变（re-centering invariance）</strong>：每个数都加 c，μ 也加 c，σ 不变，所以 LayerNorm 结果不变；RMSNorm 没有减 μ，没有这个性质（动画滑块）。</li>
+<li><strong>缩放不变（re-scaling invariance）</strong>：每个数都乘 k（k &gt; 0），μ、σ、RMS 都乘 k，LayerNorm 和 RMSNorm 的结果都不变（RMSNorm 论文 L24）。</li>
+<li><strong>γ、β 能撤销整理</strong>：取 <span class="arithmatex">\(\gamma_i = \sigma\)</span>、<span class="arithmatex">\(\beta_i = \mu\)</span>，<span class="arithmatex">\(y_i = \sigma \cdot \frac{x_i-\mu}{\sigma} + \mu = x_i\)</span>（题 4、再练 4）。但 γ、β 所有词共用，只能对某一组 μ、σ 正好撤销。</li>
+<li><strong>当 μ = 0 时 RMS = σ</strong>：<span class="arithmatex">\(\text{RMS}^2 = \frac{1}{d}\sum x_i^2\)</span>，<span class="arithmatex">\(\sigma^2 = \frac{1}{d}\sum x_i^2 - \mu^2\)</span>。所以 RMSNorm 和 LayerNorm（不看 β）只差"减不减 μ"。</li>
+</ul>
+<h3 id="_9">公式清单</h3>
+<table>
+<thead>
+<tr>
+<th>公式</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(\mu = \frac{1}{d}\sum_i x_i\)</span></td>
+<td>平均值：中心在哪</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\sigma^2 = \frac{1}{d}\sum_i (x_i-\mu)^2\)</span>，<span class="arithmatex">\(\sigma = \sqrt{\sigma^2}\)</span></td>
+<td>方差 / 标准差：散得多开</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\hat x_i = \frac{x_i-\mu}{\sqrt{\sigma^2+\varepsilon}}\)</span></td>
+<td>整理：平均 0、方差 1；ε ≈ 1e-5 防止除以 0</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{LayerNorm}(x)_i = \gamma_i \hat x_i + \beta_i\)</span></td>
+<td>完整 LayerNorm：γ、β 每个位置一对，学出来</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{LN}(x + \text{Sublayer}(x))\)</span></td>
+<td>post-LN（原论文）</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(x + \text{Sublayer}(\text{LN}(x))\)</span></td>
+<td>pre-LN（GPT-3、LLaMA），最后补一个 LN</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{RMSNorm}(x)_i = \frac{x_i}{\sqrt{\frac{1}{d}\sum_j x_j^2+\varepsilon}}\, g_i\)</span></td>
+<td>RMSNorm：不减 μ，没有 β</td>
+</tr>
+</tbody>
+</table><nav class="pager"><a href="18-residual.html">← 第 18 章 · 残差连接：输出 = 输入 + 子层(输入)</a><a href="20-ffn.html">第 20 章 · 前馈网络 FFN：每个词回到自己座位上消化 →</a></nav>
+</main>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+</body></html>

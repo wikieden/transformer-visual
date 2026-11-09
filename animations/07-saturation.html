@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>softmax 饱和</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:12px}</style></head>
+<body><main>
+<h1>第 7 章 · softmax 饱和：拧到头的旋钮，再拧也没反应</h1>
+<p class="sub">配套讲义：<a href="../lessons/07-saturation.html">第 7 章 · softmax 饱和</a>。三个分数 [小明 2, 苹果 1, 小红 s]，看小红分到的比例。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="s">自己拖：小红的分数 s</label><input type="range" id="s" min="0" max="40" step="1" value="10"><span id="sv2">5</span></div>
+<p class="note">看点：① 正常时 [2, 1, 5] → [2, 1, 6]，小红的比例从 0.936 变成 0.976，看得出变化；② 分数太大 [2, 1, 50] → [2, 1, 51]，比例一直是 1.000，完全没变；③ 曲线越往右越平：平的地方调分数没反应，模型看不出往哪边调更好，学不动了。这叫饱和（saturation）。滑块：拖 s，看"调高 1 分"能让比例变多少。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const fmt=(v,d=3)=>{const r=Math.round(v*10**d)/10**d;return r.toFixed(d)};
+const p=s=>{const a=Math.exp(2-s),b=Math.exp(1-s);return 1/(1+a+b)};
+const ST=[{cap:'正常：[2, 1, 5]，小红的比例 0.936',a:5},{cap:'调高 1 分 → [2, 1, 6]：0.976，变了 0.04，看得出来',a:5,b:6},
+  {cap:'分数过大：[2, 1, 50]，小红的比例 1.000',a:50},{cap:'调高 1 分 → [2, 1, 51]：还是 1.000，完全没变',a:50,b:51},
+  {cap:'曲线越往右越平：平的地方就是饱和区，调了没反应',curve:true}];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+function gauge(x0,y,s,lab){const w=440,P=p(s);txt(lab,{x:x0-12,y:y+24,'text-anchor':'end',class:'big'},sv);
+  el('rect',{x:x0,y,width:w,height:36,rx:6,fill:'none',stroke:'var(--line)'},sv);
+  el('rect',{x:x0,y,width:w*P,height:36,rx:6,fill:'var(--purple)'},sv);
+  txt(`小红 ${fmt(P)}`,{x:x0+w*P-8,y:y+23,'text-anchor':'end',class:'v'},sv).style.fill='#fff'}
+const CX0=90,CX1=640,CY0=330,SM=15;
+const CX=s=>CX0+s/SM*(CX1-CX0),CY=v=>CY0-v*230;
+function curve(mark){
+  el('rect',{x:CX(7),y:CY(1.04),width:CX(SM)-CX(7),height:CY(0)-CY(1.04),fill:'var(--warm)',opacity:.08},sv);
+  txt('饱和区：曲线几乎是平的',{x:CX(11),y:CY(0.5),'text-anchor':'middle',class:'m'},sv).style.fill='var(--warm)';
+  el('line',{x1:CX0,y1:CY0,x2:CX1,y2:CY0,stroke:'var(--muted)'},sv);el('line',{x1:CX0,y1:CY(1),x2:CX1,y2:CY(1),stroke:'var(--line)','stroke-dasharray':'4 4'},sv);
+  txt('1',{x:CX0-8,y:CY(1)+4,'text-anchor':'end',class:'m'},sv);txt('0',{x:CX0-8,y:CY0+4,'text-anchor':'end',class:'m'},sv);
+  for(let t=0;t<=SM;t+=5)txt(String(t),{x:CX(t),y:CY0+18,'text-anchor':'middle',class:'m'},sv);
+  txt('小红的分数 s',{x:CX1,y:CY0+36,'text-anchor':'end',class:'m'},sv);txt('小红的比例',{x:CX0+4,y:CY(1)-10,class:'m'},sv);
+  let d='';for(let s=0;s<=SM;s+=0.05)d+=(d?'L':'M')+CX(s).toFixed(1)+','+CY(p(s)).toFixed(1);
+  el('path',{d,fill:'none',stroke:'var(--purple)','stroke-width':3},sv);
+  (mark||[]).forEach(([s,c])=>{const xs=Math.min(s,SM);el('circle',{cx:CX(xs),cy:CY(p(s)),r:6,fill:c},sv)});
+}
+function draw(){
+  clear(sv);
+  if(custom!==null){const s=custom,d=p(s+1)-p(s);
+    txt(`[2, 1, ${s}] → [2, 1, ${s+1}]：小红的比例 ${fmt(p(s))} → ${fmt(p(s+1))}，变了 ${fmt(d)}`,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+    curve([[s,'var(--teal)'],[s+1,'var(--warm)']]);
+    txt(d<0.001?'变化几乎为 0：饱和了，学不动':d<0.01?'变化很小：快饱和了':'变化明显：调分数有反应，能学',{x:340,y:60,'text-anchor':'middle',class:'big'},sv);
+    if(s>SM)txt(`（s = ${s} 已在图外，曲线在右边一直是平的）`,{x:340,y:80,'text-anchor':'middle',class:'m'},sv);return}
+  const f=ST[FR[k]];txt(f.cap,{x:340,y:30,'text-anchor':'middle',class:'cap'},sv);
+  if(f.curve){curve([[5,'var(--teal)'],[6,'var(--teal)'],[13,'var(--warm)'],[14,'var(--warm)']]);
+    txt('5 → 6：一段坡，看得出变化',{x:CX(5)+10,y:CY(0.88),class:'m'},sv);return}
+  gauge(160,100,f.a,`[2, 1, ${f.a}]`);
+  if(f.b){gauge(160,170,f.b,`[2, 1, ${f.b}]`);const d=p(f.b)-p(f.a);
+    txt(`变化：${fmt(d)}`,{x:380,y:250,'text-anchor':'middle',class:'big'},sv).style.fill=d<0.001?'var(--bad)':'var(--good)';
+    txt(d<0.001?'比例已经推到尽头（100%）：就像音量旋钮拧到最大，再拧也听不出区别':'模型调一点分数，结果就变一点：知道往哪边调',{x:340,y:290,'text-anchor':'middle',class:'m'},sv)}
+  if(f.a===50&&!f.b)txt('e⁵⁰ 大约是 5 后面跟 21 个 0：比例 ≈ [0, 0, 1]，只看一个词',{x:340,y:180,'text-anchor':'middle',class:'m'},sv);
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+$('s').oninput=e=>{ANIM.stop();custom=+e.target.value/2;$('sv2').textContent=custom;draw()};
+setupPlayer({captureSeed:1,reset,next},1600);
+</script></body></html>

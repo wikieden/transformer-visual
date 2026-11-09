@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Embedding 与 softmax</title><link rel="stylesheet" href="anim.css">
+<style>svg text.big{font-size:15px}svg text.cap{font-size:15px;font-weight:500}svg text.v{font-size:11px}</style></head>
+<body><main>
+<h1>第 22 章 · 输入 embedding 与输出 softmax：一本字典，正着查、反着查</h1>
+<p class="sub">配套讲义：<a href="../lessons/22-embedding-softmax.html">第 22 章 · 输入 embedding 与输出 softmax：词怎么变成向量，向量怎么变回词</a>。8 个词的小词表，每个词 4 个数（论文 V ≈ 37000、512 个数）；表里的数是编的。h = decoder 最后一行。</p>
+<div class="panel"><svg id="sv" viewBox="0 0 680 400"></svg></div>
+<div class="row"><button id="play">▶ 播放</button><button id="step">→ 单步</button><button id="reset">↺ 从头开始</button></div>
+<div class="row"><label for="t">自己拖：h 从像 dog 转到像 bites</label><input type="range" id="t" min="0" max="100" step="1" value="100"><span id="tv">1.00</span></div>
+<div class="row"><label for="s">自己拖：h 的长度（放大几倍）</label><input type="range" id="s" min="2" max="40" step="1" value="10"><span id="sv2">1.0</span></div>
+<p class="note">看点：① embedding 表 E：每个编号一行；② 查表："狗 咬 人" → 编号 [1, 2, 3] → 取这三行；③ 乘 √d（这里 √4 = 2）再加位置编码；④ 输出：h 和表里每一行做点积，得到 8 个分数（logits）；⑤ softmax 变成概率，bites 最高（0.537）；⑥ 同一张表用三次：两个 embedding + 输出层（Eᵀ）。滑块：h 的方向从 dog 转向 bites，看哪个词的概率变大；h 越长，softmax 越尖（越"确定"）。</p>
+</main>
+<script src="anim.js"></script>
+<script>
+const sv=$('sv');
+const W=['<开始>','狗','咬','人','<结束>','dog','bites','man'];
+const E=[[0.1,0,-0.2,0.3],[0.9,-0.3,0.4,0.1],[-0.5,0.8,0.2,-0.1],[0.7,-0.2,0.5,0],[0,0.2,-0.4,0.6],[0.8,-0.4,0.3,0.2],[-0.3,0.7,-0.2,0.5],[0.6,-0.1,0.6,-0.1]];
+const H0=[-1,2,-1,2];
+const dot=(a,b)=>a.reduce((s,x,i)=>s+x*b[i],0),soft=L=>{const m=Math.max(...L),e=L.map(x=>Math.exp(x-m)),t=e.reduce((a,b)=>a+b,0);return e.map(x=>x/t)};
+const f2=v=>(Math.round(v*100)/100).toFixed(Math.abs(v)<10?2:1).replace('-','−'),f1=v=>(Math.round(v*10)/10).toFixed(1).replace('-','−');
+const ST=[{cap:'embedding 表 E：每个编号一行，每行 4 个数（论文 512 个）',s:0},
+  {cap:'查表："狗 咬 人" → 编号 [1, 2, 3] → 取出这三行',s:1},
+  {cap:'乘 √d_model（这里 √4 = 2），再加位置编码',s:2},
+  {cap:'输出：拿 decoder 最后一行 h，和表里每一行做点积',s:3},
+  {cap:'得到 8 个分数（logits）：和 h 越像，分越高',s:4},
+  {cap:'softmax 变成概率：bites 0.537 最高，选 bites',s:5},
+  {cap:'同一张表用三次：两个 embedding + 输出层（Eᵀ）',s:6}];
+const FR=[];ST.forEach((_,i)=>{FR.push(i);FR.push(i)});
+let k=0,custom=null;
+const RY=i=>66+i*38,CX=110,CW=42;
+function cellCol(v){return v>=0?'var(--teal)':'var(--warm)'}
+function table(hi,show){txt('编号 词',{x:24,y:56,class:'m'},sv);txt('表 E 的这一行',{x:CX+2*CW,y:56,'text-anchor':'middle',class:'m'},sv);
+  E.forEach((r,i)=>{const y=RY(i),on=hi&&hi.includes(i);
+    if(on)el('rect',{x:18,y:y-3,width:CX+4*CW-10,height:34,rx:5,fill:'none',stroke:'var(--accent)','stroke-width':2},sv);
+    txt(String(i),{x:28,y:y+19,class:'m'},sv);txt(W[i],{x:CX-8,y:y+19,'text-anchor':'end',class:'big'},sv);
+    r.forEach((v,j)=>{el('rect',{x:CX+j*CW,y,width:CW-4,height:28,rx:3,fill:cellCol(v),opacity:.15+Math.min(.65,Math.abs(v)*.7)},sv);
+      if(show!==false)txt(f1(v),{x:CX+j*CW+CW/2-2,y:y+18,'text-anchor':'middle',class:'v'},sv)})})}
+function bars(L,P,pick){const bx=420,sc=24;txt('分数 logits',{x:bx,y:56,'text-anchor':'middle',class:'m'},sv);
+  el('line',{x1:bx,y1:60,x2:bx,y2:RY(7)+34,stroke:'var(--line)'},sv);
+  L.forEach((v,i)=>{const y=RY(i)+6,w=Math.min(80,Math.abs(v)*sc);el('rect',{x:v>=0?bx:bx-w,y,width:w,height:16,rx:3,fill:v>=0?'var(--purple)':'var(--muted)',opacity:.7},sv);
+    txt(f1(v),{x:v>=0?bx+w+4:bx-w-4,y:y+13,'text-anchor':v>=0?'start':'end',class:'v'},sv)});
+  if(!P)return;const px=530;txt('概率 softmax',{x:px+60,y:56,'text-anchor':'middle',class:'m'},sv);
+  P.forEach((p,i)=>{const y=RY(i)+6;el('rect',{x:px,y,width:Math.max(1,p*120),height:16,rx:3,fill:i===pick?'var(--warm)':'var(--accent)',opacity:i===pick?.9:.5},sv);
+    txt(p.toFixed(3),{x:px+Math.max(1,p*120)+4,y:y+13,class:'v'},sv)});
+  const y=RY(pick)+14;el('rect',{x:18,y:RY(pick)-3,width:CX+4*CW-10,height:34,rx:5,fill:'none',stroke:'var(--warm)','stroke-width':2.5},sv)}
+function hBox(h,y){txt('h =',{x:300,y:y+18,'text-anchor':'end',class:'big'},sv);
+  h.forEach((v,j)=>{el('rect',{x:306+j*CW,y,width:CW-4,height:28,rx:3,fill:cellCol(v),opacity:.15+Math.min(.65,Math.abs(v)*.25)},sv);txt(f1(v),{x:306+j*CW+CW/2-2,y:y+18,'text-anchor':'middle',class:'v'},sv)})}
+function draw(){
+  clear(sv);
+  if(custom!==null){const {t,s}=custom,a=[1,-2,0,2],b=H0,h=a.map((x,i)=>((1-t)*x+t*b[i])*s),L=E.map(r=>dot(h,r)),P=soft(L),pick=P.indexOf(Math.max(...P));
+    txt(`h = [${h.map(f1).join(', ')}]：概率最高的是 ${W[pick]}（${P[pick].toFixed(3)}）`,{x:340,y:28,'text-anchor':'middle',class:'cap'},sv);
+    table(null,false);bars(L,P,pick);txt('h 越长，分数差距越大，softmax 越尖',{x:340,y:392,'text-anchor':'middle',class:'m'},sv);return}
+  const f=ST[FR[k]];txt(f.cap,{x:340,y:28,'text-anchor':'middle',class:'cap'},sv);
+  if(f.s===0){table();txt('意思相近的词，这一行的数也相近',{x:520,y:150,'text-anchor':'middle',class:'m'},sv);
+    txt('（狗 ≈ 人 ≈ dog；咬 ≈ bites）',{x:520,y:172,'text-anchor':'middle',class:'m'},sv);txt('数是训练学出来的',{x:520,y:210,'text-anchor':'middle',class:'big'},sv)}
+  else if(f.s<=2){table([1,2,3]);const x0=470;txt('狗 咬 人 → 编号 [1, 2, 3]',{x:x0+40,y:96,'text-anchor':'middle',class:'big'},sv);
+    [1,2,3].forEach((id,r)=>{const y=130+r*40;txt(W[id],{x:x0-50,y:y+18,'text-anchor':'end',class:'big'},sv);
+      E[id].forEach((v,j)=>{const vv=f.s===2?v*2:v;el('rect',{x:x0-40+j*CW,y,width:CW-4,height:28,rx:3,fill:cellCol(v),opacity:.15+Math.min(.65,Math.abs(vv)*.5)},sv);txt(f1(vv),{x:x0-40+j*CW+CW/2-2,y:y+18,'text-anchor':'middle',class:'v'},sv)});
+      el('line',{x1:CX+4*CW-6,y1:RY(id)+14,x2:x0-46,y2:y+14,stroke:'var(--accent)','stroke-width':1.2,'stroke-dasharray':'4 3'},sv)});
+    txt(f.s===2?'× √4 = 2，然后 + 位置编码 → 进第 1 层':'3 行 × 4 列（论文 3 × 512）',{x:x0+40,y:270,'text-anchor':'middle',class:'big'},sv).style.fill=f.s===2?'var(--warm)':'';
+    if(f.s===2)txt('让词的数和位置编码（−1～1）一样"响"',{x:x0+40,y:294,'text-anchor':'middle',class:'m'},sv)}
+  else if(f.s<=5){table(f.s===3?[0,1,2,3,4,5,6,7]:null);const L=E.map(r=>dot(H0,r)),P=soft(L);
+    if(f.s===3){hBox(H0,370);txt('h 和每一行做点积 → 每个词一个分数',{x:520,y:200,'text-anchor':'middle',class:'big'},sv);
+      txt('bites：(−1)(−0.3) + 2(0.7) + (−1)(−0.2) + 2(0.5) = 2.9',{x:520,y:228,'text-anchor':'middle',class:'m'},sv)}
+    else{bars(L,f.s===5?P:null,6);if(f.s===4)txt('这就是乘 Eᵀ：h 和每个词的向量比像不像',{x:520,y:380,'text-anchor':'middle',class:'m'},sv);
+      if(f.s===5)txt('8 个概率加起来 = 1；greedy 挑最大的 → bites',{x:520,y:384,'text-anchor':'middle',class:'m'},sv)}}
+  else{el('rect',{x:250,y:150,width:180,height:90,rx:10,fill:'var(--accent-bg)',stroke:'var(--accent)'},sv);
+    txt('同一张表 E',{x:340,y:186,'text-anchor':'middle',class:'big'},sv);txt('V × d_model',{x:340,y:210,'text-anchor':'middle',class:'m'},sv);
+    const U=[['encoder embedding','原文的词 → 向量',70,70],['decoder embedding','译文的词 → 向量',70,300],['输出层 Eᵀ','h → 每个词的分数',470,185]];
+    U.forEach(([a,b,x,y])=>{el('rect',{x,y:y-26,width:150,height:56,rx:8,fill:'none',stroke:'var(--muted)'},sv);txt(a,{x:x+75,y:y-4,'text-anchor':'middle',class:'big'},sv);txt(b,{x:x+75,y:y+18,'text-anchor':'middle',class:'m'},sv);
+      el('line',{x1:x<300?x+150:x,y1:y,x2:x<300?250:430,y2:195,stroke:'var(--accent)','stroke-width':2},sv)});
+    txt('正着查：编号 → 取一行；反着查：向量 → 和每一行比像不像',{x:340,y:376,'text-anchor':'middle',class:'m'},sv)}
+}
+function reset(){k=0;custom=null;draw()}
+function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
+function onSlide(){ANIM.stop();custom={t:+$('t').value/100,s:+$('s').value/10};$('tv').textContent=custom.t.toFixed(2);$('sv2').textContent=custom.s.toFixed(1);draw()}
+$('t').oninput=onSlide;$('s').oninput=onSlide;
+setupPlayer({captureSeed:1,reset,next},1600);
+</script></body></html>
