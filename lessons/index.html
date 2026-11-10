@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>讲义：从零读懂 attention · 从零读懂 Transformer</title>
+<title>从零读懂 Transformer · 讲义目录 · 从零读懂 Transformer</title>
 <style>
 :root{--bg:#fbfbfa;--fg:#1f2328;--mute:#5d6470;--line:#e3e5e8;--card:#fff;--acc:#2f6fdf;--code:#f2f3f5;--quote:#f4f6fa}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e4e7ec;--mute:#9aa3b2;--line:#2c323b;--card:#1c2026;--acc:#7aa7ff;--code:#22272f;--quote:#1b2029}}
@@ -44,12 +44,47 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <a href="../lessons/appendix-glossary.html">缩写表</a>
 </div></header>
 <main>
-<h1 id="attention">讲义：从零读懂 attention</h1>
-<p>对话讲解的完整留档，按章节整理。每章结构相同：<strong>本章回答的问题 → 讲解（白话类比 → 公式 → 例子）→ 练习与作答记录 → 口诀 → 本章复习卡片 → 附录 · 延伸阅读</strong>（推荐论文和书、数学原理、公式清单，给以后深入学习用）。</p>
+<h1 id="transformer">从零读懂 Transformer · 讲义目录</h1>
+<blockquote>
+<p>在线阅读：<a href="https://wikieden.github.io/transformer-visual/">https://wikieden.github.io/transformer-visual/</a> · 续篇：《<a href="https://wikieden.github.io/beyond-transformer/">超越原版 Transformer</a>》<br />
+24 章 · 24 个动画（GIF + 可交互页面）· 69 张复习卡片 · 覆盖论文《Attention Is All You Need》第 3 节全部内容</p>
+</blockquote>
+<h2 id="_1">这本书讲什么</h2>
+<p>从"向量是一串数字"讲起，一步步走到 2017 年论文《Attention Is All You Need》（简称 AIAYN）第 3 节的完整 Transformer：词怎么变成向量、attention 怎么打分和取信息、为什么除以 <span class="arithmatex">\(\sqrt{d_k}\)</span>、多头、位置编码、因果 mask、残差、LayerNorm、FFN，最后拼成 encoder–decoder 全图，并讲清 embedding 与输出 softmax、计算复杂度、参数怎么数、学习率怎么排。</p>
 <ul>
-<li>复习卡片集中在 <a href="../review.html">../review.md</a>，按间隔规则复习；</li>
-<li>公式速查见 <a href="../A0-basics-vector-dot-softmax.html">../A0-basics-vector-dot-softmax.md</a>；</li>
-<li>论文原文对照见 ../A2-attention-is-all-you-need.md（等基础讲完再读）。</li>
+<li><strong>适合谁</strong>：想真正看懂 Transformer 公式、但数学只记得初中那点的人。需要的数学（次方与 e、sin 和 cos、平均值与方差、矩阵乘法）都在用到的那一章现场补。</li>
+<li><strong>读完能做什么</strong>：对照原文逐段读懂 AIAYN §3（第 24 章附了行号地图），能自己数出模型参数，接着去写 CS336 作业 1 的 Transformer。</li>
+<li><strong>怎么读</strong>：按章顺序读。每章先看讲解和动画，再自己做练习，最后用复习卡片隔几天考自己。</li>
+</ul>
+<h2 id="_2">讲解的特点</h2>
+<ul>
+<li><strong>一次一小步</strong>：每个概念按"白话类比 → 公式（每个符号说清楚怎么读）→ 小数字亲手算一遍"讲，算例都能在纸上验证。</li>
+<li><strong>每章一个动画</strong>：关键原理做成可交互页面，▶ 播放、→ 单步、↺ 从头开始，有滑块的可以拖动参数看结果怎么变；GIF 版直接嵌在正文里。</li>
+<li><strong>对照原文</strong>：讲到论文的地方都标了本地文本的行号（如 L132–L133），引用原句，方便回查；每章末尾的延伸阅读精确到论文章节和行号。</li>
+<li><strong>保留真实的学习过程</strong>：练习与作答记录里是学习时的原话、对错和点评；答错、卡住的地方都变成了复习卡片。</li>
+<li><strong>术语不设门槛</strong>：缩写第一次出现就给英文全称并逐词解释（如 FFN = Feed-Forward Network：前馈 / 网络），全书缩写见 <a href="../lessons/appendix-glossary.html">缩写与术语表</a>。</li>
+<li><strong>每章收尾有口诀</strong>：几句话记住一章，全部口诀汇总在本页末尾。</li>
+</ul>
+<h2 id="_3">示例动画</h2>
+<table>
+<tr>
+<td width="33%" valign="top"><img src="../animations/09-qkv.gif" width="100%" alt="第 9 章 · Q、K、V"><br><b>第 9 章 · Q、K、V</b><br>图书馆找书：Q 去问、K 答像不像、V 交出内容<br><a href="../lessons/09-qkv.html">讲义</a> · <a href="../animations/09-qkv.html">▶ 交互</a></td>
+<td width="33%" valign="top"><img src="../animations/12-transpose-formula.gif" width="100%" alt="第 12 章 · 公式 1 走一遍"><br><b>第 12 章 · 公式 1 走一遍</b><br>转置、打分、缩放、softmax、取信息，四步连起来<br><a href="../lessons/12-transpose-formula.html">讲义</a> · <a href="../animations/12-transpose-formula.html">▶ 交互</a></td>
+<td width="33%" valign="top"><img src="../animations/13-multi-head.gif" width="100%" alt="第 13 章 · 多头注意力"><br><b>第 13 章 · 多头注意力</b><br>切成几个头各看各的，再拼回来<br><a href="../lessons/13-multi-head.html">讲义</a> · <a href="../animations/13-multi-head.html">▶ 交互</a></td>
+</tr>
+<tr>
+<td width="33%" valign="top"><img src="../animations/16-multi-clock.gif" width="100%" alt="第 16 章 · 多档时钟"><br><b>第 16 章 · 多档时钟</b><br>快慢轮子组合成位置编码，拖滑块看转角<br><a href="../lessons/16-multi-clock.html">讲义</a> · <a href="../animations/16-multi-clock.html">▶ 交互</a></td>
+<td width="33%" valign="top"><img src="../animations/17-causal-mask.gif" width="100%" alt="第 17 章 · 因果 mask"><br><b>第 17 章 · 因果 mask</b><br>右上角填 −∞，权重正好变成 0<br><a href="../lessons/17-causal-mask.html">讲义</a> · <a href="../animations/17-causal-mask.html">▶ 交互</a></td>
+<td width="33%" valign="top"><img src="../animations/21-transformer-layer.gif" width="100%" alt="第 21 章 · 拼装全图"><br><b>第 21 章 · 拼装全图</b><br>encoder、decoder、三张分数表、一轮写一个词<br><a href="../lessons/21-transformer-layer.html">讲义</a> · <a href="../animations/21-transformer-layer.html">▶ 交互</a></td>
+</tr>
+</table>
+
+<p>全部动画见 <a href="../animations/index.html">动画目录</a>。</p>
+<h2 id="_4">其他入口</h2>
+<ul>
+<li>复习卡片：<a href="../review.html">../review.md</a>（按间隔规则复习）</li>
+<li>公式速查：<a href="../A0-basics-vector-dot-softmax.html">../A0-basics-vector-dot-softmax.md</a></li>
+<li>论文原文精读与中英对照：../A2-attention-is-all-you-need.md</li>
 </ul>
 <h2 id="2026-10-26">全流程总览（2026-10-26 复述）</h2>
 <p>目标：读到"小明把苹果给了小红，因为<strong>她</strong>饿了"里的"她"时，让模型弄清"她"指的是谁。</p>
@@ -115,12 +150,15 @@ Q            K            V
 </tbody>
 </table>
 <p>合起来就是论文公式 1：<span class="arithmatex">\(\text{Attention}(Q,K,V)=\text{softmax}\!\left(\dfrac{QK^\top}{\sqrt{d_k}}\right)V\)</span></p>
-<h2 id="_1">目录</h2>
+<h2 id="_5">目录</h2>
+<p>每章都配一个动画：<strong>GIF</strong> 在讲义正文里直接播放，<strong>▶ 交互</strong>是可以点按钮、拖滑块的页面（本地看需要起服务，见 <a href="../animations/index.html">动画目录</a>"跑起来看"；在线版直接点开）。</p>
 <table>
 <thead>
 <tr>
 <th>章</th>
 <th>主题</th>
+<th>一句话精要</th>
+<th>动画</th>
 <th>卡片</th>
 <th>状态</th>
 </tr>
@@ -129,144 +167,192 @@ Q            K            V
 <tr>
 <td><a href="../lessons/01-vector.html">1</a></td>
 <td>向量：用一串数字描述一个东西</td>
+<td>一个东西 = 一串数字，每个位置的含义固定</td>
+<td><a href="../animations/01-vector.gif">GIF</a> · <a href="../animations/01-vector.html">▶ 交互</a></td>
 <td>R01</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/02-dot-product.html">2</a></td>
 <td>点积：对位相乘再相加</td>
+<td>对位相乘再相加，越大越"像"</td>
+<td><a href="../animations/02-dot-product.gif">GIF</a> · <a href="../animations/02-dot-product.html">▶ 交互</a></td>
 <td>R02、R03</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/03-softmax-ratio.html">3</a></td>
 <td>softmax（上）：分数变比例；和 LayerNorm 的区别</td>
+<td>把一组分数变成加起来为 1 的比例</td>
+<td><a href="../animations/03-softmax-ratio.gif">GIF</a> · <a href="../animations/03-softmax-ratio.html">▶ 交互</a></td>
 <td>R06、R07</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/04-weighted-average.html">4</a></td>
 <td>按比例取信息：加权平均；attention 四步</td>
+<td>按比例把每个词的信息加起来，attention 四步走完</td>
+<td><a href="../animations/04-weighted-average.gif">GIF</a> · <a href="../animations/04-weighted-average.html">▶ 交互</a></td>
 <td>R09、R10</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/05-power-and-e.html">5</a></td>
 <td>次方与 e</td>
+<td><span class="arithmatex">\(e^{x}\)</span> 永远是正数，x 大一点结果就大很多</td>
+<td><a href="../animations/05-power-and-e.gif">GIF</a> · <a href="../animations/05-power-and-e.html">▶ 交互</a></td>
 <td>R04、R05</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/06-softmax-exp.html">6</a></td>
 <td>softmax（下）：为什么套 <span class="arithmatex">\(e^{x}\)</span></td>
+<td>套上 <span class="arithmatex">\(e^{x}\)</span>：负数也能分比例，差距被拉开</td>
+<td><a href="../animations/06-softmax-exp.gif">GIF</a> · <a href="../animations/06-softmax-exp.html">▶ 交互</a></td>
 <td>R08、R11</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/07-saturation.html">7</a></td>
 <td>softmax 饱和；饱和 vs 过拟合</td>
+<td>分数差太大时 softmax 变成"赢者全拿"</td>
+<td><a href="../animations/07-saturation.gif">GIF</a> · <a href="../animations/07-saturation.html">▶ 交互</a></td>
 <td>R12、R13</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/08-sqrt-dk.html">8</a></td>
 <td>为什么除以 <span class="arithmatex">\(\sqrt{d_k}\)</span></td>
+<td>点积随维度变大，除以 <span class="arithmatex">\(\sqrt{d_k}\)</span> 把音量调回去</td>
+<td><a href="../animations/08-sqrt-dk.gif">GIF</a> · <a href="../animations/08-sqrt-dk.html">▶ 交互</a></td>
 <td>R14、R15</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/09-qkv.html">9</a></td>
 <td>Q、K、V 分别是什么；为什么 Q、K 要分开</td>
+<td>Q 去问，K 答"像不像"，V 是真正交出去的内容</td>
+<td><a href="../animations/09-qkv.gif">GIF</a> · <a href="../animations/09-qkv.html">▶ 交互</a></td>
 <td>R16</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/10-matrix-transform.html">10</a></td>
 <td>转换与矩阵：Q、K、V 怎么从词向量变出来</td>
+<td>向量乘矩阵 = 和每一列各做一次点积</td>
+<td><a href="../animations/10-matrix-transform.gif">GIF</a> · <a href="../animations/10-matrix-transform.html">▶ 交互</a></td>
 <td>R17、R18</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/11-matrix-qk.html">11</a></td>
 <td>大写的 Q、K、V；<span class="arithmatex">\(QK^\top\)</span> 是一张分数表</td>
+<td>所有 q 排成 Q，<span class="arithmatex">\(QK^\top\)</span> 是"谁和谁像"的分数表</td>
+<td><a href="../animations/11-matrix-qk.gif">GIF</a> · <a href="../animations/11-matrix-qk.html">▶ 交互</a></td>
 <td>R19、R20</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/12-transpose-formula.html">12</a></td>
 <td>转置 <span class="arithmatex">\(^\top\)</span> 与公式 1 完整走一遍</td>
+<td>K 转置后行变列，公式 1 四步完整走一遍</td>
+<td><a href="../animations/12-transpose-formula.gif">GIF</a> · <a href="../animations/12-transpose-formula.html">▶ 交互</a></td>
 <td>R22、R23</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/13-multi-head.html">13</a></td>
 <td>多头注意力 multi-head</td>
+<td>切成 8 个头各看各的，拼回来再乘 <span class="arithmatex">\(W^O\)</span></td>
+<td><a href="../animations/13-multi-head.gif">GIF</a> · <a href="../animations/13-multi-head.html">▶ 交互</a></td>
 <td>R24、R25</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/14-positional-encoding.html">14</a></td>
 <td>位置编码（上）：attention 不知道顺序；号码牌 <span class="arithmatex">\(x_i'=x_i+p_i\)</span> 及其毛病</td>
+<td>attention 不知道顺序，要给每个座位发号码牌</td>
+<td><a href="../animations/14-positional-encoding.gif">GIF</a> · <a href="../animations/14-positional-encoding.html">▶ 交互</a></td>
 <td>R26、R27、R28</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/15-sin-cos.html">15</a></td>
 <td>sin 和 cos：圆上转圈（摩天轮）；周期；弧度</td>
+<td>圆上转圈：值在 −1 到 1 之间，转一圈 2π 重复</td>
+<td><a href="../animations/15-sin-cos.gif">GIF</a> · <a href="../animations/15-sin-cos.html">▶ 交互</a></td>
 <td>R29、R30、R31、R32</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/16-multi-clock.html">16</a></td>
 <td>位置编码（下）：多档时钟；论文正弦公式</td>
+<td>快慢不同的轮子组合：挪几个座位，每个轮子转固定角度</td>
+<td><a href="../animations/16-multi-clock.gif">GIF</a> · <a href="../animations/16-multi-clock.html">▶ 交互</a></td>
 <td>R33、R34、R35、R36、R37、R38、R39、R40、R41</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/17-causal-mask.html">17</a></td>
 <td>因果 mask：不许偷看后面的词</td>
+<td>分数表右上角填 −∞，生成时不许偷看后面的词</td>
+<td><a href="../animations/17-causal-mask.gif">GIF</a> · <a href="../animations/17-causal-mask.html">▶ 交互</a></td>
 <td>R42、R43、R44、R45、R46</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/18-residual.html">18</a></td>
 <td>残差连接：输出 = 输入 + 子层(输入)</td>
+<td>子层只写批注：输出 = x + 子层(x)，原词一路保留</td>
+<td><a href="../animations/18-residual.gif">GIF</a> · <a href="../animations/18-residual.html">▶ 交互</a></td>
 <td>R47、R48、R49</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/19-layernorm.html">19</a></td>
 <td>LayerNorm：平均值、方差，把每个词的数字调到统一范围；pre-LN、RMSNorm</td>
+<td>减平均、除标准差，再乘 γ 加 β；pre-LN、RMSNorm</td>
+<td><a href="../animations/19-layernorm.gif">GIF</a> · <a href="../animations/19-layernorm.html">▶ 交互</a></td>
 <td>R50–R56</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/20-ffn.html">20</a></td>
 <td>前馈网络 FFN：每个词回到自己座位上消化；ReLU、SiLU、SwiGLU</td>
+<td>先摊开 4 倍、过 ReLU、再收回；SwiGLU 加闸门</td>
+<td><a href="../animations/20-ffn.gif">GIF</a> · <a href="../animations/20-ffn.html">▶ 交互</a></td>
 <td>R57–R64</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/21-transformer-layer.html">21</a></td>
 <td>拼装：一个 Transformer 层；encoder / decoder 全图；三种 attention</td>
+<td>encoder 两道工序、decoder 三道；分数表行看谁提问、列看问了谁</td>
+<td><a href="../animations/21-transformer-layer.gif">GIF</a> · <a href="../animations/21-transformer-layer.html">▶ 交互</a></td>
 <td>R65–R69</td>
 <td>完成</td>
 </tr>
 <tr>
 <td><a href="../lessons/22-embedding-softmax.html">22</a></td>
 <td>输入 embedding 与输出 softmax：词怎么变成向量，向量怎么变回词</td>
+<td>一张表正着查取向量，反着查给每个词打分</td>
+<td><a href="../animations/22-embedding-softmax.gif">GIF</a> · <a href="../animations/22-embedding-softmax.html">▶ 交互</a></td>
 <td>—</td>
 <td>正文完成，练习待做</td>
 </tr>
 <tr>
 <td><a href="../lessons/23-complexity.html">23</a></td>
 <td>复杂度：为什么 attention 是 n²，长文本为什么难</td>
+<td>每个词看每个词：n²·d；换来不用排队、一步直达</td>
+<td><a href="../animations/23-complexity.gif">GIF</a> · <a href="../animations/23-complexity.html">▶ 交互</a></td>
 <td>—</td>
 <td>正文完成，练习待做</td>
 </tr>
 <tr>
 <td><a href="../lessons/24-wrap-up.html">24</a></td>
 <td>收尾：数参数、warmup 学习率、对照原文通读 §3</td>
+<td>attention 4d²、FFN 2·d·d_ff；学习率先升后降；§3 通读地图</td>
+<td><a href="../animations/24-wrap-up.gif">GIF</a> · <a href="../animations/24-wrap-up.html">▶ 交互</a></td>
 <td>—</td>
 <td>正文完成，练习待做</td>
 </tr>
@@ -496,7 +582,7 @@ Q            K            V
 <p>附录：<a href="../lessons/appendix-vector-ops.html">向量常见操作速查</a>（记不清时先看这一页）。</p>
 <p>附录：<a href="../lessons/appendix-glossary.html">缩写与术语表</a>（遇到缩写先查这一页；每章开头另有一行"本章缩写"）。</p>
 <p>章节顺序按"读起来最顺"排，和实际讲解顺序略有不同（第 5 章是讲第 6 章时临时补的前置知识）。</p>
-<h2 id="_2">口诀汇总</h2>
+<h2 id="_6">口诀汇总</h2>
 <table>
 <thead>
 <tr>
