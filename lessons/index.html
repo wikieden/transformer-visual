@@ -353,7 +353,7 @@ Q            K            V
 </tbody>
 </table>
 <p>§3 讲完以后，按 study-plan 阶段 A 往下走（A4 参数 / FLOPs 计算、A7 induction heads），然后动手做 CS336 a1 §3（T-M0），亲手写一个 Transformer。</p>
-<p><strong>§3 之后的第 25–75 章大纲</strong>（2026-11-09）：<a href="../lessons/appendix-roadmap.html">附录 · 后续路线</a>。51 章分 8 段（② 训练基础、A 原理深化、B 零件升级、C 现代配方、D MoE、E 高效注意力、F 超越注意力、V 视觉），每章列了问题、材料、前置和动画设想，正文以后逐段写。</p>
+<p><strong>§3 之后的内容是另一本书</strong>：《<a href="https://wikieden.github.io/beyond-transformer/">超越原版 Transformer</a>》（仓库目录 <code>beyond-transformer/</code>）。51 章分 8 段：② 训练基础、A 原理深化、B 零件升级、C 现代配方、D MoE、E 高效注意力、F 超越注意力、V 视觉。本书讲到第 24 章为止。</p>
 <h2 id="3-2026-10-26">全局路线：§3 之后还要学什么（2026-10-26）</h2>
 <table>
 <thead>
@@ -367,7 +367,7 @@ Q            K            V
 <tbody>
 <tr>
 <td>① 原版怎么工作</td>
-<td>AIAYN §3（<strong>进行中，第 14–24 章</strong>）</td>
+<td>AIAYN §3（第 1–24 章，22–24 章练习待做）</td>
 <td>2017 年最初的 Transformer</td>
 <td>本讲义</td>
 </tr>
@@ -375,37 +375,37 @@ Q            K            V
 <td>② 模型怎么学会的</td>
 <td>loss（交叉熵）、梯度与反向传播、优化器 AdamW、学习率</td>
 <td>前面只说过"微调分数"，这里讲清楚训练到底怎么调</td>
-<td>CS336 a1 §4</td>
+<td>《超越原版 Transformer》第 1–5 章；CS336 a1 §4</td>
 </tr>
 <tr>
 <td>③ 零件升级</td>
 <td>Pre-LN、RMSNorm、SwiGLU、RoPE、长文本外推、QK-norm</td>
 <td>2017 年到现在，每个零件被换成了什么、为什么</td>
-<td>study-plan 阶段 B</td>
+<td>续篇第 12–20 章（study-plan 阶段 B）</td>
 </tr>
 <tr>
 <td>④ 现代模型配方</td>
 <td>LLaMA / Qwen / DeepSeek 的组合；GQA、MLA 省内存</td>
 <td>今天的大模型具体长什么样</td>
-<td>阶段 C</td>
+<td>续篇第 21–26 章（阶段 C）</td>
 </tr>
 <tr>
 <td>⑤ 变大不变慢</td>
 <td>MoE 混合专家</td>
 <td>参数多但每次只用一部分</td>
-<td>阶段 D</td>
+<td>续篇第 27–30 章（阶段 D）</td>
 </tr>
 <tr>
 <td>⑥ 让 attention 变快</td>
 <td>FlashAttention、滑动窗口、稀疏注意力</td>
-<td>解决 <span class="arithmatex">\(n^2\)</span>（第 23 章会讲问题本身）</td>
-<td>阶段 E</td>
+<td>解决 <span class="arithmatex">\(n^2\)</span>（问题本身见第 23 章）</td>
+<td>续篇第 31–36 章（阶段 E）</td>
 </tr>
 <tr>
 <td>⑦ attention 的替代者</td>
 <td>线性注意力、Mamba、混合架构</td>
 <td>不用 softmax 能不能更省</td>
-<td>阶段 F</td>
+<td>续篇第 37–43 章（阶段 F）</td>
 </tr>
 <tr>
 <td>贯穿</td>
@@ -417,6 +417,9 @@ Q            K            V
 </table>
 <h2 id="17">延展（主线 ①–⑦ 之后）</h2>
 <h3 id="a-transformer18-materialspapers07-vision-sources">延展 A · 视觉 Transformer（计划；18 篇论文已归档到 <code>materials/papers/07-vision/</code>，见 SOURCES）</h3>
+<blockquote>
+<p>现在归入续篇《<a href="https://wikieden.github.io/beyond-transformer/">超越原版 Transformer</a>》第 44–51 章（段 V）。</p>
+</blockquote>
 <p>把学过的 attention 用到图像和视频上。核心想法：<strong>把图片切成小方块，每个方块当成一个"词"</strong>，后面的计算和文字完全一样。</p>
 <table>
 <thead>

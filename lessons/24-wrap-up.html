@@ -47,7 +47,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <h1 id="24-warmup-3">第 24 章 · 收尾：数参数、warmup 学习率、对照原文通读 §3</h1><p><a class="btn" href="../animations/24-wrap-up.html">▶ 打开本章可交互动画</a></p>
 <blockquote>
 <p>本章回答：一个 Transformer 一共有多少个要学的数（参数），都在哪？论文训练时学习率为什么先升后降？学完 24 章，怎么把 §3 原文从头到尾读一遍？<br />
-讲解日期：2026-11-08 起 · 上一章：<a href="../lessons/23-complexity.html">第 23 章 复杂度</a> · 下一章：无（§3 讲完，接 study-plan 阶段 A 和 CS336 a1）<br />
+讲解日期：2026-11-08 起 · 上一章：<a href="../lessons/23-complexity.html">第 23 章 复杂度</a> · 下一章：无，本书到此结束；续篇是《<a href="https://wikieden.github.io/beyond-transformer/">超越原版 Transformer</a>》<br />
 对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3 全部 L110–L298；Table 3 base 一行 L451–L454；§5.3 Optimizer L363–L376<br />
 本章缩写：参数（parameter：模型里要靠训练学出来的数，比如 <span class="arithmatex">\(W^Q\)</span>、FFN 的 <span class="arithmatex">\(W_1\)</span>、embedding 表 E 里的每一个数）；bias（偏置：矩阵乘完以后再加上的那串数 b）；LN = LayerNorm（层归一化，参数是 γ、β）；M = million（百万：65M = 6500 万）；lr = learning rate（学习 / 率：每一步调参数时迈多大的步子）；step（训练的第几步）；warmup（热身：训练刚开始时学习率从小慢慢升上去）；Adam = Adaptive Moment Estimation（自适应 / 矩 / 估计：论文用的优化器，负责"每个参数往哪调、调多少"）；<span class="arithmatex">\(d_{model}\)</span>、<span class="arithmatex">\(d_{ff}\)</span>、<span class="arithmatex">\(d_k\)</span>、h、N：见第 13、20、21 章。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
@@ -278,7 +278,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 </tr>
 </tbody>
 </table>
-<p><strong>读完 §3 以后去哪</strong>（第 21 章附录和 README 的全局路线）：</p>
+<p><strong>读完 §3 以后去哪</strong>：续篇《<a href="https://wikieden.github.io/beyond-transformer/">超越原版 Transformer</a>》，从"模型怎么学会的"（loss、梯度、AdamW、学习率）讲起，一共 51 章。动手部分：</p>
 <ol>
 <li>A2 精读笔记里还有两道自测题没做：题 1 就是本章题 1（数参数），题 2 是位置编码的旋转矩阵推导（第 16 章打过基础，它直接引出 RoPE）；</li>
 <li>然后复制 CS336 a1 开始动手写：你要写的是 decoder-only 模型，相当于本课 decoder 去掉"回头查原文"那道工序，再把零件换成现代版（Pre-LN、RMSNorm、SwiGLU、RoPE）。</li>
