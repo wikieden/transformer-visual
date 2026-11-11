@@ -49,7 +49,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p>本章回答：为什么要同时做好几次 attention（多个"头"）？怎么做？<br />
 讲解日期：2026-10-26 · 上一章：<a href="../lessons/12-transpose-formula.html">第 12 章 转置与公式 1</a> · 下一章：<a href="../lessons/14-positional-encoding.html">第 14 章 位置编码</a><br />
 对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.2.2，L192–L220（为什么：L207–L208；成本：L218–L220）<br />
-本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；<span class="arithmatex">\(d_v\)</span>：v = value，每个 value 向量有几个数（64）；MQA / GQA = Multi-Query / Grouped-Query Attention（多查询 / 分组查询注意力）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；<span class="arithmatex">\(d_v\)</span>：v = value，每个 value 向量有几个数（64）；MQA / GQA = Multi-Query / Grouped-Query Attention（多查询 / 分组查询注意力）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）；代码里的名字（PyTorch、<code>nn.Linear</code> 等）见附录"PyTorch 对照"。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
 <h2 id="_1">讲解</h2>
 <h3 id="_2">第一步：为什么一个头不够</h3>
@@ -241,7 +241,74 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <td>一层 attention 的参数量（不算偏置）</td>
 </tr>
 </tbody>
-</table><nav class="pager"><a href="12-transpose-formula.html">← 第 12 章 · 转置与公式 1 完整走一遍</a><a href="14-positional-encoding.html">第 14 章 · 位置编码 positional encoding →</a></nav>
+</table>
+<h3 id="pytorch">PyTorch 对照：把本章的数字用代码算一遍</h3>
+<blockquote>
+<p>代码在仓库本地 <code>transformer-deep-dive/solutions/chapter-code/ch13_multi_head.py</code>，配套测试 <code>tests/test_ch09_13.py</code>（在线版不带代码文件，下面摘了关键几行）。Mac 上直接能跑，不需要 GPU：</p>
+<p><code>bash  
+cd transformer-deep-dive/solutions/chapter-code  
+uv run python ch13_multi_head.py</code></p>
+</blockquote>
+<p><strong>讲义 ↔ 代码</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>讲义</th>
+<th>公式 / 说法</th>
+<th>PyTorch 写法</th>
+<th>跑出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一个头会混</td>
+<td>小红 0.5、因为 0.5</td>
+<td><code>[0.5, 0.5] @ ...</code></td>
+<td>[5, 5]</td>
+</tr>
+<tr>
+<td>拼接不是相加</td>
+<td>Concat</td>
+<td><code>torch.cat([h1, h2])</code></td>
+<td>[10, 0, 0, 10]；相加是 [10, 10]</td>
+</tr>
+<tr>
+<td>切成 8 个头</td>
+<td>每头 512 / 8 个数</td>
+<td><code>x.view(n, 8, 64).transpose(0, 1)</code></td>
+<td>(8, 3, 64)</td>
+</tr>
+<tr>
+<td>拼回去</td>
+<td>Concat</td>
+<td><code>.transpose(0, 1).reshape(n, 512)</code></td>
+<td>和原来一模一样</td>
+</tr>
+<tr>
+<td>多头整层</td>
+<td><span class="arithmatex">\(\text{Concat}(\text{head}_1,\dots)W^O\)</span></td>
+<td>切头 → SDPA → 拼接 → <code>@ w_o</code></td>
+<td>(3, 512)</td>
+</tr>
+<tr>
+<td>参数和头数无关</td>
+<td><span class="arithmatex">\(4 d_{model}^2\)</span></td>
+<td><code>nn.MultiheadAttention(8, h, bias=False)</code></td>
+<td>h = 1、2、4、8 都是 256 = 4 × 8²</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键几行</strong>：</p>
+<pre><code class="language-python">q = (x @ w_q).view(n, h, d // h).transpose(0, 1)        # n × d → h × n × d_k
+heads = F.scaled_dot_product_attention(q, k, v)        # 每个头各自 softmax
+out = heads.transpose(0, 1).reshape(n, d) @ w_o        # 拼接，再乘 W^O
+</code></pre>
+<p><strong>代码里才看得到的</strong>：</p>
+<ol>
+<li><strong>多头只是"换个形状看"</strong>：<code>view</code> 把每个词的 512 个数看成 8 段 × 64，不复制任何数；8 个头一起交给 attention，每个头的 softmax 自动各算各的。</li>
+<li><strong><code>view</code> 之后 <code>transpose</code> 再拼回去要用 <code>reshape</code></strong>：转置后数在内存里不再按顺序排，<code>view</code> 会报错，<code>reshape</code> 会在需要时自己复制一份。</li>
+<li><strong><code>nn.MultiheadAttention</code> 的参数</strong>：<span class="arithmatex">\(W^Q\)</span>、<span class="arithmatex">\(W^K\)</span>、<span class="arithmatex">\(W^V\)</span> 竖着摞在一个 <code>in_proj_weight</code>（3d × d）里，<span class="arithmatex">\(W^O\)</span> 在 <code>out_proj</code> 里，合起来正好 <span class="arithmatex">\(4d^2\)</span>，头数只决定怎么切。</li>
+</ol><nav class="pager"><a href="12-transpose-formula.html">← 第 12 章 · 转置与公式 1 完整走一遍</a><a href="14-positional-encoding.html">第 14 章 · 位置编码 positional encoding →</a></nav>
 </main>
 <footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
 </body></html>

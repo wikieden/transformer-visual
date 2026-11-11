@@ -49,7 +49,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p>本章回答：模型生成文字时为什么不能看后面的词？attention 里怎么"遮住"后面的词？<br />
 讲解日期：2026-11-05 · 上一章：<a href="../lessons/16-multi-clock.html">第 16 章 多档时钟</a> · 下一章：<a href="../lessons/18-residual.html">第 18 章 残差连接</a><br />
 对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3 开头 L113–L116；§3.1 L138–L143；§3.2.3 L232–L238<br />
-本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；exp = exponential（指数）：exp(x) = eˣ；GPT = Generative Pre-trained Transformer（生成式预训练 Transformer）；NoPE = No Positional Encoding（不加位置编码）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；exp = exponential（指数）：exp(x) = eˣ；GPT = Generative Pre-trained Transformer（生成式预训练 Transformer）；NoPE = No Positional Encoding（不加位置编码）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）；代码里的名字（PyTorch、<code>nn.Linear</code> 等）见附录"PyTorch 对照"。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
 <h2 id="_1">讲解</h2>
 <h3 id="2026-11-05">第一步：模型一次说一个词，训练时不能偷看答案（2026-11-05）</h3>
@@ -505,7 +505,74 @@ e 的 −∞ 次方是 0，剩下的重新分成一。</p>
 <td>3 个词遮 3 格</td>
 </tr>
 </tbody>
-</table><nav class="pager"><a href="16-multi-clock.html">← 第 16 章 · 位置编码（下）：多档时钟</a><a href="18-residual.html">第 18 章 · 残差连接：输出 = 输入 + 子层(输入) →</a></nav>
+</table>
+<h3 id="pytorch">PyTorch 对照：把本章的数字用代码算一遍</h3>
+<blockquote>
+<p>代码在仓库本地 <code>transformer-deep-dive/solutions/chapter-code/ch17_causal_mask.py</code>，配套测试 <code>tests/test_ch14_17.py</code>（在线版不带代码文件，下面摘了关键几行）。Mac 上直接能跑，不需要 GPU：</p>
+<p><code>bash  
+cd transformer-deep-dive/solutions/chapter-code  
+uv run python ch17_causal_mask.py</code></p>
+</blockquote>
+<p><strong>讲义 ↔ 代码</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>讲义</th>
+<th>公式 / 说法</th>
+<th>PyTorch 写法</th>
+<th>跑出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>能看的格子</td>
+<td>下三角（含对角线）</td>
+<td><code>torch.tril(torch.ones(3, 3))</code></td>
+<td>左下三角是 1</td>
+</tr>
+<tr>
+<td>mask 表 M</td>
+<td>能看 0、要遮 −∞</td>
+<td><code>torch.triu(torch.full((3, 3), -inf), diagonal=1)</code></td>
+<td>右上 3 格是 −inf</td>
+</tr>
+<tr>
+<td>越负越接近 0</td>
+<td><span class="arithmatex">\(e^{-1}, e^{-10}, e^{-100}\)</span></td>
+<td><code>torch.exp</code></td>
+<td>0.368、4.54e-05、3.78e-44</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(e^{-\infty}\)</span></td>
+<td>正好是 0</td>
+<td><code>torch.exp(-inf)</code></td>
+<td>0.0</td>
+</tr>
+<tr>
+<td>加 M 再 softmax</td>
+<td><span class="arithmatex">\(\text{softmax}(\cdot + M)\)</span></td>
+<td><code>torch.softmax(scores + M, -1)</code></td>
+<td>"咬"：[0.73, 0.27, 0]</td>
+</tr>
+<tr>
+<td>自带的因果 attention</td>
+<td>同上</td>
+<td><code>F.scaled_dot_product_attention(..., is_causal=True)</code></td>
+<td>和手写一样</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键几行</strong>：</p>
+<pre><code class="language-python">M = torch.triu(torch.full((n, n), float(&quot;-inf&quot;)), diagonal=1)   # 对角线右上方填 −∞
+p = torch.softmax(scores + M, dim=-1)                           # mask 加在 softmax 之前
+F.scaled_dot_product_attention(q, k, v, is_causal=True)          # 自带版
+</code></pre>
+<p><strong>代码里才看得到的</strong>：</p>
+<ol>
+<li><strong>PyTorch 布尔 mask 里 True = 能看</strong>：<code>F.scaled_dot_product_attention</code> 的 <code>attn_mask</code> 传布尔表时，True 表示"允许看"，和"遮住"的说法正好反过来。传反了不报错，结果却全错，最容易踩坑。</li>
+<li><strong>一整行全是 −∞，softmax 得 nan</strong>：分母是 0 ÷ 0。因果 mask 永远保留对角线（自己看自己），所以不会出现；但以后自己拼 mask（比如再遮掉补齐用的空位）时要小心。</li>
+<li><strong>−inf 写作 <code>float("-inf")</code></strong>：和论文 L237 的 −∞ 一样，是一个真正的"负无穷"，不是很大的负数。</li>
+</ol><nav class="pager"><a href="16-multi-clock.html">← 第 16 章 · 位置编码（下）：多档时钟</a><a href="18-residual.html">第 18 章 · 残差连接：输出 = 输入 + 子层(输入) →</a></nav>
 </main>
 <footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
 </body></html>

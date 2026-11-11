@@ -49,7 +49,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p>本章回答：前面 21 章一直说"每个词是 512 个数"，这 512 个数从哪来？decoder 最后一行的 512 个数，又怎么变成"下一个词是 bites"？<br />
 讲解日期：2026-11-08 起 · 上一章：<a href="../lessons/21-transformer-layer.html">第 21 章 拼装 Transformer</a> · 下一章：<a href="../lessons/23-complexity.html">第 23 章 复杂度</a><br />
 对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.4 L253–L259；词表大小见 §5.1 L347–L351；生成时的 beam search 见 §6.1 L429–L431<br />
-本章缩写：embedding（嵌入：把词"嵌"进一串数里，也就是把词换成一个向量）；token（词元：模型眼里的一个"词"，可能是整词，也可能是词的一块）；tokenizer（分词器：token + -izer"做……的工具"，把句子切成 token 并编号）；V = Vocabulary size（词表大小：一共有多少个不同的 token）；ID = identifier（编号）；BPE = Byte-Pair Encoding（字节对编码：一种切词、编号的方法，CS336 a1 要写）；logits（分数：softmax 之前每个词的原始分，log + -its，"还没变成概率的对数几率"，这里当"原始分数"理解即可）；greedy（贪心：每轮直接挑概率最大的词）；beam search（束搜索：同时保留几条最好的候选句子往下走）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+本章缩写：embedding（嵌入：把词"嵌"进一串数里，也就是把词换成一个向量）；token（词元：模型眼里的一个"词"，可能是整词，也可能是词的一块）；tokenizer（分词器：token + -izer"做……的工具"，把句子切成 token 并编号）；V = Vocabulary size（词表大小：一共有多少个不同的 token）；ID = identifier（编号）；BPE = Byte-Pair Encoding（字节对编码：一种切词、编号的方法，CS336 a1 要写）；logits（分数：softmax 之前每个词的原始分，log + -its，"还没变成概率的对数几率"，这里当"原始分数"理解即可）；greedy（贪心：每轮直接挑概率最大的词）；beam search（束搜索：同时保留几条最好的候选句子往下走）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；PyTorch（Python + torch：深度学习框架）、nn = neural network（神经 / 网络）、argmax（最大值所在的位置）等代码里的名字见附录"PyTorch 对照"。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
 <h2 id="_1">讲解</h2>
 <h3 id="embedding-2026-11-08">第一步：输入 embedding = 查表（2026-11-08）</h3>
@@ -402,7 +402,98 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <td>分数变概率</td>
 </tr>
 </tbody>
-</table><nav class="pager"><a href="21-transformer-layer.html">← 第 21 章 · 拼装：一个 Transformer 层；encoder / decoder 全图；三种 attention</a><a href="23-complexity.html">第 23 章 · 复杂度：为什么 attention 是 n²，长文本为什么难 →</a></nav>
+</table>
+<h3 id="pytorch">PyTorch 对照：把本章的数字用代码算一遍</h3>
+<blockquote>
+<p>PyTorch（Py = Python，torch = 火炬：最常用的深度学习框架）。代码在仓库本地 <code>transformer-deep-dive/solutions/chapter-code/ch22_embedding_softmax.py</code>，配套测试 <code>tests/test_ch22.py</code>（在线版不带代码文件，下面摘了关键几行）。Mac 上直接能跑，不需要 GPU：</p>
+<p><code>bash  
+cd transformer-deep-dive/solutions/chapter-code  
+uv run python ch22_embedding_softmax.py   # 一步一步打印  
+uv run pytest tests/test_ch22.py          # 核对讲义里的数字</code></p>
+</blockquote>
+<p><strong>讲义 ↔ 代码</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>讲义</th>
+<th>公式</th>
+<th>PyTorch 写法</th>
+<th>跑出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>第一步 查表</td>
+<td><span class="arithmatex">\(\mathbf{x} = E[i]\)</span></td>
+<td><code>emb = nn.Embedding(V, d)</code>；<code>emb(ids)</code></td>
+<td>"狗 咬 人" → 编号 [1, 2, 3] → 3 × 4</td>
+</tr>
+<tr>
+<td>数学原理 one-hot</td>
+<td>one-hot × E</td>
+<td><code>one_hot(ids, V).float() @ emb.weight</code></td>
+<td>和 <code>emb(ids)</code> 完全一样</td>
+</tr>
+<tr>
+<td>第一步 意思相近</td>
+<td>点积</td>
+<td><code>E[1] @ E[3]</code>、<code>E[1] @ E[2]</code></td>
+<td>狗·人 = 0.89，狗·咬 = −0.62</td>
+</tr>
+<tr>
+<td>第三步 共用一张表</td>
+<td><span class="arithmatex">\(W_{out} = E^\top\)</span></td>
+<td><code>lm_head = nn.Linear(d, V, bias=False)</code>；<code>lm_head.weight = emb.weight</code></td>
+<td><code>lm_head.weight is emb.weight</code> → True</td>
+</tr>
+<tr>
+<td>第二步 打分 + softmax</td>
+<td><span class="arithmatex">\(\text{logits} = hW_{out}\)</span>，<span class="arithmatex">\(p = \text{softmax}\)</span></td>
+<td><code>logits = lm_head(h)</code>；<code>p = torch.softmax(logits, dim=-1)</code></td>
+<td>bites 2.9 分、0.537；加起来 1.0</td>
+</tr>
+<tr>
+<td>第二步 greedy</td>
+<td>挑最大</td>
+<td><code>p.argmax()</code></td>
+<td>6 → bites</td>
+</tr>
+<tr>
+<td>第四步 乘 √d 加位置</td>
+<td><span class="arithmatex">\(\sqrt{d_{model}}\,E[i] + PE_{pos}\)</span></td>
+<td><code>math.sqrt(d) * emb(ids) + pe</code></td>
+<td>狗坐 0 号座：[1.8, −0.6, 0.8, 0.2] + [0, 1, 0, 1] = [1.8, 0.4, 0.8, 1.2]</td>
+</tr>
+<tr>
+<td>第四步 为什么乘</td>
+<td>音量</td>
+<td><code>torch.randn(512) / math.sqrt(512)</code></td>
+<td>表 E 的数平均 ≈ 0.035；乘 √512 后 ≈ 0.80；位置编码 ≈ 0.58</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键几行</strong>：</p>
+<pre><code class="language-python">emb = nn.Embedding(8, 4)                      # 表 E：8 行（V）× 4 列（d_model），一开始是随机数
+emb.weight.copy_(torch.tensor(E_ROWS))        # 换成讲义里编的那张表（要包在 torch.no_grad() 里）
+x = emb(torch.tensor([1, 2, 3]))              # 查表：&quot;狗 咬 人&quot; → 3 × 4
+
+lm_head = nn.Linear(4, 8, bias=False)         # 输出层：4 个数进、8 个分数出
+lm_head.weight = emb.weight                   # 共用同一张表（不是复制，是同一个参数）
+logits = lm_head(torch.tensor([-1., 2., -1., 2.]))   # h 和每一行做点积 → 8 个分数
+p = torch.softmax(logits, dim=-1)             # 变成概率
+next_id = int(p.argmax())                     # greedy：6 → bites
+</code></pre>
+<p><strong>代码里才看得到的三件事</strong>：</p>
+<ol>
+<li><strong><code>nn.Linear</code> 的 weight 是"输出 × 输入"</strong>：<code>nn.Linear(4, 8)</code> 的 weight 形状是 8 × 4，算的是 <code>h @ weight.T</code>。它和表 E（V × d）形状一模一样，所以共用时直接 <code>lm_head.weight = emb.weight</code>，<strong>不用自己转置</strong>；讲义里的 <span class="arithmatex">\(E^\top\)</span> 藏在 <code>nn.Linear</code> 里面了。nn = neural network（神经 / 网络），PyTorch 放各种"层"的地方。</li>
+<li><strong>共用是"同一个参数"，不是复制一份</strong>：<code>is</code> 判断为 True。训练时输入那头和输出那头调的是同一块内存，这就是第三步说的"两头都在调同一行"。</li>
+<li><strong>表 E 会被训练</strong>：<code>emb.weight.requires_grad</code> 是 True（requires gradient：需要 / 梯度，意思是训练时要算"往哪挪"，续篇第 2 章讲）。生成时只用不学，代码里用 <code>@torch.no_grad()</code> 关掉。</li>
+</ol>
+<p><strong>自己改一改</strong>（不影响练习答案）：</p>
+<ul>
+<li>把 <code>H</code> 改成 [1, −0.5, 0.5, 0]，看 greedy 选出哪个词；它和表里哪一行最像？</li>
+<li>把 <code>H</code> 每个数都乘 3，再跑：最大的概率变大了还是变小了？（对照动画里"h 的长度"那个滑块）</li>
+</ul><nav class="pager"><a href="21-transformer-layer.html">← 第 21 章 · 拼装：一个 Transformer 层；encoder / decoder 全图；三种 attention</a><a href="23-complexity.html">第 23 章 · 复杂度：为什么 attention 是 n²，长文本为什么难 →</a></nav>
 </main>
 <footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
 </body></html>

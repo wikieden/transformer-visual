@@ -49,7 +49,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p>本章回答：一个 Transformer 一共有多少个要学的数（参数），都在哪？论文训练时学习率为什么先升后降？学完 24 章，怎么把 §3 原文从头到尾读一遍？<br />
 讲解日期：2026-11-08 起 · 上一章：<a href="../lessons/23-complexity.html">第 23 章 复杂度</a> · 下一章：无，本书到此结束；续篇是《<a href="https://wikieden.github.io/beyond-transformer/">超越原版 Transformer</a>》<br />
 对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3 全部 L110–L298；Table 3 base 一行 L451–L454；§5.3 Optimizer L363–L376<br />
-本章缩写：参数（parameter：模型里要靠训练学出来的数，比如 <span class="arithmatex">\(W^Q\)</span>、FFN 的 <span class="arithmatex">\(W_1\)</span>、embedding 表 E 里的每一个数）；bias（偏置：矩阵乘完以后再加上的那串数 b）；LN = LayerNorm（层归一化，参数是 γ、β）；M = million（百万：65M = 6500 万）；lr = learning rate（学习 / 率：每一步调参数时迈多大的步子）；step（训练的第几步）；warmup（热身：训练刚开始时学习率从小慢慢升上去）；Adam = Adaptive Moment Estimation（自适应 / 矩 / 估计：论文用的优化器，负责"每个参数往哪调、调多少"）；<span class="arithmatex">\(d_{model}\)</span>、<span class="arithmatex">\(d_{ff}\)</span>、<span class="arithmatex">\(d_k\)</span>、h、N：见第 13、20、21 章。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+本章缩写：参数（parameter：模型里要靠训练学出来的数，比如 <span class="arithmatex">\(W^Q\)</span>、FFN 的 <span class="arithmatex">\(W_1\)</span>、embedding 表 E 里的每一个数）；bias（偏置：矩阵乘完以后再加上的那串数 b）；LN = LayerNorm（层归一化，参数是 γ、β）；M = million（百万：65M = 6500 万）；lr = learning rate（学习 / 率：每一步调参数时迈多大的步子）；step（训练的第几步）；warmup（热身：训练刚开始时学习率从小慢慢升上去）；Adam = Adaptive Moment Estimation（自适应 / 矩 / 估计：论文用的优化器，负责"每个参数往哪调、调多少"）；<span class="arithmatex">\(d_{model}\)</span>、<span class="arithmatex">\(d_{ff}\)</span>、<span class="arithmatex">\(d_k\)</span>、h、N：见第 13、20、21 章；代码里的名字（PyTorch、<code>nn.Linear</code> 等）见附录"PyTorch 对照"。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
 <h2 id="_1">讲解</h2>
 <h3 id="attention-4d2ffn-2dd_ff-embedding-2026-11-08">第一步：数参数：每层 attention 4d²、FFN 2·d·d_ff，再加一张 embedding 表（2026-11-08）</h3>
@@ -396,7 +396,93 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <td>Eq. 3：先线性升，再按 <span class="arithmatex">\(1/\sqrt{\text{step}}\)</span> 降</td>
 </tr>
 </tbody>
-</table><nav class="pager"><a href="23-complexity.html">← 第 23 章 · 复杂度：为什么 attention 是 n²，长文本为什么难</a><span></span></nav>
+</table>
+<h3 id="pytorch">PyTorch 对照：把本章的数字用代码算一遍</h3>
+<blockquote>
+<p>代码在仓库本地 <code>transformer-deep-dive/solutions/chapter-code/ch24_wrap_up.py</code>，配套测试 <code>tests/test_ch23_24.py</code>（在线版不带代码文件，下面摘了关键几行）。Mac 上直接能跑，不需要 GPU：</p>
+<p><code>bash  
+cd transformer-deep-dive/solutions/chapter-code  
+uv run python ch24_wrap_up.py</code></p>
+</blockquote>
+<p><strong>讲义 ↔ 代码</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>讲义</th>
+<th>公式 / 说法</th>
+<th>PyTorch 写法</th>
+<th>跑出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一个 attention 子层</td>
+<td><span class="arithmatex">\(4d_{model}^2\)</span></td>
+<td><code>n_params(nn.MultiheadAttention(4, 2, bias=False))</code></td>
+<td>64</td>
+</tr>
+<tr>
+<td>一个 FFN 子层</td>
+<td><span class="arithmatex">\(2 d_{model} d_{ff}\)</span></td>
+<td>两个 <code>nn.Linear(bias=False)</code></td>
+<td>128</td>
+</tr>
+<tr>
+<td>encoder 层 / decoder 层</td>
+<td>1 个 / 2 个 attention + FFN</td>
+<td><code>n_params(...)</code></td>
+<td>192 / 256</td>
+</tr>
+<tr>
+<td>embedding 表</td>
+<td><span class="arithmatex">\(V \cdot d_{model}\)</span>，三处共用</td>
+<td><code>lm_head.weight = emb.weight</code></td>
+<td>32，只算一次</td>
+</tr>
+<tr>
+<td>整个玩具模型</td>
+<td>2 × 192 + 2 × 256 + 32</td>
+<td><code>n_params(toy)</code></td>
+<td>928</td>
+</tr>
+<tr>
+<td>位置编码没有参数</td>
+<td>固定的 sin、cos</td>
+<td><code>register_buffer</code></td>
+<td>在 buffers 里，不算参数</td>
+</tr>
+<tr>
+<td>warmup 学习率</td>
+<td>Eq. 3</td>
+<td><code>lrate(step)</code></td>
+<td>1000、4000、100000 步：0.000175、0.000699、0.000140</td>
+</tr>
+<tr>
+<td>PyTorch 调度器</td>
+<td>同一条曲线</td>
+<td><code>LambdaLR</code> + <code>Adam(betas=(0.9, 0.98), eps=1e-9)</code></td>
+<td>最高点在第 4000 步</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键几行</strong>：</p>
+<pre><code class="language-python">sum(p.numel() for p in model.parameters())     # 数参数：共用的参数只列一次
+self.lm_head.weight = self.emb.weight           # 共用 embedding 表
+self.register_buffer(&quot;pe&quot;, pe)                  # 位置编码：存着用，但不是参数
+sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: lrate(s + 1))
+</code></pre>
+<p><strong>代码里才看得到的</strong>：</p>
+<ol>
+<li><strong><code>model.parameters()</code> 自动去重</strong>：输出层和 embedding 指向同一个参数，<code>parameters()</code> 只列一次，所以直接加起来就是"共享只算一次"的结果，不用自己减。</li>
+<li><strong>buffer（缓存）不是参数</strong>：位置编码用 <code>register_buffer</code> 存，会跟着模型保存、搬到 GPU，但不参与训练，也不算进参数量。</li>
+<li><strong><code>LambdaLR</code></strong>：优化器的基础学习率设成 1，每一步乘上 <code>lrate(step)</code>，就得到论文那条先升后降的曲线。step 要从 1 开始：0 的 −0.5 次方是无穷大。</li>
+<li><strong>论文的 Adam 设置</strong>（§5.3 L365）：β₁ = 0.9、β₂ = 0.98、ε = <span class="arithmatex">\(10^{-9}\)</span>，代码里照抄。</li>
+</ol>
+<p><strong>自己改一改</strong>：</p>
+<ul>
+<li>题 1 做完以后验证：<code>uv run python -c "from ch24_wrap_up import count_params; print(count_params(512, 8, 2048, 37000, 6))"</code>，和你算的、和 Table 3 的 65M 对一对。</li>
+<li>题 2 做完以后验证：<code>uv run python -c "from ch24_wrap_up import lrate; print(lrate(2000) / lrate(4000))"</code>，16000 步同理。</li>
+</ul><nav class="pager"><a href="23-complexity.html">← 第 23 章 · 复杂度：为什么 attention 是 n²，长文本为什么难</a><span></span></nav>
 </main>
 <footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
 </body></html>

@@ -49,7 +49,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p>本章回答：论文公式里那个 <span class="arithmatex">\(\sqrt{d_k}\)</span> 是干什么的？为什么偏偏是它？<br />
 讲解日期：2026-10-26 · 上一章：<a href="../lessons/07-saturation.html">第 7 章 softmax 饱和</a> · 下一章：<a href="../lessons/09-qkv.html">第 9 章 Q、K、V</a><br />
 对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> L184–L188、脚注 4 L198–L201<br />
-本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；<span class="arithmatex">\(d_h\)</span>：h = head，每个头的维度；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；<span class="arithmatex">\(d_h\)</span>：h = head，每个头的维度；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）；代码里的名字（PyTorch、<code>nn.Linear</code> 等）见附录"PyTorch 对照"。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
 <h2 id="_1">讲解</h2>
 <h3 id="_2">符号：√（平方根）</h3>
@@ -270,7 +270,70 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <td>除以 √d_k 后方差回到 1</td>
 </tr>
 </tbody>
-</table><nav class="pager"><a href="07-saturation.html">← 第 7 章 · softmax 饱和</a><a href="09-qkv.html">第 9 章 · Q、K、V 分别是什么 →</a></nav>
+</table>
+<h3 id="pytorch">PyTorch 对照：把本章的数字用代码算一遍</h3>
+<blockquote>
+<p>代码在仓库本地 <code>transformer-deep-dive/solutions/chapter-code/ch08_sqrt_dk.py</code>，配套测试 <code>tests/test_ch05_08.py</code>（在线版不带代码文件，下面摘了关键几行）。Mac 上直接能跑，不需要 GPU：</p>
+<p><code>bash  
+cd transformer-deep-dive/solutions/chapter-code  
+uv run python ch08_sqrt_dk.py</code></p>
+</blockquote>
+<p><strong>讲义 ↔ 代码</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>讲义</th>
+<th>公式 / 说法</th>
+<th>PyTorch 写法</th>
+<th>跑出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>根号</td>
+<td><span class="arithmatex">\(\sqrt{64}\)</span></td>
+<td><code>math.sqrt(64)</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td>抛 d 次硬币，离 0 多远</td>
+<td>约 <span class="arithmatex">\(\sqrt d\)</span></td>
+<td><code>randint</code> 造 ±1，<code>.sum(1).std()</code></td>
+<td>d = 4、64、512：2.00、7.97、22.79</td>
+</tr>
+<tr>
+<td>随机 q·k</td>
+<td><span class="arithmatex">\(d_k = 64\)</span></td>
+<td><code>(q * k).sum(1).std()</code></td>
+<td>≈ 8.0，除以 8 后 ≈ 0.99</td>
+</tr>
+<tr>
+<td>除以 <span class="arithmatex">\(\sqrt{d_k}\)</span></td>
+<td>[8, −8, 3] ÷ 8</td>
+<td><code>torch.softmax(s / 8, -1)</code></td>
+<td>[0.599, 0.081, 0.320]</td>
+</tr>
+<tr>
+<td>除以 <span class="arithmatex">\(d_k\)</span>（太多）</td>
+<td>[8, −8, 3] ÷ 64</td>
+<td><code>torch.softmax(s / 64, -1)</code></td>
+<td>[0.37, 0.29, 0.34]</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键几行</strong>：</p>
+<pre><code class="language-python">g = torch.Generator().manual_seed(0)                 # 固定随机数，每次跑结果一样
+flips = torch.randint(0, 2, (20000, 64), generator=g).float() * 2 - 1   # 20000 组，每组 64 个 ±1
+flips.sum(dim=1).std()                                # ≈ 8 = √64
+q, k = torch.randn(20000, 64), torch.randn(20000, 64)
+(q * k).sum(dim=1).std()                              # 随机向量的点积也 ≈ 8
+</code></pre>
+<p><strong>代码里才看得到的</strong>：</p>
+<ol>
+<li><strong>用模拟验证 <span class="arithmatex">\(\sqrt d\)</span></strong>：一次抛 2 万组硬币，看总分通常离 0 多远，结果和 <span class="arithmatex">\(\sqrt d\)</span> 几乎一样。std = standard deviation（标准差：通常离平均多远，第 19 章细讲）。</li>
+<li><strong><code>manual_seed</code>（seed：种子）</strong>：随机数从同一个种子出发，每次跑出来都一样，测试才能核对。</li>
+<li><strong><code>randn</code> 造的是均值 0、方差 1 的随机数</strong>：两个这样的 64 维向量做点积，通常就在 ±8 左右，正是论文脚注 4（L198–L201）说的"点积方差 = <span class="arithmatex">\(d_k\)</span>"。</li>
+</ol><nav class="pager"><a href="07-saturation.html">← 第 7 章 · softmax 饱和</a><a href="09-qkv.html">第 9 章 · Q、K、V 分别是什么 →</a></nav>
 </main>
 <footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
 </body></html>

@@ -49,7 +49,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p>本章回答：一层 self-attention 到底要算多少？它和以前的 RNN 比，好在哪、差在哪？句子从几十个词变成几万个词，为什么就难了？<br />
 讲解日期：2026-11-08 起 · 上一章：<a href="../lessons/22-embedding-softmax.html">第 22 章 输入 embedding 与输出 softmax</a> · 下一章：<a href="../lessons/24-wrap-up.html">第 24 章 收尾</a><br />
 对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> Table 1 L263–L272；§4 Why Self-Attention L300–L338<br />
-本章缩写：n = 句子里有几个 token（sequence length：序列 / 长度）；d = <span class="arithmatex">\(d_{model}\)</span>，每个词向量有几个数（d = dimension：维度）；O(·) = Big-O notation（大 O 记号：只看"n、d 变大时，工作量按什么规律涨"，不管前面乘的常数）；RNN = Recurrent Neural Network（循环 / 神经 / 网络：一个词一个词按顺序往下传的老式模型）；CNN = Convolutional Neural Network（卷积 / 神经 / 网络：每次只看相邻几个词的"滑动小窗"）；k = kernel size（卷积核宽度：小窗一次看几个词）；r = 受限 attention 的邻居范围（restricted：受限的）；GPU = Graphics Processing Unit（图形 / 处理 / 单元：能同时做成千上万次乘法的芯片）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+本章缩写：n = 句子里有几个 token（sequence length：序列 / 长度）；d = <span class="arithmatex">\(d_{model}\)</span>，每个词向量有几个数（d = dimension：维度）；O(·) = Big-O notation（大 O 记号：只看"n、d 变大时，工作量按什么规律涨"，不管前面乘的常数）；RNN = Recurrent Neural Network（循环 / 神经 / 网络：一个词一个词按顺序往下传的老式模型）；CNN = Convolutional Neural Network（卷积 / 神经 / 网络：每次只看相邻几个词的"滑动小窗"）；k = kernel size（卷积核宽度：小窗一次看几个词）；r = 受限 attention 的邻居范围（restricted：受限的）；GPU = Graphics Processing Unit（图形 / 处理 / 单元：能同时做成千上万次乘法的芯片）；代码里的名字（PyTorch、<code>nn.Linear</code> 等）见附录"PyTorch 对照"。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
 <h2 id="_1">讲解</h2>
 <h3 id="attention-n2-d2026-11-08">第一步：一层 attention 要算多少：n² · d（2026-11-08）</h3>
@@ -337,7 +337,74 @@ n 比 d 小它更省，n 比 d 大平方咬人。<br />
 <td>attention 比 RNN 省的条件</td>
 </tr>
 </tbody>
-</table><nav class="pager"><a href="22-embedding-softmax.html">← 第 22 章 · 输入 embedding 与输出 softmax：词怎么变成向量，向量怎么变回词</a><a href="24-wrap-up.html">第 24 章 · 收尾：数参数、warmup 学习率、对照原文通读 §3 →</a></nav>
+</table>
+<h3 id="pytorch">PyTorch 对照：把本章的数字用代码算一遍</h3>
+<blockquote>
+<p>代码在仓库本地 <code>transformer-deep-dive/solutions/chapter-code/ch23_complexity.py</code>，配套测试 <code>tests/test_ch23_24.py</code>（在线版不带代码文件，下面摘了关键几行）。Mac 上直接能跑，不需要 GPU：</p>
+<p><code>bash  
+cd transformer-deep-dive/solutions/chapter-code  
+uv run python ch23_complexity.py</code></p>
+</blockquote>
+<p><strong>讲义 ↔ 代码</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>讲义</th>
+<th>公式 / 说法</th>
+<th>PyTorch 写法</th>
+<th>跑出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>打分的乘法次数</td>
+<td><span class="arithmatex">\(n^2 d\)</span></td>
+<td><code>FlopCounterMode</code> 数 <code>q @ k.T</code></td>
+<td>d = 8，n = 4、8、16：128、512、2048</td>
+</tr>
+<tr>
+<td>FLOPs</td>
+<td>乘一次、加一次各算 1 个</td>
+<td><code>counter.get_total_flops()</code></td>
+<td>256、1024、4096 = 2 × 乘法</td>
+</tr>
+<tr>
+<td>和 RNN 比</td>
+<td><span class="arithmatex">\(n^2d\)</span> vs <span class="arithmatex">\(nd^2\)</span></td>
+<td>直接算</td>
+<td>n = 50、d = 512：1,280,000 vs 13,107,200</td>
+</tr>
+<tr>
+<td>RNN 要排队</td>
+<td>一步等一步</td>
+<td><code>nn.RNNCell</code> 的 for 循环</td>
+<td>6 个词算 6 步</td>
+</tr>
+<tr>
+<td>分数表的内存</td>
+<td><span class="arithmatex">\(n^2\)</span> × 2 字节</td>
+<td><code>numel() * element_size()</code></td>
+<td>n = 1000、1 万、10 万：2 MB、200 MB、20 GB</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键几行</strong>：</p>
+<pre><code class="language-python">with FlopCounterMode(display=False) as counter:
+    q @ k.T
+counter.get_total_flops()              # = 2 × n² × d
+for t in range(n):
+    h = cell(x[t], h)                  # RNN：每一步都要用上一步的 h
+</code></pre>
+<p><strong>代码里才看得到的</strong>：</p>
+<ol>
+<li><strong>FLOPs</strong>（floating point operations：浮点 / 运算 次数）：论文和工具数计算量时，乘一次、加一次各算 1 个，所以是乘法次数的 2 倍。以后看到"训练用了多少 FLOPs"就是这个单位（续篇数 FLOPs 那章会用）。</li>
+<li><strong>RNN 只能写成 for 循环</strong>：<code>h = cell(x[t], h)</code> 右边要用上一步的 <code>h</code>，没法让第 5 步和第 4 步同时算；attention 的 <code>q @ k.T</code> 一次交给 GPU。这就是 Table 1 里"排队步数 O(n) vs O(1)"。</li>
+<li><strong>只算不分配</strong>：n = 10 万时一张表 20 GB，真分配会把 Mac 内存撑爆，所以代码里只用乘法算大小。</li>
+</ol>
+<p><strong>自己改一改</strong>：</p>
+<ul>
+<li>练习题（n = 10、20，2000，4000 → 32000）先手算，再改代码里的 n 验证。</li>
+</ul><nav class="pager"><a href="22-embedding-softmax.html">← 第 22 章 · 输入 embedding 与输出 softmax：词怎么变成向量，向量怎么变回词</a><a href="24-wrap-up.html">第 24 章 · 收尾：数参数、warmup 学习率、对照原文通读 §3 →</a></nav>
 </main>
 <footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
 </body></html>

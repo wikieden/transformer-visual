@@ -454,6 +454,157 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 </tr>
 </tbody>
 </table>
+<h2 id="pytorch">代码（PyTorch 对照）</h2>
+<table>
+<thead>
+<tr>
+<th>缩写</th>
+<th>全称</th>
+<th>意思</th>
+<th>第一次出现</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PyTorch</td>
+<td>Python + torch（火炬）</td>
+<td>最常用的深度学习框架；每章附录"PyTorch 对照"用它把讲义的数字算一遍，代码在 <code>solutions/chapter-code/</code></td>
+<td><a href="../lessons/01-vector.html">第 1 章</a></td>
+</tr>
+<tr>
+<td>uv</td>
+<td>—</td>
+<td>Python 的项目和依赖管理工具；<code>uv run</code> 在项目环境里跑命令，第一次会自动装好 PyTorch</td>
+<td><a href="../lessons/01-vector.html">第 1 章</a></td>
+</tr>
+<tr>
+<td>tensor</td>
+<td>—</td>
+<td>张量：PyTorch 里的数据。一串数是 1 维，一张表是 2 维；<code>shape</code> 是每一维有几个数</td>
+<td><a href="../lessons/01-vector.html">第 1 章</a></td>
+</tr>
+<tr>
+<td>float32 / float64 / float16</td>
+<td>32 / 64 / 16-bit floating point</td>
+<td>32 / 64 / 16 位的浮点数（带小数点的数）；float32 约 7 位有效数字，float16 叫半精度</td>
+<td><a href="../lessons/01-vector.html">第 1 章</a></td>
+</tr>
+<tr>
+<td>broadcasting</td>
+<td>—</td>
+<td>广播：形状不同的 tensor 做运算时自动"铺开"，如一串数除以一个数、n × 1 减 1 × 256</td>
+<td><a href="../lessons/03-softmax-ratio.html">第 3 章</a></td>
+</tr>
+<tr>
+<td>nan / inf</td>
+<td>not a number / infinity</td>
+<td>不是一个数 / 无穷大：0 ÷ 0 得 nan，<span class="arithmatex">\(e^{100}\)</span> 在 float32 里得 inf</td>
+<td><a href="../lessons/03-softmax-ratio.html">第 3 章</a></td>
+</tr>
+<tr>
+<td><code>requires_grad</code> / <code>backward()</code></td>
+<td>requires gradient</td>
+<td>需要梯度：标上它，<code>backward()</code> 就能算出"它变一点，结果变多少"，放在 <code>.grad</code> 里</td>
+<td><a href="../lessons/05-power-and-e.html">第 5 章</a></td>
+</tr>
+<tr>
+<td><code>dim=-1</code></td>
+<td>dimension −1</td>
+<td>沿最后一维：softmax、mean 等"每一行内部"算</td>
+<td><a href="../lessons/06-softmax-exp.html">第 6 章</a></td>
+</tr>
+<tr>
+<td>std</td>
+<td>standard deviation</td>
+<td>标准差：通常离平均多远（第 19 章细讲）</td>
+<td><a href="../lessons/08-sqrt-dk.html">第 8 章</a></td>
+</tr>
+<tr>
+<td>seed</td>
+<td>random seed</td>
+<td>随机种子：从同一个种子出发，随机数每次都一样</td>
+<td><a href="../lessons/08-sqrt-dk.html">第 8 章</a></td>
+</tr>
+<tr>
+<td>nn</td>
+<td>neural network</td>
+<td>神经网络：PyTorch 里放各种"层"的模块，如 <code>nn.Linear</code>、<code>nn.Embedding</code></td>
+<td><a href="../lessons/10-matrix-transform.html">第 10 章</a></td>
+</tr>
+<tr>
+<td><code>nn.Linear</code></td>
+<td>linear layer</td>
+<td>线性层：<code>x @ weight.T</code>（+ bias）；weight 存成"输出 × 输入"，是讲义 W 的转置</td>
+<td><a href="../lessons/10-matrix-transform.html">第 10 章</a></td>
+</tr>
+<tr>
+<td><code>no_grad</code></td>
+<td>no gradient</td>
+<td>不记梯度：手动改参数、只用模型不训练时包在 <code>with torch.no_grad():</code> 里</td>
+<td><a href="../lessons/10-matrix-transform.html">第 10 章</a></td>
+</tr>
+<tr>
+<td>SDPA</td>
+<td>Scaled Dot-Product Attention</td>
+<td>缩放 / 点积 / 注意力：<code>F.scaled_dot_product_attention(q, k, v)</code>，PyTorch 自带的公式 (1)</td>
+<td><a href="../lessons/12-transpose-formula.html">第 12 章</a></td>
+</tr>
+<tr>
+<td><code>view</code> / <code>reshape</code> / <code>transpose</code></td>
+<td>—</td>
+<td>换形状不复制 / 换形状（必要时复制）/ 交换两维；多头切分和拼接用它们</td>
+<td><a href="../lessons/13-multi-head.html">第 13 章</a></td>
+</tr>
+<tr>
+<td>cosine similarity</td>
+<td>—</td>
+<td>余弦相似度：两个向量方向有多像，1 = 同方向，0 = 不相干</td>
+<td><a href="../lessons/18-residual.html">第 18 章</a></td>
+</tr>
+<tr>
+<td>dropout</td>
+<td>—</td>
+<td>随机丢掉一部分数，防止死记硬背；<code>.eval()</code> 关掉它</td>
+<td><a href="../lessons/21-transformer-layer.html">第 21 章</a></td>
+</tr>
+<tr>
+<td><code>batch_first</code></td>
+<td>—</td>
+<td>输入形状写成"几句 × 几个词 × 每词几个数"</td>
+<td><a href="../lessons/21-transformer-layer.html">第 21 章</a></td>
+</tr>
+<tr>
+<td><code>nn.Embedding</code></td>
+<td>—</td>
+<td>查表层：V × d 的表，<code>emb(ids)</code> 取出编号对应的行</td>
+<td><a href="../lessons/22-embedding-softmax.html">第 22 章</a></td>
+</tr>
+<tr>
+<td>argmax</td>
+<td>argument of the maximum</td>
+<td>最大值所在的位置（编号），不是最大值本身</td>
+<td><a href="../lessons/22-embedding-softmax.html">第 22 章</a></td>
+</tr>
+<tr>
+<td>FLOPs</td>
+<td>floating point operations</td>
+<td>浮点 / 运算 次数：乘一次、加一次各算 1 个，= 2 × 乘法次数</td>
+<td><a href="../lessons/23-complexity.html">第 23 章</a></td>
+</tr>
+<tr>
+<td>buffer</td>
+<td>—</td>
+<td>缓存：跟着模型保存、搬到 GPU，但不训练、不算参数（如位置编码）</td>
+<td><a href="../lessons/24-wrap-up.html">第 24 章</a></td>
+</tr>
+<tr>
+<td><code>LambdaLR</code></td>
+<td>lambda learning-rate scheduler</td>
+<td>按一个函数每步调学习率的调度器；论文 Eq. 3 就用它实现</td>
+<td><a href="../lessons/24-wrap-up.html">第 24 章</a></td>
+</tr>
+</tbody>
+</table>
 <h2 id="_6">资料</h2>
 <table>
 <thead>

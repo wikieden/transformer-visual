@@ -48,7 +48,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <blockquote>
 <p>本章回答：softmax 公式里的 <span class="arithmatex">\(e^{x}\)</span> 是什么？<br />
 讲解日期：2026-10-26 · 上一章：<a href="../lessons/04-weighted-average.html">第 4 章 按比例取信息</a> · 下一章：<a href="../lessons/06-softmax-exp.html">第 6 章 softmax（下）</a><br />
-本章缩写：softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；exp = exponential（指数）：exp(x) = eˣ；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+本章缩写：softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；exp = exponential（指数）：exp(x) = eˣ；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）；代码里的名字（PyTorch、<code>nn.Linear</code> 等）见附录"PyTorch 对照"。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
 <h2 id="_1">讲解</h2>
 <h3 id="_2">第一步：次方</h3>
@@ -281,7 +281,73 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <td>下一章证明 softmax 性质时要用</td>
 </tr>
 </tbody>
-</table><nav class="pager"><a href="04-weighted-average.html">← 第 4 章 · 按比例取信息：加权平均</a><a href="06-softmax-exp.html">第 6 章 · softmax（下）：为什么要先套 e^x →</a></nav>
+</table>
+<h3 id="pytorch">PyTorch 对照：把本章的数字用代码算一遍</h3>
+<blockquote>
+<p>代码在仓库本地 <code>transformer-deep-dive/solutions/chapter-code/ch05_power_and_e.py</code>，配套测试 <code>tests/test_ch05_08.py</code>（在线版不带代码文件，下面摘了关键几行）。Mac 上直接能跑，不需要 GPU：</p>
+<p><code>bash  
+cd transformer-deep-dive/solutions/chapter-code  
+uv run python ch05_power_and_e.py</code></p>
+</blockquote>
+<p><strong>讲义 ↔ 代码</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>讲义</th>
+<th>公式 / 说法</th>
+<th>PyTorch 写法</th>
+<th>跑出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>次方</td>
+<td><span class="arithmatex">\(2^3, 2^2, \dots, 2^{-2}\)</span></td>
+<td><code>2.0 ** torch.arange(3, -3, -1)</code></td>
+<td>[8, 4, 2, 1, 0.5, 0.25]</td>
+</tr>
+<tr>
+<td>利滚利</td>
+<td><span class="arithmatex">\((1+\tfrac1n)^n\)</span></td>
+<td><code>(1 + 1 / n) ** n</code></td>
+<td>n = 365：2.71457；n = 100 万：2.71828</td>
+</tr>
+<tr>
+<td>e</td>
+<td>e ≈ 2.71828</td>
+<td><code>math.e</code>、<code>torch.exp(torch.tensor(1.0))</code></td>
+<td>2.718281828…、2.7182817</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(e^{x}\)</span></td>
+<td><span class="arithmatex">\(e^{2}, e^{1}, e^{0}, e^{-1}, e^{-2}\)</span></td>
+<td><code>torch.exp(x)</code></td>
+<td>[7.389, 2.718, 1, 0.368, 0.135]</td>
+</tr>
+<tr>
+<td>增长速度 = 自己</td>
+<td><span class="arithmatex">\((e^x)' = e^x\)</span></td>
+<td><code>torch.exp(t).backward()</code></td>
+<td>x = 1 处斜率 2.718</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键几行</strong>：</p>
+<pre><code class="language-python">2.0 ** torch.arange(3, -3, -1)      # ** 是次方
+torch.exp(torch.tensor([2.0, 1.0, 0.0, -1.0, -2.0]))
+t = torch.tensor(1.0, requires_grad=True)
+torch.exp(t).backward()             # 算 e^x 在 x = 1 处的变化率
+t.grad                              # 2.718 = e^1
+</code></pre>
+<p><strong>代码里才看得到的</strong>：</p>
+<ol>
+<li><strong>float32 只有大约 7 位有效数字</strong>：<code>math.e</code> 是 2.718281828459045，<code>torch.exp(1)</code> 是 2.7182817。模型里用的就是这种精度，够用。</li>
+<li><strong><code>requires_grad</code> 和 <code>backward()</code></strong>（requires gradient：需要 / 梯度）：标上 <code>requires_grad=True</code>，PyTorch 会记住这个数参与了哪些计算；<code>backward()</code> 一键算出"它变一点点，结果变多少"（导数），放在 <code>.grad</code> 里。这里验证了 <span class="arithmatex">\(e^x\)</span> 的增长速度等于它自己。训练就靠这个，续篇第 2 章细讲。</li>
+</ol>
+<p><strong>自己改一改</strong>：</p>
+<ul>
+<li>把 <code>t</code> 改成 2.0，<code>.grad</code> 应该是多少？先猜再跑。</li>
+</ul><nav class="pager"><a href="04-weighted-average.html">← 第 4 章 · 按比例取信息：加权平均</a><a href="06-softmax-exp.html">第 6 章 · softmax（下）：为什么要先套 e^x →</a></nav>
 </main>
 <footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
 </body></html>

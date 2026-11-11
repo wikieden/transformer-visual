@@ -49,7 +49,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p>本章回答：公式里的 Q、K、V 是什么？为什么一个词要分出三个向量？<br />
 讲解日期：2026-10-26 · 上一章：<a href="../lessons/08-sqrt-dk.html">第 8 章 除以 √d_k</a> · 下一章：<a href="../lessons/10-matrix-transform.html">第 10 章 转换与矩阵</a><br />
 对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.2，L145–L162<br />
-本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；QK / OV circuit：Query–Key 线路（决定看谁）/ Output–Value 线路（决定拿什么）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；QK / OV circuit：Query–Key 线路（决定看谁）/ Output–Value 线路（决定拿什么）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）；代码里的名字（PyTorch、<code>nn.Linear</code> 等）见附录"PyTorch 对照"。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
 <h2 id="_1">讲解</h2>
 <h3 id="_2">图书馆找书</h3>
@@ -237,7 +237,71 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <td>取信息只用 V</td>
 </tr>
 </tbody>
-</table><nav class="pager"><a href="08-sqrt-dk.html">← 第 8 章 · 为什么除以 √d_k</a><a href="10-matrix-transform.html">第 10 章 · 转换与矩阵：Q、K、V 是怎么变出来的 →</a></nav>
+</table>
+<h3 id="pytorch">PyTorch 对照：把本章的数字用代码算一遍</h3>
+<blockquote>
+<p>代码在仓库本地 <code>transformer-deep-dive/solutions/chapter-code/ch09_qkv.py</code>，配套测试 <code>tests/test_ch09_13.py</code>（在线版不带代码文件，下面摘了关键几行）。Mac 上直接能跑，不需要 GPU：</p>
+<p><code>bash  
+cd transformer-deep-dive/solutions/chapter-code  
+uv run python ch09_qkv.py</code></p>
+</blockquote>
+<p><strong>讲义 ↔ 代码</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>讲义</th>
+<th>公式 / 说法</th>
+<th>PyTorch 写法</th>
+<th>跑出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q 比对 K</td>
+<td>需求 · 每本书的标签</td>
+<td><code>K @ q</code></td>
+<td>[3.0, 0.0, 0.6]</td>
+</tr>
+<tr>
+<td>分比例</td>
+<td>softmax</td>
+<td><code>torch.softmax(scores, -1)</code></td>
+<td>菜谱 0.877、历史 0.044、编程 0.080</td>
+</tr>
+<tr>
+<td>带走 V</td>
+<td>按比例取内容</td>
+<td><code>p @ V</code></td>
+<td>[8.77, 0.44, 0.80]：主要是菜谱知识</td>
+</tr>
+<tr>
+<td>换掉 V</td>
+<td>标签不变</td>
+<td><code>V.flip(0)</code></td>
+<td>比例不变，带走的东西变了</td>
+</tr>
+<tr>
+<td>换掉 K</td>
+<td>内容不变</td>
+<td><code>K.flip(0)</code></td>
+<td>比例变了</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键几行</strong>：</p>
+<pre><code class="language-python">def attend(q, k, v):
+    p = torch.softmax(k @ q, dim=-1)     # 比对只用 k
+    return p, p @ v                      # 带走的是 v
+</code></pre>
+<p><strong>代码里才看得到的</strong>：</p>
+<ol>
+<li><strong>K 决定"看谁"，V 决定"拿什么"</strong>：只换 V，比例一位都不变；只换 K，比例跟着变。所以 K 和 V 要分成两张表、各学各的。</li>
+<li><strong>三个参数的顺序 (q, k, v)</strong>：PyTorch 自带的 <code>F.scaled_dot_product_attention(q, k, v)</code> 也是这个顺序（第 12 章会用到）。</li>
+</ol>
+<p><strong>自己改一改</strong>：</p>
+<ul>
+<li>把 <code>Q</code> 改成 [0, 3]（想找历史书），比例和带走的内容怎么变？</li>
+</ul><nav class="pager"><a href="08-sqrt-dk.html">← 第 8 章 · 为什么除以 √d_k</a><a href="10-matrix-transform.html">第 10 章 · 转换与矩阵：Q、K、V 是怎么变出来的 →</a></nav>
 </main>
 <footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
 </body></html>

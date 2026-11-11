@@ -49,7 +49,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p>本章回答：attention 子层之后，每层还有第二个子层 FFN。它做什么？为什么说它是"逐个位置"的？它的公式、尺寸是什么？现在的大模型把它改成了什么样？<br />
 讲解日期：2026-11-06 起 · 上一章：<a href="../lessons/19-layernorm.html">第 19 章 LayerNorm</a> · 下一章：<a href="../lessons/21-transformer-layer.html">第 21 章 拼装：一个 Transformer 层</a><br />
 对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.3，L240–L251；CS336 handout §3.5.2（L1004 起）<br />
-本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；<span class="arithmatex">\(d_{ff}\)</span>：ff = feed-forward，FFN 中间层有几个数（2048）；FFN = Feed-Forward Network（前馈网络）；LayerNorm / LN = Layer Normalization（层归一化）；RMSNorm = Root Mean Square Normalization（均方根归一化）；ReLU = Rectified Linear Unit（整流线性单元）；sigmoid（σ）= "S 形的"：把任何数压到 0 到 1 之间；SiLU = Sigmoid Linear Unit（又叫 Swish）：x × σ(x)；GLU = Gated Linear Unit（带闸门的线性单元）；SwiGLU = Swish + GLU；⊙ = element-wise product（逐个相乘，又叫 Hadamard 积）；max = maximum（取最大）；GPT = Generative Pre-trained Transformer（生成式预训练 Transformer）；LLaMA = Large Language Model Meta AI（Meta 的开源大模型）；PaLM = Pathways Language Model（Google 的大模型）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；<span class="arithmatex">\(d_{ff}\)</span>：ff = feed-forward，FFN 中间层有几个数（2048）；FFN = Feed-Forward Network（前馈网络）；LayerNorm / LN = Layer Normalization（层归一化）；RMSNorm = Root Mean Square Normalization（均方根归一化）；ReLU = Rectified Linear Unit（整流线性单元）；sigmoid（σ）= "S 形的"：把任何数压到 0 到 1 之间；SiLU = Sigmoid Linear Unit（又叫 Swish）：x × σ(x)；GLU = Gated Linear Unit（带闸门的线性单元）；SwiGLU = Swish + GLU；⊙ = element-wise product（逐个相乘，又叫 Hadamard 积）；max = maximum（取最大）；GPT = Generative Pre-trained Transformer（生成式预训练 Transformer）；LLaMA = Large Language Model Meta AI（Meta 的开源大模型）；PaLM = Pathways Language Model（Google 的大模型）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）；代码里的名字（PyTorch、<code>nn.Linear</code> 等）见附录"PyTorch 对照"。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
 <h2 id="_1">讲解</h2>
 <h3 id="ffn-2026-11-06">第一步：开完会，每个人回自己座位消化：FFN 是"逐个位置"的（2026-11-06）</h3>
@@ -765,7 +765,87 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <td>SwiGLU 的中间层宽度，保参数不变</td>
 </tr>
 </tbody>
-</table><nav class="pager"><a href="19-layernorm.html">← 第 19 章 · LayerNorm：把每个词的数字调到统一范围</a><a href="21-transformer-layer.html">第 21 章 · 拼装：一个 Transformer 层；encoder / decoder 全图；三种 attention →</a></nav>
+</table>
+<h3 id="pytorch">PyTorch 对照：把本章的数字用代码算一遍</h3>
+<blockquote>
+<p>代码在仓库本地 <code>transformer-deep-dive/solutions/chapter-code/ch20_ffn.py</code>，配套测试 <code>tests/test_ch18_21.py</code>（在线版不带代码文件，下面摘了关键几行）。Mac 上直接能跑，不需要 GPU：</p>
+<p><code>bash  
+cd transformer-deep-dive/solutions/chapter-code  
+uv run python ch20_ffn.py</code></p>
+</blockquote>
+<p><strong>讲义 ↔ 代码</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>讲义</th>
+<th>公式 / 说法</th>
+<th>PyTorch 写法</th>
+<th>跑出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ReLU</td>
+<td><span class="arithmatex">\(\max(0, z)\)</span></td>
+<td><code>torch.relu(z)</code></td>
+<td>[3, −1, 0.5, −2] → [3, 0, 0.5, 0]</td>
+</tr>
+<tr>
+<td>FFN</td>
+<td><span class="arithmatex">\(\max(0, xW_1+b_1)W_2+b_2\)</span></td>
+<td><code>nn.Sequential(Linear, ReLU, Linear)</code></td>
+<td>3 × 512 → 3 × 2048 → 3 × 512</td>
+</tr>
+<tr>
+<td>逐个位置</td>
+<td>每个词单独算</td>
+<td>整句 vs 一行一行</td>
+<td>完全一样</td>
+</tr>
+<tr>
+<td>参数</td>
+<td><span class="arithmatex">\(W_1\)</span>、<span class="arithmatex">\(W_2\)</span> 各 512 × 2048</td>
+<td><code>sum(p.numel() ...)</code></td>
+<td>不算 bias 2,097,152 ≈ 210 万</td>
+</tr>
+<tr>
+<td>两次转换 = 一次</td>
+<td><span class="arithmatex">\(xW_1W_2 = x(W_1W_2)\)</span></td>
+<td><code>(v @ w1) @ w2</code> vs <code>v @ (w1 @ w2)</code></td>
+<td>相等；夹 ReLU 后不相等</td>
+</tr>
+<tr>
+<td>sigmoid、SiLU</td>
+<td><span class="arithmatex">\(\sigma(x)\)</span>、<span class="arithmatex">\(x\sigma(x)\)</span></td>
+<td><code>torch.sigmoid</code>、<code>F.silu</code></td>
+<td>x = −1：0.27、−0.27</td>
+</tr>
+<tr>
+<td>GLU 闸门</td>
+<td><span class="arithmatex">\(\odot\)</span></td>
+<td><code>gate * content</code></td>
+<td>[9.8, 5, 0.2]</td>
+</tr>
+<tr>
+<td>SwiGLU 的 <span class="arithmatex">\(d_{ff}\)</span></td>
+<td><span class="arithmatex">\(\tfrac83 d_{model}\)</span> 取 64 的倍数</td>
+<td><code>swiglu_d_ff(512)</code></td>
+<td>1344；参数 2,064,384，和原版差不多</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键几行</strong>：</p>
+<pre><code class="language-python">ffn = nn.Sequential(nn.Linear(512, 2048), nn.ReLU(), nn.Linear(2048, 512))
+class SwiGLU(nn.Module):
+    def forward(self, x):
+        return self.w2(F.silu(self.w1(x)) * self.w3(x))   # * 就是 ⊙
+</code></pre>
+<p><strong>代码里才看得到的</strong>：</p>
+<ol>
+<li><strong>"逐个位置"在代码里是白送的</strong>：<code>nn.Linear</code> 只对最后一维（512 个数）做乘法，前面有几个词都一样处理，所以整句一起算和一个词一个词算，结果完全相同。</li>
+<li><strong><code>nn.Sequential</code></strong>：把几层按顺序串起来，进去的数依次穿过每一层。原版 FFN 正好是"线性 → ReLU → 线性"三步。</li>
+<li><strong>SwiGLU 要自己写一个 <code>nn.Module</code></strong>：它有两条路（闸门、内容）再逐个相乘，不是简单串起来，<code>Sequential</code> 装不下。CS336 a1 要写的就是这个类。</li>
+</ol><nav class="pager"><a href="19-layernorm.html">← 第 19 章 · LayerNorm：把每个词的数字调到统一范围</a><a href="21-transformer-layer.html">第 21 章 · 拼装：一个 Transformer 层；encoder / decoder 全图；三种 attention →</a></nav>
 </main>
 <footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
 </body></html>

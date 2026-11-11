@@ -48,7 +48,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <blockquote>
 <p>本章回答：模型不认识文字，它怎么"看"一个词？<br />
 讲解日期：2026-10-25 · 上一章：— · 下一章：<a href="../lessons/02-dot-product.html">第 2 章 点积</a><br />
-本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；LayerNorm / LN = Layer Normalization（层归一化）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；LayerNorm / LN = Layer Normalization（层归一化）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）；代码里的名字（PyTorch、<code>nn.Linear</code> 等）见附录"PyTorch 对照"。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
 <h2 id="_1">讲解</h2>
 <h3 id="_2">用一串数字描述一个东西</h3>
@@ -203,7 +203,73 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <td>embedding：取表的第 i 行</td>
 </tr>
 </tbody>
-</table><nav class="pager"><span></span><a href="02-dot-product.html">第 2 章 · 点积 dot product →</a></nav>
+</table>
+<h3 id="pytorch">PyTorch 对照：把本章的数字用代码算一遍</h3>
+<blockquote>
+<p>PyTorch（Py = Python，torch = 火炬：最常用的深度学习框架）。从这一章起，每章附录都有这一节：把讲义里那组数字用代码算一遍，测试负责核对和讲义一致。代码在仓库本地 <code>transformer-deep-dive/solutions/chapter-code/ch01_vector.py</code>，配套测试 <code>tests/test_ch01_04.py</code>（在线版不带代码文件，下面摘了关键几行）。Mac 上直接能跑，不需要 GPU；uv 是 Python 的项目和依赖管理工具，<code>uv run</code> 会自动装好 PyTorch：</p>
+<p><code>bash  
+cd transformer-deep-dive/solutions/chapter-code  
+uv run python ch01_vector.py</code></p>
+</blockquote>
+<p><strong>讲义 ↔ 代码</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>讲义</th>
+<th>公式 / 说法</th>
+<th>PyTorch 写法</th>
+<th>跑出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>向量</td>
+<td><span class="arithmatex">\(\mathbf a = [a_1, \dots, a_d]\)</span></td>
+<td><code>torch.tensor([7.0, 5.0, 8.0])</code></td>
+<td>苹果 [7, 5, 8]</td>
+</tr>
+<tr>
+<td>维数</td>
+<td>d</td>
+<td><code>apple.shape</code></td>
+<td><code>(3,)</code>：3 维</td>
+</tr>
+<tr>
+<td>第 i 个数</td>
+<td><span class="arithmatex">\(a_i\)</span></td>
+<td><code>apple[i - 1]</code></td>
+<td><span class="arithmatex">\(a_1\)</span> = <code>apple[0]</code> = 7</td>
+</tr>
+<tr>
+<td>顺序不同就是两个东西</td>
+<td>[7, 5, 8] ≠ [8, 5, 7]</td>
+<td><code>torch.equal(a, b)</code></td>
+<td>False</td>
+</tr>
+<tr>
+<td>论文一个词</td>
+<td><span class="arithmatex">\(d_{model}=512\)</span></td>
+<td><code>torch.randn(512).view(32, 16)</code></td>
+<td>(512,)，画成 32 × 16 的格子</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键几行</strong>：</p>
+<pre><code class="language-python">apple = torch.tensor([7.0, 5.0, 8.0])           # 一个向量；PyTorch 里叫 tensor（张量）
+apple.shape                                     # torch.Size([3])：3 维
+apple[0]                                        # 讲义的 a_1：代码从 0 开始数
+table = torch.stack([apple, melon, lemon])      # 3 个水果摞成一张 3 × 3 的表
+</code></pre>
+<p><strong>代码里才看得到的</strong>：</p>
+<ol>
+<li><strong>下标从 0 数</strong>：讲义的 <span class="arithmatex">\(a_1\)</span> 是代码的 <code>a[0]</code>，<span class="arithmatex">\(a_d\)</span> 是 <code>a[d - 1]</code>（也可以写 <code>a[-1]</code>，倒数第 1 个）。以后公式和代码对照时，这一位的差别最容易出错。</li>
+<li><strong>tensor（张量）</strong>：PyTorch 里所有数据都是 tensor。一串数是 1 维（<code>shape</code> 只有一个数），一张表是 2 维（<code>shape</code> 有两个数，行数和列数）；后面的 Q、K、V 都是 2 维 tensor。</li>
+<li><strong>写 7.0 不写 7</strong>：带小数点才是浮点数（float32：32 位小数，模型里的数都是这种）。写成整数 7 得到的是整数 tensor，做 softmax 这类运算会直接报错。</li>
+</ol>
+<p><strong>自己改一改</strong>：</p>
+<ul>
+<li>把苹果的"红"改成 2（<code>apple2[2] = 2.0</code>），只有第 3 个数变了；为什么是 <code>[2]</code> 不是 <code>[3]</code>？</li>
+</ul><nav class="pager"><span></span><a href="02-dot-product.html">第 2 章 · 点积 dot product →</a></nav>
 </main>
 <footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
 </body></html>

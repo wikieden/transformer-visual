@@ -49,7 +49,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p>本章回答：残差一层层往上加，数字会越来越乱，LayerNorm 怎么把它们整理好？它要用到的平均值、方差是什么？<br />
 讲解日期：2026-11-05 起 · 上一章：<a href="../lessons/18-residual.html">第 18 章 残差连接</a> · 下一章：<a href="../lessons/20-ffn.html">第 20 章 前馈网络 FFN</a><br />
 对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.1，L131–L133；<code>layernorm-1607.06450.txt</code> §3（L100 起）<br />
-本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；FFN = Feed-Forward Network（前馈网络）；LayerNorm / LN = Layer Normalization（层归一化）；RMSNorm = Root Mean Square Normalization（均方根归一化）；BatchNorm = Batch Normalization（批归一化）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；⊙ = element-wise product（逐个相乘，又叫 Hadamard 积）；GPT = Generative Pre-trained Transformer（生成式预训练 Transformer）；LLaMA = Large Language Model Meta AI（Meta 的开源大模型）；PaLM = Pathways Language Model（Google 的大模型）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；FFN = Feed-Forward Network（前馈网络）；LayerNorm / LN = Layer Normalization（层归一化）；RMSNorm = Root Mean Square Normalization（均方根归一化）；BatchNorm = Batch Normalization（批归一化）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；⊙ = element-wise product（逐个相乘，又叫 Hadamard 积）；GPT = Generative Pre-trained Transformer（生成式预训练 Transformer）；LLaMA = Large Language Model Meta AI（Meta 的开源大模型）；PaLM = Pathways Language Model（Google 的大模型）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）；代码里的名字（PyTorch、<code>nn.Linear</code> 等）见附录"PyTorch 对照"。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
 <h2 id="_1">讲解</h2>
 <h3 id="2026-11-05">第一步：为什么要整理：大家"打分松紧"不一样；第一个工具：平均值（2026-11-05）</h3>
@@ -681,7 +681,92 @@ pre-LN 先整理给子层看，批注加回原件；RMSNorm 不减平均，只�
 <td>RMSNorm：不减 μ，没有 β</td>
 </tr>
 </tbody>
-</table><nav class="pager"><a href="18-residual.html">← 第 18 章 · 残差连接：输出 = 输入 + 子层(输入)</a><a href="20-ffn.html">第 20 章 · 前馈网络 FFN：每个词回到自己座位上消化 →</a></nav>
+</table>
+<h3 id="pytorch">PyTorch 对照：把本章的数字用代码算一遍</h3>
+<blockquote>
+<p>代码在仓库本地 <code>transformer-deep-dive/solutions/chapter-code/ch19_layernorm.py</code>，配套测试 <code>tests/test_ch18_21.py</code>（在线版不带代码文件，下面摘了关键几行）。Mac 上直接能跑，不需要 GPU：</p>
+<p><code>bash  
+cd transformer-deep-dive/solutions/chapter-code  
+uv run python ch19_layernorm.py</code></p>
+</blockquote>
+<p><strong>讲义 ↔ 代码</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>讲义</th>
+<th>公式 / 说法</th>
+<th>PyTorch 写法</th>
+<th>跑出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>平均值</td>
+<td><span class="arithmatex">\(\mu\)</span></td>
+<td><code>x.mean(-1)</code></td>
+<td>[2, 4, 6, 8] → 5</td>
+</tr>
+<tr>
+<td>方差</td>
+<td><span class="arithmatex">\(\sigma^2\)</span>，除以 d</td>
+<td><code>x.var(-1, correction=0)</code></td>
+<td>5；[80, 100] → 100</td>
+</tr>
+<tr>
+<td>整理</td>
+<td><span class="arithmatex">\((x-\mu)/\sqrt{\sigma^2+\varepsilon}\)</span></td>
+<td>手写 / <code>F.layer_norm</code></td>
+<td>[−1.342, −0.447, 0.447, 1.342]</td>
+</tr>
+<tr>
+<td>ε 兜底</td>
+<td>[7, 7]</td>
+<td>同上</td>
+<td>[0, 0]，没有 nan</td>
+</tr>
+<tr>
+<td>γ、β</td>
+<td><span class="arithmatex">\(\gamma\hat x + \beta\)</span></td>
+<td><code>gamma * x_hat + beta</code></td>
+<td>[−1, −3, 1.5, 3.5]</td>
+</tr>
+<tr>
+<td>初始值</td>
+<td>γ 全 1、β 全 0</td>
+<td><code>nn.LayerNorm(4).weight / .bias</code></td>
+<td>[1, 1, 1, 1] / [0, 0, 0, 0]</td>
+</tr>
+<tr>
+<td>RMSNorm</td>
+<td><span class="arithmatex">\(x / \text{RMS}(x)\)</span></td>
+<td>手写 / <code>nn.RMSNorm</code></td>
+<td>[1, 7] → [0.2, 1.4]</td>
+</tr>
+<tr>
+<td>pre-LN 主干不整理</td>
+<td><span class="arithmatex">\(x + \text{Sublayer}(\text{LN}(x))\)</span></td>
+<td><code>pre_ln(...) − x</code></td>
+<td>正好等于批注</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键几行</strong>：</p>
+<pre><code class="language-python">mu = x.mean(dim=-1, keepdim=True)
+var = x.var(dim=-1, keepdim=True, correction=0)     # 除以 d，不是 d − 1
+x_hat = (x - mu) / torch.sqrt(var + 1e-5)
+nn.LayerNorm(512)                                   # 自带版：γ、β 各 512 个
+nn.RMSNorm(512)                                     # RMSNorm：只有 g
+</code></pre>
+<p><strong>代码里才看得到的</strong>：</p>
+<ol>
+<li><strong>最大的坑：<code>torch.var</code> 默认除以 d − 1</strong>：[80, 100] 默认算出 200，LayerNorm 要的是除以 d 的 100。统计学里"估计总体方差"习惯除以 d − 1，LayerNorm 不是在估计什么，所以要写 <code>correction=0</code>。</li>
+<li><strong><code>keepdim=True</code></strong>：平均值保持成"每行一个数"的竖条（n × 1），才能用广播从每一行里减掉自己的平均值。</li>
+<li><strong><code>dim=-1</code> 就是"每个词自己整理自己"</strong>：3 个词一起进去，每一行各算各的 μ、σ，出来每行平均 0、方差 1。</li>
+</ol>
+<p><strong>自己改一改</strong>：</p>
+<ul>
+<li>把 <code>correction=0</code> 删掉再跑手写版，和 <code>F.layer_norm</code> 还一样吗？</li>
+</ul><nav class="pager"><a href="18-residual.html">← 第 18 章 · 残差连接：输出 = 输入 + 子层(输入)</a><a href="20-ffn.html">第 20 章 · 前馈网络 FFN：每个词回到自己座位上消化 →</a></nav>
 </main>
 <footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
 </body></html>

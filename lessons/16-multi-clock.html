@@ -49,7 +49,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p>本章回答：一个摩天轮会撞牌，论文怎么解决？正弦位置编码公式每个符号是什么意思？为什么它方便模型看相对位置？<br />
 讲解日期：2026-11-05 · 上一章：<a href="../lessons/15-sin-cos.html">第 15 章 sin 和 cos</a> · 下一章：<a href="../lessons/17-causal-mask.html">第 17 章 因果 mask</a><br />
 对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.5，L276–L299<br />
-本章缩写：<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；pos = position（位置，座位号）；PE = Positional Encoding（位置编码）；sin = sine（正弦）；cos = cosine（余弦）；BERT = Bidirectional Encoder Representations from Transformers（双向 Transformer 编码表示）；RoPE = Rotary Position Embedding（旋转位置编码）；RoFormer = Rotary Transformer（提出 RoPE 的模型）；PPL = perplexity（困惑度，越低越好）；BLEU = Bilingual Evaluation Understudy（翻译评分，越高越好）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+本章缩写：<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；pos = position（位置，座位号）；PE = Positional Encoding（位置编码）；sin = sine（正弦）；cos = cosine（余弦）；BERT = Bidirectional Encoder Representations from Transformers（双向 Transformer 编码表示）；RoPE = Rotary Position Embedding（旋转位置编码）；RoFormer = Rotary Transformer（提出 RoPE 的模型）；PPL = perplexity（困惑度，越低越好）；BLEU = Bilingual Evaluation Understudy（翻译评分，越高越好）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）；代码里的名字（PyTorch、<code>nn.Linear</code> 等）见附录"PyTorch 对照"。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
 <h2 id="_1">讲解</h2>
 <h3 id="2026-11-05">第一步：一个轮子会撞牌，那就多加一个慢轮子（2026-11-05）</h3>
@@ -690,7 +690,74 @@ $$PE_{(pos,\,2i+1)} = \cos\!\left(pos / 10000^{2i/d_{model}}\right)\]</div>
 <td>挪 <span class="arithmatex">\(k\)</span> 个座位 = 每个轮子转固定角度 <span class="arithmatex">\(k\omega_i\)</span>，<span class="arithmatex">\(M_k\)</span> 和 <span class="arithmatex">\(pos\)</span> 无关</td>
 </tr>
 </tbody>
-</table><nav class="pager"><a href="15-sin-cos.html">← 第 15 章 · sin 和 cos：圆上转圈</a><a href="17-causal-mask.html">第 17 章 · 因果 mask：不许偷看后面的词 →</a></nav>
+</table>
+<h3 id="pytorch">PyTorch 对照：把本章的数字用代码算一遍</h3>
+<blockquote>
+<p>代码在仓库本地 <code>transformer-deep-dive/solutions/chapter-code/ch16_multi_clock.py</code>，配套测试 <code>tests/test_ch14_17.py</code>（在线版不带代码文件，下面摘了关键几行）。Mac 上直接能跑，不需要 GPU：</p>
+<p><code>bash  
+cd transformer-deep-dive/solutions/chapter-code  
+uv run python ch16_multi_clock.py</code></p>
+</blockquote>
+<p><strong>讲义 ↔ 代码</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>讲义</th>
+<th>公式 / 说法</th>
+<th>PyTorch 写法</th>
+<th>跑出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>两个轮子</td>
+<td>快 ¼ 圈、慢 ⅛ 圈</td>
+<td><code>two_wheels(seat)</code></td>
+<td>1 号 [0, 1, 0.71, 0.71]，5 号 [0, 1, −0.71, −0.71]</td>
+</tr>
+<tr>
+<td>论文的号码牌</td>
+<td><span class="arithmatex">\(PE_{(pos,2i)}\)</span>、<span class="arithmatex">\(PE_{(pos,2i+1)}\)</span></td>
+<td><code>sinusoidal_pe(100, 512)</code></td>
+<td>100 × 512</td>
+</tr>
+<tr>
+<td>一步多长</td>
+<td><span class="arithmatex">\(1/10000^{2i/d_{model}}\)</span></td>
+<td><code>1 / 10000 ** (2 * i / 512)</code></td>
+<td>第 0、128、255 个轮子：1、0.01、0.000104</td>
+</tr>
+<tr>
+<td>近处看快轮</td>
+<td>1 号 vs 2 号</td>
+<td><code>pe[seat, 0:2]</code></td>
+<td>(0.84, 0.54) vs (0.91, −0.42)</td>
+</tr>
+<tr>
+<td>远处看慢轮</td>
+<td>1 号 vs 45 号</td>
+<td><code>pe[seat, 256:258]</code></td>
+<td>(0.01, 1.00) vs (0.43, 0.90)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键几行</strong>：</p>
+<pre><code class="language-python">pos = torch.arange(n_pos)[:, None]                  # n_pos × 1
+i = torch.arange(d_model // 2)[None, :]             # 1 × 256
+angle = pos / 10000 ** (2 * i / d_model)            # 广播：n_pos × 256，一次算完
+pe[:, 0::2] = torch.sin(angle)                      # 偶数位放 sin
+pe[:, 1::2] = torch.cos(angle)                      # 奇数位放 cos
+</code></pre>
+<p><strong>代码里才看得到的</strong>：</p>
+<ol>
+<li><strong>广播一次算完所有座位、所有轮子</strong>：<code>pos</code> 竖着（n × 1），<code>i</code> 横着（1 × 256），相除自动铺成 n × 256 的表，不用写两层循环。</li>
+<li><strong><code>0::2</code> 和 <code>1::2</code></strong>：从第 0 列开始每隔一列取（偶数列），从第 1 列开始每隔一列取（奇数列）。公式里的 <span class="arithmatex">\(2i\)</span>、<span class="arithmatex">\(2i+1\)</span> 就是这两行。</li>
+<li><strong>第 128 个轮子在第 256、257 列</strong>：第 <span class="arithmatex">\(i\)</span> 个轮子占第 <span class="arithmatex">\(2i\)</span>、<span class="arithmatex">\(2i+1\)</span> 两列，所以 <code>pe[:, 256:258]</code>。</li>
+</ol>
+<p><strong>自己改一改</strong>：</p>
+<ul>
+<li>画一行 <code>pe[1]</code> 和 <code>pe[2]</code> 的前 10 个数、后 10 个数，看快轮那头差得多、慢轮那头几乎一样。</li>
+</ul><nav class="pager"><a href="15-sin-cos.html">← 第 15 章 · sin 和 cos：圆上转圈</a><a href="17-causal-mask.html">第 17 章 · 因果 mask：不许偷看后面的词 →</a></nav>
 </main>
 <footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
 </body></html>

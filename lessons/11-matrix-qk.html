@@ -49,7 +49,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p>本章回答：公式里的大写 Q、K、V 是什么？<span class="arithmatex">\(QK^\top\)</span> 算出来的是什么？<br />
 讲解日期：2026-10-26 · 上一章：<a href="../lessons/10-matrix-transform.html">第 10 章 转换与矩阵</a> · 下一章：<a href="../lessons/12-transpose-formula.html">第 12 章 转置与完整公式</a><br />
 对应原文：<code>materials/text/papers/attention-is-all-you-need-1706.03762.txt</code> §3.2.1，L170–L176（"packed together into a matrix"）<br />
-本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；GPU = Graphics Processing Unit（图形处理器，显卡）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+本章缩写：Q / K / V = Query（查询）/ Key（键）/ Value（值）；<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；GPU = Graphics Processing Unit（图形处理器，显卡）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）；代码里的名字（PyTorch、<code>nn.Linear</code> 等）见附录"PyTorch 对照"。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
 <h2 id="_1">讲解</h2>
 <h3 id="vs">小写 vs 大写</h3>
@@ -178,7 +178,56 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <td>分数表</td>
 </tr>
 </tbody>
-</table><nav class="pager"><a href="10-matrix-transform.html">← 第 10 章 · 转换与矩阵：Q、K、V 是怎么变出来的</a><a href="12-transpose-formula.html">第 12 章 · 转置与公式 1 完整走一遍 →</a></nav>
+</table>
+<h3 id="pytorch">PyTorch 对照：把本章的数字用代码算一遍</h3>
+<blockquote>
+<p>代码在仓库本地 <code>transformer-deep-dive/solutions/chapter-code/ch11_matrix_qk.py</code>，配套测试 <code>tests/test_ch09_13.py</code>（在线版不带代码文件，下面摘了关键几行）。Mac 上直接能跑，不需要 GPU：</p>
+<p><code>bash  
+cd transformer-deep-dive/solutions/chapter-code  
+uv run python ch11_matrix_qk.py</code></p>
+</blockquote>
+<p><strong>讲义 ↔ 代码</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>讲义</th>
+<th>公式 / 说法</th>
+<th>PyTorch 写法</th>
+<th>跑出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>大写 Q</td>
+<td>每一行是一个词的 q</td>
+<td><code>Q.shape</code></td>
+<td>(3, 2)：n = 3、<span class="arithmatex">\(d_k\)</span> = 2</td>
+</tr>
+<tr>
+<td>一格一格算</td>
+<td>第 i 行第 j 列 = <span class="arithmatex">\(\mathbf q_i \cdot \mathbf k_j\)</span></td>
+<td>两层 for 循环，9 次点积</td>
+<td>3 × 3 分数表</td>
+</tr>
+<tr>
+<td>一次算完</td>
+<td><span class="arithmatex">\(QK^\top\)</span></td>
+<td><code>Q @ K.T</code></td>
+<td>[[1, 0, 1], [0, 2, 1], [0, 4, 2]]，和循环一样</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键几行</strong>：</p>
+<pre><code class="language-python">for i in range(n):
+    for j in range(n):
+        table[i, j] = Q[i] @ K[j]      # 一格一格：9 次点积
+Q @ K.T                                # 一次矩阵乘法，结果一样
+</code></pre>
+<p><strong>代码里才看得到的</strong>：</p>
+<ol>
+<li><strong>循环和矩阵乘法结果一模一样，但速度差很多</strong>：循环要 Python 一格一格地算；<code>Q @ K.T</code> 一次交给底层，GPU 上几千格同时算。这就是"排成矩阵"的意义。</li>
+<li><strong><code>K.T</code> 是转置</strong>：先照着用，第 12 章讲为什么要转。</li>
+</ol><nav class="pager"><a href="10-matrix-transform.html">← 第 10 章 · 转换与矩阵：Q、K、V 是怎么变出来的</a><a href="12-transpose-formula.html">第 12 章 · 转置与公式 1 完整走一遍 →</a></nav>
 </main>
 <footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
 </body></html>

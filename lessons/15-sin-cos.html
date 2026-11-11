@@ -49,7 +49,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p>本章回答：sin、cos 是什么？为什么它们适合拿来做位置的"号码牌"？<br />
 讲解日期：2026-11-05 · 上一章：<a href="../lessons/14-positional-encoding.html">第 14 章 位置编码（上）</a> · 下一章：<a href="../lessons/16-multi-clock.html">第 16 章 位置编码（下）：多档时钟</a><br />
 前置：本章是数学前置，不对应论文原文；第 16 章再回到 AIAYN §3.5。<br />
-本章缩写：<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；pos = position（位置，座位号）；PE = Positional Encoding（位置编码）；sin = sine（正弦）；cos = cosine（余弦）；RoPE = Rotary Position Embedding（旋转位置编码）；AIAYN = Attention Is All You Need（本课主论文）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+本章缩写：<span class="arithmatex">\(d_{model}\)</span>：d = dimension（维度），每个词向量有几个数（论文 512）；pos = position（位置，座位号）；PE = Positional Encoding（位置编码）；sin = sine（正弦）；cos = cosine（余弦）；RoPE = Rotary Position Embedding（旋转位置编码）；AIAYN = Attention Is All You Need（本课主论文）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）；代码里的名字（PyTorch、<code>nn.Linear</code> 等）见附录"PyTorch 对照"。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
 <h2 id="_1">讲解</h2>
 <h3 id="1-1-2026-11-05">第一步：坐摩天轮，高度永远在 −1 到 1 之间（2026-11-05）</h3>
@@ -422,7 +422,70 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <td>和角公式，第 16 章和 RoPE 用</td>
 </tr>
 </tbody>
-</table><nav class="pager"><a href="14-positional-encoding.html">← 第 14 章 · 位置编码 positional encoding</a><a href="16-multi-clock.html">第 16 章 · 位置编码（下）：多档时钟 →</a></nav>
+</table>
+<h3 id="pytorch">PyTorch 对照：把本章的数字用代码算一遍</h3>
+<blockquote>
+<p>代码在仓库本地 <code>transformer-deep-dive/solutions/chapter-code/ch15_sin_cos.py</code>，配套测试 <code>tests/test_ch14_17.py</code>（在线版不带代码文件，下面摘了关键几行）。Mac 上直接能跑，不需要 GPU：</p>
+<p><code>bash  
+cd transformer-deep-dive/solutions/chapter-code  
+uv run python ch15_sin_cos.py</code></p>
+</blockquote>
+<p><strong>讲义 ↔ 代码</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>讲义</th>
+<th>公式 / 说法</th>
+<th>PyTorch 写法</th>
+<th>跑出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>圈 → 弧度</td>
+<td>1 圈 = 2π</td>
+<td><code>turns * 2 * math.pi</code></td>
+<td>¼ 圈 = 1.57</td>
+</tr>
+<tr>
+<td>sin 是高度</td>
+<td>0、¼、½、¾、1 圈</td>
+<td><code>torch.sin(rad)</code></td>
+<td>[0, 1, 0, −1, 0, …]</td>
+</tr>
+<tr>
+<td>cos 是左右</td>
+<td>同上</td>
+<td><code>torch.cos(rad)</code></td>
+<td>[1, 0, −1, 0, 1, …]</td>
+</tr>
+<tr>
+<td>转一圈就重复</td>
+<td>sin(1¼ 圈) = sin(¼ 圈)</td>
+<td><code>math.isclose</code></td>
+<td>True</td>
+</tr>
+<tr>
+<td>(cos, sin) 号码牌</td>
+<td>每座多转 ¼ 圈</td>
+<td><code>seat_tag(seat)</code></td>
+<td>3 号 (0, −1)；1000 号 (1, 0)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键几行</strong>：</p>
+<pre><code class="language-python">angle = seat * 0.25 * 2 * math.pi           # 座位号 → 转了几圈 → 弧度
+torch.stack([torch.cos(angle), torch.sin(angle)])   # 号码牌 (cos, sin)
+</code></pre>
+<p><strong>代码里才看得到的</strong>：</p>
+<ol>
+<li><strong><code>torch.sin</code>、<code>torch.cos</code> 只认弧度</strong>：写 <code>torch.sin(90)</code> 得到的不是 1，而是 sin(90 弧度) ≈ 0.89。要从"圈"或"度"换成弧度再算，这正是第五步讲的。</li>
+<li><strong>打印出 −0.0</strong>：cos(¾ 圈) 算出来是 −0.00000000000000018 这种极小的数（float 存不下精确的 π），四舍五入后带着负号。代码里 <code>+ 0.0</code> 把它变回 0.0，不影响任何结果。</li>
+</ol>
+<p><strong>自己改一改</strong>：</p>
+<ul>
+<li>把每座多转的 ¼ 圈改成 1/3 圈，第几号座会和 1 号座撞牌？</li>
+</ul><nav class="pager"><a href="14-positional-encoding.html">← 第 14 章 · 位置编码 positional encoding</a><a href="16-multi-clock.html">第 16 章 · 位置编码（下）：多档时钟 →</a></nav>
 </main>
 <footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
 </body></html>

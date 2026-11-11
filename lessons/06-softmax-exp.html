@@ -48,7 +48,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <blockquote>
 <p>本章回答：既然"除以总分"就能得到比例，softmax 为什么还要多套一步 <span class="arithmatex">\(e^{x}\)</span>？<br />
 讲解日期：2026-10-26 · 上一章：<a href="../lessons/05-power-and-e.html">第 5 章 次方与 e</a> · 下一章：<a href="../lessons/07-saturation.html">第 7 章 softmax 饱和</a><br />
-本章缩写：<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；exp = exponential（指数）：exp(x) = eˣ；RNN = Recurrent Neural Network（循环神经网络）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
+本章缩写：<span class="arithmatex">\(d_k\)</span>：k = key，每个 key 向量有几个数（64）；softmax = soft（柔和的）+ max（取最大）：按大小分比例，不是只挑最大的；exp = exponential（指数）：exp(x) = eˣ；RNN = Recurrent Neural Network（循环神经网络）；CS336 = Stanford 课程 CS 336（Computer Science 336，Language Modeling from Scratch）；代码里的名字（PyTorch、<code>nn.Linear</code> 等）见附录"PyTorch 对照"。全部缩写见 <a href="../lessons/appendix-glossary.html">附录 · 缩写与术语表</a></p>
 </blockquote>
 <h2 id="_1">公式</h2>
 <div class="arithmatex">\[p_j = \frac{e^{s_j}}{\sum_k e^{s_k}}\]</div>
@@ -291,7 +291,66 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <td>log-softmax（log-sum-exp）</td>
 </tr>
 </tbody>
-</table><nav class="pager"><a href="05-power-and-e.html">← 第 5 章 · 次方与 e</a><a href="07-saturation.html">第 7 章 · softmax 饱和 →</a></nav>
+</table>
+<h3 id="pytorch">PyTorch 对照：把本章的数字用代码算一遍</h3>
+<blockquote>
+<p>代码在仓库本地 <code>transformer-deep-dive/solutions/chapter-code/ch06_softmax_exp.py</code>，配套测试 <code>tests/test_ch05_08.py</code>（在线版不带代码文件，下面摘了关键几行）。Mac 上直接能跑，不需要 GPU：</p>
+<p><code>bash  
+cd transformer-deep-dive/solutions/chapter-code  
+uv run python ch06_softmax_exp.py</code></p>
+</blockquote>
+<p><strong>讲义 ↔ 代码</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>讲义</th>
+<th>公式 / 说法</th>
+<th>PyTorch 写法</th>
+<th>跑出来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>朴素版会出负数</td>
+<td>[2, −1, 5] ÷ 6</td>
+<td><code>s / s.sum()</code></td>
+<td>[0.333, −0.167, 0.833]</td>
+</tr>
+<tr>
+<td>先套 <span class="arithmatex">\(e^{x}\)</span> 再除</td>
+<td><span class="arithmatex">\(e^{s_j} / \sum_k e^{s_k}\)</span></td>
+<td><code>e = torch.exp(s); e / e.sum()</code></td>
+<td>[0.047, 0.002, 0.950]</td>
+</tr>
+<tr>
+<td>自带的 softmax</td>
+<td>同上</td>
+<td><code>torch.softmax(s, dim=-1)</code></td>
+<td>[2, 1, 5] → [0.047, 0.017, 0.936]</td>
+</tr>
+<tr>
+<td>取信息</td>
+<td>softmax 比例 × V</td>
+<td><code>torch.softmax(s, -1) @ VALUES</code></td>
+<td>[9.36, 9.83]，几乎就是小红</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键几行</strong>：</p>
+<pre><code class="language-python">e = torch.exp(s)
+p = e / e.sum()                       # 手写 softmax
+torch.softmax(s, dim=-1)              # 自带的，结果一样
+torch.softmax(rows, dim=-1)           # 一张表：每一行各自分比例
+</code></pre>
+<p><strong>代码里才看得到的</strong>：</p>
+<ol>
+<li><strong><code>dim=-1</code>：沿最后一维，也就是每一行内部分比例</strong>。一串数时看不出区别；从第 11 章起分数是一张表，<code>dim</code> 写错就会变成按列分比例，结果全错。</li>
+<li><strong>真正写代码时用 <code>torch.softmax</code>，不要手写</strong>：原因在第 7 章的代码里（数字太大时手写版会坏掉）。</li>
+</ol>
+<p><strong>自己改一改</strong>：</p>
+<ul>
+<li>把 <code>rows</code> 那一行的 <code>dim=-1</code> 改成 <code>dim=0</code>，看哪个方向加起来变成了 1。</li>
+</ul><nav class="pager"><a href="05-power-and-e.html">← 第 5 章 · 次方与 e</a><a href="07-saturation.html">第 7 章 · softmax 饱和 →</a></nav>
 </main>
 <footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
 </body></html>
