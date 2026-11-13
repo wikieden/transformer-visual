@@ -57,14 +57,14 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <hr />
 <h2 id="_2">基础数学</h2>
 <h3 id="r01-7-5-8-8-5-7">R01 · 向量是什么？<code>[7, 5, 8]</code> 和 <code>[8, 5, 7]</code> 一样吗？</h3>
-<p>来源：<a href="lessons/01-vector.html">第 1 章</a> · 加入 2026-10-25 · 复习记录：</p>
+<p>来源：<a href="lessons/01-vector.html">第 1 章</a> · 加入 2026-10-25 · 复习记录： 2026-11-11 ✓（从头复习：顺序不同就不同；柠檬 <span class="arithmatex">\(a_2\)</span> = 3 是"大"，d = 3；代码写 <code>lemon[1]</code>）</p>
 <details>
 <summary>答案</summary>
 <p>向量就是<strong>一串数字，用来描述一个东西</strong>；每个位置的含义固定（比如第 1 个是甜、第 2 个是大、第 3 个是红）。所以两者<strong>不一样</strong>：顺序一换，描述的就是另一个东西。有几个数就叫几维，论文里每个词是 512 维。</p>
 <p>口诀：一串数字描一物，位置含义不能乱。</p>
 </details>
 <h3 id="r02-830130">R02 · 点积怎么算？结果大说明什么？算一下 <code>[8,3,0]·[1,3,0]</code></h3>
-<p>来源：<a href="lessons/02-dot-product.html">第 2 章</a> · 加入 2026-10-25 · 复习记录： 2026-10-26 ✗（把点积结果答成"向量"）；2026-10-26 重做 ✓（[3,0,2]·[1,5,4]=11，一个数）</p>
+<p>来源：<a href="lessons/02-dot-product.html">第 2 章</a> · 加入 2026-10-25 · 复习记录： 2026-10-26 ✗（把点积结果答成"向量"）；2026-10-26 重做 ✓（[3,0,2]·[1,5,4]=11，一个数）；2026-11-11 ✓（从头复习：苹果·香蕉先只写出三项 56、15、0，提示后加成 71；<code>a @ b</code> 是点积，<code>a * b</code> 只乘不加）</p>
 <details>
 <summary>答案</summary>
 <p>同位置相乘，再全部加起来：<span class="arithmatex">\(\mathbf a\cdot\mathbf b=\sum_{i=1}^{d}a_ib_i\)</span>。结果越大，两个向量越"像"。</p>
@@ -100,14 +100,14 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 </details>
 <h2 id="softmax">softmax</h2>
 <h3 id="r06-softmax">R06 · softmax 是做什么的？朴素版公式是什么？</h3>
-<p>来源：<a href="lessons/03-softmax-ratio.html">第 3 章</a> · 加入 2026-10-25 · 复习记录：</p>
+<p>来源：<a href="lessons/03-softmax-ratio.html">第 3 章</a> · 加入 2026-10-25 · 复习记录： 2026-11-11 ✓（从头复习：知道是"每个分数 ÷ 总分"，但 [2, 1, 9] 的总分算错，见 R70）</p>
 <details>
 <summary>答案</summary>
 <p>把一组分数变成<strong>加起来等于 1 的比例</strong>（"归一化"）。朴素版：每个分数除以总分，<span class="arithmatex">\(p_j=s_j/\sum_k s_k\)</span>。例：分数 [2, 1, 5] → [0.25, 0.125, 0.625]。</p>
 <p>口诀：分数变比例，加起来等于一。</p>
 </details>
 <h3 id="r07-softmax-layernorm">R07 · softmax 和 LayerNorm 都叫"归一化"，区别是什么？</h3>
-<p>来源：<a href="lessons/03-softmax-ratio.html">第 3 章</a> · 加入 2026-10-25 · 复习记录：</p>
+<p>来源：<a href="lessons/03-softmax-ratio.html">第 3 章</a> · 加入 2026-10-25 · 复习记录： 2026-11-11 ✓（从头复习：softmax 让一组分数加起来为 1；LayerNorm 让一个向量平均值归 0、范围统一）</p>
 <details>
 <summary>答案</summary>
 <table>
@@ -137,6 +137,14 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 </tbody>
 </table>
 <p>口诀：softmax 分注意，LayerNorm 稳数值。</p>
+</details>
+<h3 id="r70-2-1-9">R70 · 分数 [2, 1, 9] 的朴素比例是多少？怎么检查自己算没算对？</h3>
+<p>来源：<a href="lessons/03-softmax-ratio.html">第 3 章</a> · 加入 2026-11-11（从头复习时总分算成 16，三个比例加起来只有 0.75，却答"是 1"） · 复习记录： 2026-11-11 重做 ✓（12；0.167、0.083、0.75；加起来是 1）</p>
+<details>
+<summary>答案</summary>
+<p>先重新算总分：2 + 1 + 9 = <strong>12</strong>（改了一个分数，总分要跟着重算）。比例：2 ÷ 12 ≈ 0.167，1 ÷ 12 ≈ 0.083，9 ÷ 12 = 0.75。</p>
+<p><strong>验算</strong>：把比例加起来，必须正好是 1。算成 0.75 之类不等于 1 的数，说明总分错了，要回头查，不能直接写"是 1"。</p>
+<p>口诀：改分先重算总分，比例加完必须是一。</p>
 </details>
 <h3 id="r08-softmax-ex-1">R08 · 真正的 softmax 公式是什么？为什么要先套 <span class="arithmatex">\(e^{x}\)</span>（原因 1）？</h3>
 <p>来源：<a href="lessons/06-softmax-exp.html">第 6 章</a> · 加入 2026-10-26 · 复习记录：</p>
