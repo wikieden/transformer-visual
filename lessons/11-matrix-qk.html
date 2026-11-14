@@ -110,15 +110,20 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p><strong>作答</strong>："每个词都有自己的，大写表示集合。" ✓（精确说法：大写 Q 是矩阵，每一行是一个词的 q）</p>
 <p><strong>题 1</strong>：算出"她"那一行的 3 个分数。</p>
 <p><strong>作答</strong>：讲解时选择跳过，直接进入下一章；留作复习题 <strong>R20</strong>（答案折叠在卡片里）。</p>
-<h2 id="_4">本章复习卡片</h2>
+<h2 id="_4">口诀</h2>
+<blockquote>
+<p>小写一个词，大写全部词，一行一个词；<br />
+<span class="arithmatex">\(QK^\top\)</span> 是分数表：行是谁去找，列是被找的，格子是 q · k；排成矩阵一次算完。</p>
+</blockquote>
+<h2 id="_5">本章复习卡片</h2>
 <p>R19 大写 Q 与小写 q · R20 <span class="arithmatex">\(QK^\top\)</span> 分数表（含跳过的练习）（见 <a href="../review.html">../review.md</a>）</p>
-<h2 id="_5">附录 · 延伸阅读</h2>
+<h2 id="_6">附录 · 延伸阅读</h2>
 <blockquote>
 <p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
 - 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
 - CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
 </blockquote>
-<h3 id="_6">推荐阅读</h3>
+<h3 id="_7">推荐阅读</h3>
 <table>
 <thead>
 <tr>
@@ -150,13 +155,13 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 </tr>
 </tbody>
 </table>
-<h3 id="_7">数学原理</h3>
+<h3 id="_8">数学原理</h3>
 <ul>
 <li><strong>矩阵乘法</strong>：结果第 i 行第 j 列 = 左边第 i 行和右边第 j 列的点积。</li>
 <li><strong>分数表</strong>：<span class="arithmatex">\(QK^\top\)</span> 的第 i 行第 j 列 = 第 i 个词的 q 和第 j 个词的 k 的点积，也就是"第 i 个词看第 j 个词"的分数。</li>
 <li><strong>为什么排成矩阵快</strong>：GPU 擅长一次做一大块矩阵乘法，比一个一个词循环快很多。</li>
 </ul>
-<h3 id="_8">公式清单</h3>
+<h3 id="_9">公式清单</h3>
 <table>
 <thead>
 <tr>

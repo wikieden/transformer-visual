@@ -165,15 +165,20 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p><strong>补充</strong>：
 - "她"的 Q 是"我在找一个女性的人"，K 是"我是一个代词"：<strong>"我要找什么"和"我是什么"本来就是两回事</strong>，一个向量装不下两种意思。
 - 如果 Q = K，任何词和自己做点积都很大（自己和自己最像），每个词都会主要盯着自己看，attention 就失去了"去看别人"的作用。</p>
-<h2 id="_6">本章复习卡片</h2>
+<h2 id="_6">口诀</h2>
+<blockquote>
+<p>Q 去问，K 来答"像不像"，V 是最后拿走的东西；<br />
+比对用标签，带走的是内容；每个词三个都有，既找别人，也被别人找。</p>
+</blockquote>
+<h2 id="_7">本章复习卡片</h2>
 <p>R16 Q、K、V 分别是什么（见 <a href="../review.html">review.md</a>）</p>
-<h2 id="_7">附录 · 延伸阅读</h2>
+<h2 id="_8">附录 · 延伸阅读</h2>
 <blockquote>
 <p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
 - 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
 - CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
 </blockquote>
-<h3 id="_8">推荐阅读</h3>
+<h3 id="_9">推荐阅读</h3>
 <table>
 <thead>
 <tr>
@@ -210,12 +215,12 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 </tr>
 </tbody>
 </table>
-<h3 id="_9">数学原理</h3>
+<h3 id="_10">数学原理</h3>
 <ul>
 <li><strong>软查找 soft lookup</strong>：普通字典是"key 完全相等才取 value"；attention 是"每个 key 按相似度给一个比例，所有 value 按比例混合"。</li>
 <li><strong>为什么 Q、K 要分开</strong>：打分可以写成 <span class="arithmatex">\(\mathbf x_i^\top W^Q (W^K)^\top \mathbf x_j\)</span>。中间这个矩阵一般不对称，所以"她看小红"的分数和"小红看她"的分数可以不一样。如果 Q、K 用同一个矩阵，两个方向的分数就被迫相等。</li>
 </ul>
-<h3 id="_10">公式清单</h3>
+<h3 id="_11">公式清单</h3>
 <table>
 <thead>
 <tr>

@@ -138,15 +138,20 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p><strong>点评</strong>：前半句 ✓（调分数比例不变，没有学习信号）。后半句 ✗：饱和导致的是"学不动"，不是过拟合，两者方向相反。</p>
 <p><strong>题 3</strong>：A 训练 99%、新句子 50%；B 怎么调结果都不变。各是什么？</p>
 <p><strong>作答</strong>："A 是过拟合，B 是过饱和。" ✓（用词更正为"饱和"）</p>
-<h2 id="_6">本章复习卡片</h2>
+<h2 id="_6">口诀</h2>
+<blockquote>
+<p>分数太大，比例推到 [0, 0, 1]；再调分数纹丝不动，这叫饱和，学不动。<br />
+饱和是学不进，过拟合是背过头，两回事。</p>
+</blockquote>
+<h2 id="_7">本章复习卡片</h2>
 <p>R12 什么是饱和 · R13 饱和 vs 过拟合（见 <a href="../review.html">review.md</a>）</p>
-<h2 id="_7">附录 · 延伸阅读</h2>
+<h2 id="_8">附录 · 延伸阅读</h2>
 <blockquote>
 <p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
 - 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
 - CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
 </blockquote>
-<h3 id="_8">推荐阅读</h3>
+<h3 id="_9">推荐阅读</h3>
 <table>
 <thead>
 <tr>
@@ -173,13 +178,13 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 </tr>
 </tbody>
 </table>
-<h3 id="_9">数学原理</h3>
+<h3 id="_10">数学原理</h3>
 <ul>
 <li><strong>softmax 的导数</strong>：某个比例对某个分数的变化速度，等于 <span class="arithmatex">\(p_i(\delta_{ij} - p_j)\)</span>。当某个比例接近 1、其他接近 0 时，这个值几乎全是 0，也就是"推不动"。这就是饱和的数学本质。</li>
 <li><strong>梯度下降</strong>（主线 ② 会细讲）：参数每次往"让 loss 变小"的方向挪一小步。梯度接近 0 时，就挪不动了。</li>
 <li><strong>过拟合</strong>：训练集上很好、新数据上很差，是"学得太死"的问题，和饱和（"推不动"）是两回事。</li>
 </ul>
-<h3 id="_10">公式清单</h3>
+<h3 id="_11">公式清单</h3>
 <table>
 <thead>
 <tr>

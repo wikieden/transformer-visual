@@ -584,73 +584,135 @@ Q            K            V
 <p>附录：<a href="../lessons/appendix-glossary.html">缩写与术语表</a>（遇到缩写先查这一页；每章开头另有一行"本章缩写"）。</p>
 <p>章节顺序按"读起来最顺"排，和实际讲解顺序略有不同（第 5 章是讲第 6 章时临时补的前置知识）。</p>
 <h2 id="_6">口诀汇总</h2>
+<p>每章收尾的口诀，按章排好，复习时从上往下念一遍。</p>
 <table>
 <thead>
 <tr>
+<th>章</th>
 <th>概念</th>
 <th>口诀</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>向量</td>
-<td>一串数字描一物，位置含义不能乱</td>
+<td><a href="../lessons/01-vector.html">1</a></td>
+<td>向量 vector</td>
+<td>一串数字描一物，位置含义不能乱。</td>
 </tr>
 <tr>
-<td>点积</td>
-<td>对位相乘再相加，数字越大越像它</td>
+<td><a href="../lessons/02-dot-product.html">2</a></td>
+<td>点积 dot product</td>
+<td>对位相乘再相加，数字越大越像它。</td>
 </tr>
 <tr>
-<td>softmax</td>
-<td>分数变比例，加起来等于一</td>
+<td><a href="../lessons/03-softmax-ratio.html">3</a></td>
+<td>softmax（上）</td>
+<td>分数变比例，加起来等于一。 softmax 分注意，LayerNorm 稳数值。</td>
 </tr>
 <tr>
-<td>区分</td>
-<td>softmax 分注意，LayerNorm 稳数值</td>
+<td><a href="../lessons/04-weighted-average.html">4</a></td>
+<td>按比例取信息</td>
+<td>每个信息乘比例，按位置加成新向量；比例大的说了算。 四步走完：词变向量，点积打分，softmax 分比例，按比例取信息。</td>
 </tr>
 <tr>
-<td>流程</td>
-<td>词变向量 → 点积打分 → softmax 分比例 → 按比例取信息</td>
+<td><a href="../lessons/05-power-and-e.html">5</a></td>
+<td>次方与 e</td>
+<td>几次方就是几个自己相乘；0 次方等于 1，负次方是小数，永远不为负。 e 是利滚利的上限，约 2.718；<span class="arithmatex">\(e^{x}\)</span> 永远是正数，x 大一点涨很多；代码写 exp(x)。</td>
 </tr>
 <tr>
-<td>Q、K、V</td>
-<td>Q 去问，K 来答"像不像"，V 是最后拿走的东西</td>
+<td><a href="../lessons/06-softmax-exp.html">6</a></td>
+<td>softmax（下）</td>
+<td>先套 <span class="arithmatex">\(e^{x}\)</span> 再分比例：负分也变正，比例不会是负的； 每多 1 分多乘一次 2.718，高分更高、低分更低，注意力集中到相关的词上。</td>
 </tr>
 <tr>
-<td>向量乘矩阵</td>
-<td>向量乘矩阵，竖着取列做点积</td>
+<td><a href="../lessons/07-saturation.html">7</a></td>
+<td>softmax 饱和</td>
+<td>分数太大，比例推到 [0, 0, 1]；再调分数纹丝不动，这叫饱和，学不动。 饱和是学不进，过拟合是背过头，两回事。</td>
 </tr>
 <tr>
-<td>多头</td>
-<td>一头只有一组比，多头各看各的戏；拼回原长再汇总</td>
+<td><a href="../lessons/08-sqrt-dk.html">8</a></td>
+<td>为什么除以 <span class="arithmatex">\(\sqrt{d_k}\)</span></td>
+<td>抛 d 次硬币离 0 约 √d，64 个数的点积在 ±8 上下； 除以 <span class="arithmatex">\(\sqrt{d_k}\)</span> 拉回 ±1：不除会饱和，除 <span class="arithmatex">\(d_k\)</span> 变平均，除根号正好。</td>
 </tr>
 <tr>
-<td>位置编码</td>
-<td>号码牌跟座位走，谁坐上来谁戴上；牌不能无限变大，不然盖住词本身</td>
+<td><a href="../lessons/09-qkv.html">9</a></td>
+<td>Q、K、V 分别是什么</td>
+<td>Q 去问，K 来答"像不像"，V 是最后拿走的东西； 比对用标签，带走的是内容；每个词三个都有，既找别人，也被别人找。</td>
 </tr>
 <tr>
-<td>sin、cos</td>
-<td>sin 管高低，cos 管左右；转圈不出正负一，一圈一重复；一圈等于 2π</td>
+<td><a href="../lessons/10-matrix-transform.html">10</a></td>
+<td>转换与矩阵</td>
+<td>一组权重做点积，得到一个新特征；几组权重竖着排，就是矩阵。 向量乘矩阵，竖着取列做点积；行数是原长度，列数是新长度。 同一个 x 乘三个矩阵，变出 q、k、v；矩阵里的数靠训练自己调。</td>
 </tr>
 <tr>
-<td>多档时钟</td>
-<td>快慢轮子排一排；括号里 = 座位号 × 步长；快轮管近，慢轮管远；挪几个座位，每轮转个固定角</td>
+<td><a href="../lessons/11-matrix-qk.html">11</a></td>
+<td>大写的 Q、K、V</td>
+<td>小写一个词，大写全部词，一行一个词； <span class="arithmatex">\(QK^\top\)</span> 是分数表：行是谁去找，列是被找的，格子是 q · k；排成矩阵一次算完。</td>
 </tr>
 <tr>
+<td><a href="../lessons/12-transpose-formula.html">12</a></td>
+<td>转置与公式 1 完整走一遍</td>
+<td>矩阵乘矩阵：左边取行，右边取列，各做一次点积； 转置就是行变列，K 翻过来每列一个 k，才能和 Q 对上； 左边列数等于右边行数，n × d 乘 d × n 得 n × n； 公式 1 四步：打分、缩放、softmax、乘 V。</td>
+</tr>
+<tr>
+<td><a href="../lessons/13-multi-head.html">13</a></td>
+<td>多头注意力 multi-head attention</td>
+<td>一头只有一组比，多头各看各的戏；拼回原长再汇总。</td>
+</tr>
+<tr>
+<td><a href="../lessons/14-positional-encoding.html">14</a></td>
+<td>位置编码 positional encoding</td>
+<td>号码牌跟座位走，谁坐上来谁戴上； 牌不能无限变大，不然盖住词本身。</td>
+</tr>
+<tr>
+<td><a href="../lessons/15-sin-cos.html">15</a></td>
+<td>sin 和 cos</td>
+<td>sin 管高低，cos 管左右； 转圈不出正负一，一圈一重复； 一圈等于 2π，括号里是走了多远。</td>
+</tr>
+<tr>
+<td><a href="../lessons/16-multi-clock.html">16</a></td>
+<td>位置编码（下）</td>
+<td>一个轮子会撞牌，快慢轮子排一排； 括号里 = 座位号 × 步长：pos 管几步，i 管多长； 快轮管近，慢轮管远；挪几个座位，每轮转个固定角。</td>
+</tr>
+<tr>
+<td><a href="../lessons/17-causal-mask.html">17</a></td>
 <td>因果 mask</td>
-<td>后面是答案要遮住；分数表遮右上角，能看填 0，要遮填 −∞；e 的 −∞ 次方是 0</td>
+<td>一次说一个，后面是答案，要遮住； 分数表遮右上角，能看填 0，要遮填 −∞； e 的 −∞ 次方是 0，剩下的重新分成一。</td>
 </tr>
 <tr>
+<td><a href="../lessons/18-residual.html">18</a></td>
 <td>残差连接</td>
-<td>子层只写批注不撕原文：输出 = x + 子层(x)；层层往上加，原词一直在；没话说就写 0</td>
+<td>子层只写批注，不撕原文：输出 = x + 子层(x)； 层层往上加，原词一直在； 要相加就得一样长，没话说就写 0，原样透传。</td>
 </tr>
 <tr>
+<td><a href="../lessons/19-layernorm.html">19</a></td>
 <td>LayerNorm</td>
-<td>先减平均对中心，再除标准差统一宽窄；分母加 ε；整理完乘 γ 加 β；pre-LN 先整理给子层看；RMSNorm 不减平均只除 RMS</td>
+<td>先减平均对中心，再除标准差统一宽窄； 分母加个 ε，防止除以 0； 整理完乘 γ 加 β，模型自己定大小； pre-LN 先整理给子层看，批注加回原件；RMSNorm 不减平均，只除 RMS。</td>
 </tr>
 <tr>
-<td>FFN</td>
-<td>开会靠 attention，消化靠 FFN；先摊开四倍，过门卫负数变 0，再收回；两次转换连着做等于一次；新版 SiLU 加闸门，八分之三保预算</td>
+<td><a href="../lessons/20-ffn.html">20</a></td>
+<td>前馈网络 FFN</td>
+<td>开会靠 attention，消化靠 FFN；每个词各算各的，全班同一套方法； 先摊开四倍，过门卫负数变 0，再收回原长好相加； 两次转换连着做等于一次，中间夹个弯才有用； 新版换 SiLU 加闸门，三个矩阵各变窄，八分之三保预算。</td>
+</tr>
+<tr>
+<td><a href="../lessons/21-transformer-layer.html">21</a></td>
+<td>拼装</td>
+<td>编码一层两道工，开会消化各一回；每道之后加回原稿、调范围，进出 512 能叠六层。 解码一层三道工，看自己（要遮）、查原文（不遮）、再消化；三次 LayerNorm 数工序。 分数表：行看谁提问，列看问了谁；输出几行跟提问的人走。 只有"还没写出来"才要遮：原文早给全，译文后面空。 原文读一次存成 e，译文一轮写一个，取最后一行选下一个，写出结束就收工。</td>
+</tr>
+<tr>
+<td><a href="../lessons/22-embedding-softmax.html">22</a></td>
+<td>输入 embedding 与输出 softmax</td>
+<td>词先换编号，编号查一行；表是学出来的，原文译文都查它。 最后一行去打分，词表每个词一分；softmax 分比例，挑最大或束搜索。 一本字典两头用：正查取向量，反查比相像。 查完乘根号 d，词和座位一样响。</td>
+</tr>
+<tr>
+<td><a href="../lessons/23-complexity.html">23</a></td>
+<td>复杂度</td>
+<td>全班两两握手，n 乘 n 格，每格 d 次乘，n 方乘 d。 句子长一倍，握手变四倍。 RNN 传话要排队，路长信号丢；attention 同时握手，一步直达。 n 比 d 小它更省，n 比 d 大平方咬人。 长文本三条路：只看邻居、分块不存、换掉 softmax。</td>
+</tr>
+<tr>
+<td><a href="../lessons/24-wrap-up.html">24</a></td>
+<td>收尾</td>
+<td>数参数，分零件：attention 四 d 方，FFN 二 d d_ff； 编码一个 attention，解码两个，乘层数再相加；embedding 一张表，位置编码不花钱。 学习率是步子：先直线升四千步，再按根号慢慢降；开头热身别踩崩。 通读 §3 按地图：一段原文一段复述，对上章节再往下。</td>
 </tr>
 </tbody>
 </table>

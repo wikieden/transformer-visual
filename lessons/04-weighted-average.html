@@ -122,15 +122,20 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p><strong>作答</strong>：用户说"继续"，这道题没有自己作答，由讲解给出：
 0.25 × 10 + 0.125 × 0 + 0.625 × 10 = 2.5 + 0 + 6.25 = <strong>8.75</strong>。</p>
 <p><strong>提示</strong>：这题适合复习时自己重算一遍（R10）。</p>
-<h2 id="_7">本章复习卡片</h2>
+<h2 id="_7">口诀</h2>
+<blockquote>
+<p>每个信息乘比例，按位置加成新向量；比例大的说了算。<br />
+四步走完：词变向量，点积打分，softmax 分比例，按比例取信息。</p>
+</blockquote>
+<h2 id="_8">本章复习卡片</h2>
 <p>R09 attention 四步 · R10 按比例取信息（见 <a href="../review.html">review.md</a>）</p>
-<h2 id="_8">附录 · 延伸阅读</h2>
+<h2 id="_9">附录 · 延伸阅读</h2>
 <blockquote>
 <p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
 - 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
 - CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
 </blockquote>
-<h3 id="_9">推荐阅读</h3>
+<h3 id="_10">推荐阅读</h3>
 <table>
 <thead>
 <tr>
@@ -167,12 +172,12 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 </tr>
 </tbody>
 </table>
-<h3 id="_10">数学原理</h3>
+<h3 id="_11">数学原理</h3>
 <ul>
 <li><strong>期望 expectation</strong>：把 softmax 的比例当成概率，"按比例取信息"就是在算 v 的期望值。</li>
 <li><strong>凸组合 convex combination</strong>：权重都 ≥ 0 且加起来是 1 的加权和。结果一定落在这几个 v 的"中间"，不会跑出它们围成的范围。所以 attention 只能<strong>混合</strong>已有的信息，不能凭空造出新方向（新方向要靠后面的 FFN）。</li>
 </ul>
-<h3 id="_11">公式清单</h3>
+<h3 id="_12">公式清单</h3>
 <table>
 <thead>
 <tr>

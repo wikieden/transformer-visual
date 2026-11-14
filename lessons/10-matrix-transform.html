@@ -122,15 +122,21 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <h2 id="_5">公式小结</h2>
 <div class="arithmatex">\[\mathbf x W = [\ \mathbf x\cdot\text{第 1 列},\ \mathbf x\cdot\text{第 2 列},\ \dots\ ]\]</div>
 <div class="arithmatex">\[\mathbf q = \mathbf x W^Q,\qquad \mathbf k = \mathbf x W^K,\qquad \mathbf v = \mathbf x W^V\qquad(W^Q:\ 512\times64)\]</div>
-<h2 id="_6">本章复习卡片</h2>
+<h2 id="_6">口诀</h2>
+<blockquote>
+<p>一组权重做点积，得到一个新特征；几组权重竖着排，就是矩阵。<br />
+向量乘矩阵，竖着取列做点积；行数是原长度，列数是新长度。<br />
+同一个 x 乘三个矩阵，变出 q、k、v；矩阵里的数靠训练自己调。</p>
+</blockquote>
+<h2 id="_7">本章复习卡片</h2>
 <p>R17 矩阵与"向量乘矩阵" · R18 Q、K、V 怎么变出来（见 <a href="../review.html">../review.md</a>）</p>
-<h2 id="_7">附录 · 延伸阅读</h2>
+<h2 id="_8">附录 · 延伸阅读</h2>
 <blockquote>
 <p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
 - 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
 - CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
 </blockquote>
-<h3 id="_8">推荐阅读</h3>
+<h3 id="_9">推荐阅读</h3>
 <table>
 <thead>
 <tr>
@@ -162,14 +168,14 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 </tr>
 </tbody>
 </table>
-<h3 id="_9">数学原理</h3>
+<h3 id="_10">数学原理</h3>
 <ul>
 <li><strong>线性变换</strong>：满足"先加后变 = 先变后加"、"先放大后变 = 先变后放大"的变换。所有线性变换都能写成乘一个矩阵。</li>
 <li><strong>列的含义</strong>：向量乘矩阵时，结果的第 j 个数 = 向量和矩阵第 j 列的点积。每一列就是一个"新特征的配方"。</li>
 <li><strong>形状规则</strong>：(1 × d) 乘 (d × k) 得 (1 × k)。中间的 d 必须相等，结果取两头。</li>
 <li><strong>参数量</strong>：一个 <span class="arithmatex">\(d_{model} \times d_k\)</span> 的矩阵有 <span class="arithmatex">\(d_{model} \cdot d_k\)</span> 个可学习的数（论文里是 512 × 64 = 32768）。</li>
 </ul>
-<h3 id="_10">公式清单</h3>
+<h3 id="_11">公式清单</h3>
 <table>
 <thead>
 <tr>

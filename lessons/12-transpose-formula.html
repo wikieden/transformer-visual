@@ -163,15 +163,22 @@ K^\top=\begin{bmatrix}1 &amp; 0 &amp; 1\\ 0 &amp; 2 &amp; 1\end{bmatrix}\]</div>
 <li>"她"那一行四步：打分 [0, 4, 2] → 除以 √2 → softmax [0.045, 0.769, 0.186] → 乘 V 得 [8.62, 9.07]；</li>
 <li>滑块：改"她"的 q = [0, a]，四步一起重算。</li>
 </ol>
-<h2 id="_6">本章复习卡片</h2>
+<h2 id="_6">口诀</h2>
+<blockquote>
+<p>矩阵乘矩阵：左边取行，右边取列，各做一次点积；<br />
+转置就是行变列，K 翻过来每列一个 k，才能和 Q 对上；<br />
+左边列数等于右边行数，n × d 乘 d × n 得 n × n；<br />
+公式 1 四步：打分、缩放、softmax、乘 V。</p>
+</blockquote>
+<h2 id="_7">本章复习卡片</h2>
 <p>R22 转置 · R23 公式 1 四步完整走一遍（见 <a href="../review.html">../review.md</a>）</p>
-<h2 id="_7">附录 · 延伸阅读</h2>
+<h2 id="_8">附录 · 延伸阅读</h2>
 <blockquote>
 <p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
 - 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
 - CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
 </blockquote>
-<h3 id="_8">推荐阅读</h3>
+<h3 id="_9">推荐阅读</h3>
 <table>
 <thead>
 <tr>
@@ -208,14 +215,14 @@ K^\top=\begin{bmatrix}1 &amp; 0 &amp; 1\\ 0 &amp; 2 &amp; 1\end{bmatrix}\]</div>
 </tr>
 </tbody>
 </table>
-<h3 id="_9">数学原理</h3>
+<h3 id="_10">数学原理</h3>
 <ul>
 <li><strong>转置</strong>：行变列、列变行，第 i 行第 j 列的数换到第 j 行第 i 列。</li>
 <li><strong>乘积的转置</strong>：先转置再反过来乘，<span class="arithmatex">\((AB)^\top = B^\top A^\top\)</span>。推导公式时常用。</li>
 <li><strong>形状检查</strong>：每一步都检查形状能不能乘、结果是几行几列，这是读论文和写代码时最实用的习惯。</li>
 <li><strong>softmax 按行做</strong>：每一行是一个词对所有词的分数，各行分别变成比例。</li>
 </ul>
-<h3 id="_10">公式清单</h3>
+<h3 id="_11">公式清单</h3>
 <table>
 <thead>
 <tr>

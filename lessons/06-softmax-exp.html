@@ -214,15 +214,20 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <p><strong>题 2</strong>：朴素版 62.5% 和 softmax 93.6%，判断"她"指谁时哪个更好？为什么？</p>
 <p><strong>作答</strong>："因为有效的部分被放大比例。" ✓</p>
 <p><strong>点评</strong>：说到点子上了。补充另一半：无关的部分（苹果）同时被压小，取信息时几乎不混进来。</p>
-<h2 id="_5">本章复习卡片</h2>
+<h2 id="_5">口诀</h2>
+<blockquote>
+<p>先套 <span class="arithmatex">\(e^{x}\)</span> 再分比例：负分也变正，比例不会是负的；<br />
+每多 1 分多乘一次 2.718，高分更高、低分更低，注意力集中到相关的词上。</p>
+</blockquote>
+<h2 id="_6">本章复习卡片</h2>
 <p>R08 softmax 公式 + 原因 1 · R11 原因 2（见 <a href="../review.html">review.md</a>）</p>
-<h2 id="_6">附录 · 延伸阅读</h2>
+<h2 id="_7">附录 · 延伸阅读</h2>
 <blockquote>
 <p>留给以后深入学习用，不影响本章主线。★ 是建议先读的。<br />
 - 本地论文的文本版在 <code>materials/text/papers/</code>，表里的行号就是指这个文本版。<br />
 - CS336 handout 在 <code>cs336-spring2025/materials/text/cs336_spring2025_assignment1_basics.txt</code>。</p>
 </blockquote>
-<h3 id="_7">推荐阅读</h3>
+<h3 id="_8">推荐阅读</h3>
 <table>
 <thead>
 <tr>
@@ -254,14 +259,14 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 </tr>
 </tbody>
 </table>
-<h3 id="_8">数学原理</h3>
+<h3 id="_9">数学原理</h3>
 <ul>
 <li><strong>平移不变</strong>：所有分数同时加或减同一个数，softmax 结果不变。所以实现时先减去最大值，避免 <span class="arithmatex">\(e^{x}\)</span> 太大溢出。</li>
 <li><strong>比例只看差值</strong>：两个词的比例之比，只取决于它们分数的差，和分数本身多大无关。</li>
 <li><strong>温度 temperature</strong>：分数先除以 T 再 softmax。T 小 → 差距更大（更"尖"）；T 大 → 更平均。第 8 章的 <span class="arithmatex">\(\sqrt{d_k}\)</span> 本质上就是一个固定的温度。</li>
 <li><strong>log-sum-exp</strong>：softmax 分母取对数，是交叉熵 loss 和 online softmax 的核心。</li>
 </ul>
-<h3 id="_9">公式清单</h3>
+<h3 id="_10">公式清单</h3>
 <table>
 <thead>
 <tr>
