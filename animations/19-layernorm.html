@@ -86,4 +86,5 @@ function reset(){k=0;custom=null;draw()}
 function next(){if(custom!==null){custom=null;draw();return true}if(k>=FR.length-1)return false;k++;draw();return true}
 $('shift').oninput=e=>{ANIM.stop();custom=+e.target.value;$('shiftv').textContent=fmt(custom);draw()};
 setupPlayer({captureSeed:1,reset,next},1600);
-</script></body></html>
+</script><a href="https://wikieden.github.io/ai-books/" style="position:fixed;right:12px;bottom:12px;z-index:99;padding:4px 10px;border-radius:14px;background:rgba(127,127,127,.18);color:inherit;font:13px/1.6 system-ui,sans-serif;text-decoration:none">← 全部讲义书</a>
+</body></html>

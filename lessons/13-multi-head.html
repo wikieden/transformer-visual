@@ -33,7 +33,7 @@ mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
 .lead{font-size:17px;color:var(--mute)}
 footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
 </style>
-<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"],["$$","$$"]],processEscapes:true,processEnvironments:true}};</script>
 <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
 </head><body>
 <header class="top"><div class="in">
@@ -42,6 +42,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <a href="../animations/index.html">动画</a>
 <a href="../review.html">复习卡片</a>
 <a href="../lessons/appendix-glossary.html">缩写表</a>
+<a href="https://wikieden.github.io/ai-books/">← 全部讲义书</a>
 </div></header>
 <main>
 <h1 id="13-multi-head-attention">第 13 章 · 多头注意力 multi-head attention</h1><p><a class="btn" href="../animations/13-multi-head.html">▶ 打开本章可交互动画</a></p>
@@ -310,5 +311,5 @@ out = heads.transpose(0, 1).reshape(n, d) @ w_o        # 拼接，再乘 W^O
 <li><strong><code>nn.MultiheadAttention</code> 的参数</strong>：<span class="arithmatex">\(W^Q\)</span>、<span class="arithmatex">\(W^K\)</span>、<span class="arithmatex">\(W^V\)</span> 竖着摞在一个 <code>in_proj_weight</code>（3d × d）里，<span class="arithmatex">\(W^O\)</span> 在 <code>out_proj</code> 里，合起来正好 <span class="arithmatex">\(4d^2\)</span>，头数只决定怎么切。</li>
 </ol><nav class="pager"><a href="12-transpose-formula.html">← 第 12 章 · 转置与公式 1 完整走一遍</a><a href="14-positional-encoding.html">第 14 章 · 位置编码 positional encoding →</a></nav>
 </main>
-<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a>。更多讲义书：<a href="https://wikieden.github.io/ai-books/">AI 算法图解讲义（合集）</a></footer>
 </body></html>

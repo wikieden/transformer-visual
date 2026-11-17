@@ -33,7 +33,7 @@ mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
 .lead{font-size:17px;color:var(--mute)}
 footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
 </style>
-<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"],["$$","$$"]],processEscapes:true,processEnvironments:true}};</script>
 <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
 </head><body>
 <header class="top"><div class="in">
@@ -42,6 +42,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <a href="../animations/index.html">动画</a>
 <a href="../review.html">复习卡片</a>
 <a href="../lessons/appendix-glossary.html">缩写表</a>
+<a href="https://wikieden.github.io/ai-books/">← 全部讲义书</a>
 </div></header>
 <main>
 <h1 id="20-ffn">第 20 章 · 前馈网络 FFN：每个词回到自己座位上消化</h1><p><a class="btn" href="../animations/20-ffn.html">▶ 打开本章可交互动画</a></p>
@@ -847,5 +848,5 @@ class SwiGLU(nn.Module):
 <li><strong>SwiGLU 要自己写一个 <code>nn.Module</code></strong>：它有两条路（闸门、内容）再逐个相乘，不是简单串起来，<code>Sequential</code> 装不下。CS336 a1 要写的就是这个类。</li>
 </ol><nav class="pager"><a href="19-layernorm.html">← 第 19 章 · LayerNorm：把每个词的数字调到统一范围</a><a href="21-transformer-layer.html">第 21 章 · 拼装：一个 Transformer 层；encoder / decoder 全图；三种 attention →</a></nav>
 </main>
-<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a>。更多讲义书：<a href="https://wikieden.github.io/ai-books/">AI 算法图解讲义（合集）</a></footer>
 </body></html>

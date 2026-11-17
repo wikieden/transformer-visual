@@ -33,7 +33,7 @@ mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
 .lead{font-size:17px;color:var(--mute)}
 footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
 </style>
-<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"],["$$","$$"]],processEscapes:true,processEnvironments:true}};</script>
 <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
 </head><body>
 <header class="top"><div class="in">
@@ -42,6 +42,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <a href="../animations/index.html">动画</a>
 <a href="../review.html">复习卡片</a>
 <a href="../lessons/appendix-glossary.html">缩写表</a>
+<a href="https://wikieden.github.io/ai-books/">← 全部讲义书</a>
 </div></header>
 <main>
 <h1 id="21-transformer-encoder-decoder-attention">第 21 章 · 拼装：一个 Transformer 层；encoder / decoder 全图；三种 attention</h1><p><a class="btn" href="../animations/21-transformer-layer.html">▶ 打开本章可交互动画</a></p>
@@ -961,5 +962,5 @@ out = self.ln3(b + self.ffn(b))                          # ③ 消化
 <li>把原文改成 5 个词、译文 4 个词（第 21 章题 3），三张分数表各是几行几列？先说答案再跑。</li>
 </ul><nav class="pager"><a href="20-ffn.html">← 第 20 章 · 前馈网络 FFN：每个词回到自己座位上消化</a><a href="22-embedding-softmax.html">第 22 章 · 输入 embedding 与输出 softmax：词怎么变成向量，向量怎么变回词 →</a></nav>
 </main>
-<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a>。更多讲义书：<a href="https://wikieden.github.io/ai-books/">AI 算法图解讲义（合集）</a></footer>
 </body></html>

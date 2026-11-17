@@ -33,7 +33,7 @@ mjx-container{overflow-x:auto;overflow-y:hidden;max-width:100%}
 .lead{font-size:17px;color:var(--mute)}
 footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:13px}
 </style>
-<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true,processEnvironments:true},options:{ignoreHtmlClass:".*|",processHtmlClass:"arithmatex"}};</script>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"],["$$","$$"]],processEscapes:true,processEnvironments:true}};</script>
 <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
 </head><body>
 <header class="top"><div class="in">
@@ -42,6 +42,7 @@ footer{max-width:860px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-
 <a href="../animations/index.html">动画</a>
 <a href="../review.html">复习卡片</a>
 <a href="../lessons/appendix-glossary.html">缩写表</a>
+<a href="https://wikieden.github.io/ai-books/">← 全部讲义书</a>
 </div></header>
 <main>
 <h1 id="17-mask">第 17 章 · 因果 mask：不许偷看后面的词</h1><p><a class="btn" href="../animations/17-causal-mask.html">▶ 打开本章可交互动画</a></p>
@@ -574,5 +575,5 @@ F.scaled_dot_product_attention(q, k, v, is_causal=True)          # 自带版
 <li><strong>−inf 写作 <code>float("-inf")</code></strong>：和论文 L237 的 −∞ 一样，是一个真正的"负无穷"，不是很大的负数。</li>
 </ol><nav class="pager"><a href="16-multi-clock.html">← 第 16 章 · 位置编码（下）：多档时钟</a><a href="18-residual.html">第 18 章 · 残差连接：输出 = 输入 + 子层(输入) →</a></nav>
 </main>
-<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a></footer>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a>。更多讲义书：<a href="https://wikieden.github.io/ai-books/">AI 算法图解讲义（合集）</a></footer>
 </body></html>
