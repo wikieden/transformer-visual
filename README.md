@@ -2,7 +2,7 @@
 
 **在线阅读：<https://wikieden.github.io/transformer-visual/>** · [讲义目录](https://wikieden.github.io/transformer-visual/lessons/index.html) · [全部动画](https://wikieden.github.io/transformer-visual/animations/index.html) · [复习卡片](https://wikieden.github.io/transformer-visual/review.html) · [全部讲义书](https://wikieden.github.io/ai-books/)
 
-> 在线阅读：<https://wikieden.github.io/transformer-visual/> · 续篇：《[超越原版 Transformer](https://wikieden.github.io/beyond-transformer/)》
+> 在线阅读：<https://wikieden.github.io/transformer-visual/> · 续篇：《[超越 Transformer](https://wikieden.github.io/beyond-transformer/)》
 > 24 章 · 24 个动画（GIF + 可交互页面）· 69 张复习卡片 · 覆盖论文《Attention Is All You Need》第 3 节全部内容
 
 ## 这本书讲什么
