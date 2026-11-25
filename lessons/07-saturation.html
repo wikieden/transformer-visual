@@ -293,7 +293,7 @@ torch.softmax(torch.tensor([2.0, 1.0, 100.0]), -1)   # 自带版不会坏
 <li><strong><code>torch.softmax</code> 内部先减掉最大值</strong>：分子分母同时除以 <span class="arithmatex">\(e^{\max}\)</span>，结果不变，但最大的那个变成 <span class="arithmatex">\(e^0 = 1\)</span>，永远不会溢出。这就是第 6 章说"不要手写"的原因。</li>
 </ol><nav class="pager"><a href="06-softmax-exp.html">← 第 6 章 · softmax（下）：为什么要先套 e^x</a><a href="08-sqrt-dk.html">第 8 章 · 为什么除以 √d_k →</a></nav>
 </main></div>
-<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a>。更多讲义书：<a href="https://wikieden.github.io/ai-books/">Physical AI 0-1-♾️（合集）</a></footer>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a>。更多讲义书：<a href="https://wikieden.github.io/ai-books/">Physical AI 0-1-♾️（合集）</a><br>联系与合作：<a href="mailto:wikieden@gmail.com">wikieden@gmail.com</a>（讲义勘误与建议、课程 / 企业内训、内容合作与转载授权）· 赞助请发邮件联系</footer>
 <script>(function(){var d=document.documentElement,K=["s","m","l","xl"];
 function save(k,v){try{v?localStorage.setItem(k,v):localStorage.removeItem(k)}catch(e){}}
 var s=document.getElementById("ab-theme");if(s){s.value=d.dataset.theme||"";s.onchange=function(){if(s.value)d.dataset.theme=s.value;else delete d.dataset.theme;save("ab-theme",s.value)}}

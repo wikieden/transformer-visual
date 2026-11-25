@@ -338,7 +338,7 @@ out = heads.transpose(0, 1).reshape(n, d) @ w_o        # 拼接，再乘 W^O
 <li><strong><code>nn.MultiheadAttention</code> 的参数</strong>：<span class="arithmatex">\(W^Q\)</span>、<span class="arithmatex">\(W^K\)</span>、<span class="arithmatex">\(W^V\)</span> 竖着摞在一个 <code>in_proj_weight</code>（3d × d）里，<span class="arithmatex">\(W^O\)</span> 在 <code>out_proj</code> 里，合起来正好 <span class="arithmatex">\(4d^2\)</span>，头数只决定怎么切。</li>
 </ol><nav class="pager"><a href="12-transpose-formula.html">← 第 12 章 · 转置与公式 1 完整走一遍</a><a href="14-positional-encoding.html">第 14 章 · 位置编码 positional encoding →</a></nav>
 </main></div>
-<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a>。更多讲义书：<a href="https://wikieden.github.io/ai-books/">Physical AI 0-1-♾️（合集）</a></footer>
+<footer>来自个人学习仓库的对话讲义，含练习作答记录。源码：<a href="https://github.com/wikieden/transformer-visual">github.com/wikieden/transformer-visual</a>。更多讲义书：<a href="https://wikieden.github.io/ai-books/">Physical AI 0-1-♾️（合集）</a><br>联系与合作：<a href="mailto:wikieden@gmail.com">wikieden@gmail.com</a>（讲义勘误与建议、课程 / 企业内训、内容合作与转载授权）· 赞助请发邮件联系</footer>
 <script>(function(){var d=document.documentElement,K=["s","m","l","xl"];
 function save(k,v){try{v?localStorage.setItem(k,v):localStorage.removeItem(k)}catch(e){}}
 var s=document.getElementById("ab-theme");if(s){s.value=d.dataset.theme||"";s.onchange=function(){if(s.value)d.dataset.theme=s.value;else delete d.dataset.theme;save("ab-theme",s.value)}}

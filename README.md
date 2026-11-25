@@ -71,6 +71,17 @@
 | [23](https://wikieden.github.io/transformer-visual/lessons/23-complexity.html) | 复杂度：为什么 attention 是 n²，长文本为什么难 | 每个词看每个词：n²·d；换来不用排队、一步直达 | [GIF](https://wikieden.github.io/transformer-visual/animations/23-complexity.gif) · [▶ 交互](https://wikieden.github.io/transformer-visual/animations/23-complexity.html) | — | 正文完成，练习待做 |
 | [24](https://wikieden.github.io/transformer-visual/lessons/24-wrap-up.html) | 收尾：数参数、warmup 学习率、对照原文通读 §3 | attention 4d²、FFN 2·d·d_ff；学习率先升后降；§3 通读地图 | [GIF](https://wikieden.github.io/transformer-visual/animations/24-wrap-up.gif) · [▶ 交互](https://wikieden.github.io/transformer-visual/animations/24-wrap-up.html) | — | 正文完成，练习待做 |
 
+## 联系与合作
+
+欢迎来信：<wikieden@gmail.com>。可以合作的方向：
+
+- 讲义勘误与建议
+- 课程 / 企业内训
+- 内容合作与转载授权
+- 赞助本系列持续更新
+
+赞助请发邮件联系。
+
 ---
 
 本仓库由私有学习仓库里的脚本 `tools/publish-transformer/build.py` 自动生成，内容摘自讲义目录，不要直接修改这里的文件。
